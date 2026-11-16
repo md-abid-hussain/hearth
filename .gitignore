@@ -1,0 +1,15 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+
+.env
+.env.*
+!.env.example
+
+mcp.json
+wisp-data/
+
+.DS_Store
+Thumbs.db

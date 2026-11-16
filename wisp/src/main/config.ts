@@ -1,0 +1,85 @@
+import { existsSync } from 'fs'
+import { join, resolve } from 'path'
+import { app } from 'electron'
+import { config as loadDotenv } from 'dotenv'
+import type { ReasoningEffort } from '../shared/types'
+
+export type { ReasoningEffort }
+
+export type LlmProviderName = 'openai' | 'anthropic'
+
+const DEFAULT_MODELS: Record<LlmProviderName, string> = {
+  openai: 'gpt-6-luna',
+  anthropic: 'claude-haiku-4-5'
+}
+
+const REASONING_LEVELS: readonly ReasoningEffort[] = ['none', 'low', 'medium', 'high', 'xhigh', 'max']
+
+export interface WispConfig {
+  smartspectraKey: string
+  assemblyKey: string
+  llmProvider: LlmProviderName
+  llmModel: string
+  reasoningEffort: ReasoningEffort | null
+  openaiKey: string
+  anthropicKey: string
+  composioKey: string
+  ttsVoice: string
+  projectRoot: string
+  dataDir: string
+  mcpConfigPath: string | null
+}
+
+function candidateRoots(): string[] {
+  const appPath = app.getAppPath()
+  return [resolve(appPath, '..'), appPath, process.cwd(), resolve(process.cwd(), '..')]
+}
+
+let cached: WispConfig | null = null
+
+export function loadConfig(): WispConfig {
+  if (cached) return cached
+
+  const roots = candidateRoots()
+  for (const root of roots) {
+    const envPath = join(root, '.env')
+    if (existsSync(envPath)) loadDotenv({ path: envPath, quiet: true })
+  }
+
+  const env = process.env
+  const provider = (env.LLM_PROVIDER ?? 'openai').toLowerCase()
+  const llmProvider: LlmProviderName = provider === 'anthropic' ? 'anthropic' : 'openai'
+  const projectRoot = roots.find((r) => existsSync(join(r, '.env'))) ?? roots[0]
+  const mcpConfigPath =
+    [env.WISP_MCP_CONFIG, join(projectRoot, 'mcp.json'), join(app.getAppPath(), 'mcp.json')]
+      .filter((p): p is string => Boolean(p))
+      .find((p) => existsSync(p)) ?? null
+
+  cached = {
+    smartspectraKey: env.SMARTSPECTRA_API_KEY ?? env.PRESAGE_API_KEY ?? '',
+    assemblyKey: env.ASSEMBLYAI_API_KEY ?? '',
+    llmProvider,
+    llmModel:
+      env.WISP_LLM_MODEL ||
+      (llmProvider === 'openai' ? env.OPENAI_MODEL : env.ANTHROPIC_MODEL) ||
+      DEFAULT_MODELS[llmProvider],
+    reasoningEffort: parseEffort(env.OPENAI_MODEL_REASONING ?? env.LLM_REASONING),
+    openaiKey: env.OPENAI_API_KEY ?? '',
+    anthropicKey: env.ANTHROPIC_API_KEY ?? '',
+    composioKey: env.COMPOSIO_API_KEY ?? '',
+    ttsVoice: env.WISP_TTS_VOICE || 'aai-kyla',
+    projectRoot,
+    dataDir: join(app.getPath('userData'), 'wisp-data'),
+    mcpConfigPath
+  }
+  return cached
+}
+
+function parseEffort(raw: string | undefined): ReasoningEffort | null {
+  const value = raw?.trim().toLowerCase()
+  return REASONING_LEVELS.find((level) => level === value) ?? null
+}
+
+export function llmKeyPresent(cfg: WispConfig): boolean {
+  return cfg.llmProvider === 'openai' ? Boolean(cfg.openaiKey) : Boolean(cfg.anthropicKey)
+}
