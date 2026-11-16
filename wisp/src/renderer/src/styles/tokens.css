@@ -737,18 +737,94 @@ p {
 .md a {
   color: var(--accent);
 }
+.md table {
+  border-collapse: collapse;
+  margin: var(--s-2) 0 var(--s-3);
+  font-family: var(--font-sans);
+  font-size: var(--t-sm);
+}
+.md th,
+.md td {
+  text-align: left;
+  padding: 6px 14px 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.md th {
+  color: var(--muted);
+  font-weight: 600;
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--s-3) 0;
+}
+.md li:empty {
+  display: none;
+}
 .app-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--s-2);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--s-3);
 }
 .app-row {
   display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-2) var(--s-3);
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
   border: 1px solid var(--line);
   border-radius: 10px;
+  min-width: 0;
+}
+.app-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.app-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-actions {
+  display: flex;
+  gap: var(--s-1);
+  flex: none;
+}
+.app-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  line-height: 1.4;
+}
+.app-status .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--faint);
+}
+.app-status.ok .dot {
+  background: var(--accent);
+}
+.app-status.busy .dot {
+  background: var(--amber);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.3;
+  }
+}
+.app-error {
+  font-size: var(--t-sm);
+  color: var(--red);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .app-logo {
   width: 28px;
@@ -760,16 +836,6 @@ p {
   place-items: center;
   font-weight: 600;
   color: var(--muted);
-}
-.app-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.app-name .chip {
-  align-self: flex-start;
 }
 .advanced summary {
   cursor: pointer;

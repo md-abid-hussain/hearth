@@ -62,7 +62,7 @@ export function Dashboard(): React.JSX.Element {
       case 'insights': return <Insights insights={state.insights} />
       case 'memory': return <Memory memory={state.memory} />
       case 'reminders': return <Reminders reminders={state.reminders} log={state.log} />
-      case 'connectors': return <Connectors apps={state.apps} servers={state.mcp} status={state.status} />
+      case 'connectors': return <Connectors servers={state.mcp} status={state.status} />
       case 'voice': return <VoiceModel state={state} />
       case 'privacy': return <Privacy state={state} />
       default: return <Today state={state} history={history} go={setPage} />

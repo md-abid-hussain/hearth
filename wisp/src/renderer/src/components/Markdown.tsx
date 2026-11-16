@@ -1,4 +1,5 @@
 import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 /** Links leave the app: the main process routes new windows to the system browser. */
 const components: Components = {
@@ -9,7 +10,7 @@ const components: Components = {
   )
 }
 
-/** Renders model-written markdown. Raw HTML in the source is shown as text, never parsed. */
+/** Renders model-written markdown with GitHub tables and lists. Raw HTML is never rendered. */
 export function Markdown({
   text,
   className
@@ -19,7 +20,9 @@ export function Markdown({
 }): React.JSX.Element {
   return (
     <div className={className ? `md ${className}` : 'md'}>
-      <ReactMarkdown components={components}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {text}
+      </ReactMarkdown>
     </div>
   )
 }

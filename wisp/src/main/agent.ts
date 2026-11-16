@@ -1,6 +1,5 @@
-import { stepCountIs, streamText, tool, type ModelMessage, type ToolSet } from 'ai'
+import { isStepCount, streamText, tool, type ModelMessage, type ToolSet } from 'ai'
 import { z } from 'zod'
-import { apps } from './composio'
 import { hub } from './hub'
 import { insights } from './insights'
 import { getModel, providerOptions } from './llm'
@@ -19,7 +18,7 @@ Tools:
 - get_vitals: live camera wellness signals (pulse, breathing, HRV, blinks, talking, time since a break).
 - ask_presage_insight: Presage's own read on their physiology, for "how am I doing" questions.
 - set_reminder when asked to be reminded; remember when they share a lasting fact or preference.
-- COMPOSIO tools read the apps listed under Linked apps: search for the right tool, then run it. They are read-only; if asked to send, edit or delete, say you can't and offer what you can read.
+- Tools named "app__tool" read the apps listed under Linked apps. They are read-only; if asked to send, edit or delete, say you can't and offer what you can read.
 
 Rules:
 - Signals are wellness estimates, not medical readings. Never diagnose or suggest treatment; point medical worries to a professional.
@@ -36,7 +35,7 @@ function contextBlock(): string {
     )
     .join('\n')
   const recentInsight = insights.recent(1)[0]
-  const linked = hub.apps.apps.filter((a) => a.connected).map((a) => a.name)
+  const linked = hub.mcp.filter((s) => s.connected).map((s) => s.name)
   return [
     `Now: ${new Date().toLocaleString()}`,
     `Linked apps: ${linked.join(', ') || 'none'}`,
@@ -122,7 +121,6 @@ const ACTIVITY: Record<string, string> = {
 
 function activityFor(toolName: string): string {
   if (ACTIVITY[toolName]) return ACTIVITY[toolName]
-  if (toolName.startsWith('COMPOSIO_')) return 'checking your apps'
   const server = toolName.split('__')[0]
   return `reading ${server}`
 }
@@ -155,8 +153,8 @@ export async function respond(userText: string, onText: (delta: string) => void)
     model: getModel(),
     system: `${PERSONA}\n\n--- Context ---\n${contextBlock()}`,
     messages: [...history, { role: 'user', content: userText }],
-    tools: { ...builtinTools(), ...mcp.toolset(), ...apps.toolset() },
-    stopWhen: stepCountIs(MAX_STEPS),
+    tools: { ...builtinTools(), ...mcp.toolset() },
+    stopWhen: isStepCount(MAX_STEPS),
     maxRetries: 1,
     providerOptions: providerOptions(),
     onToolExecutionStart: ({ toolCall }) => {

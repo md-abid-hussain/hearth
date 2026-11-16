@@ -1,6 +1,5 @@
 import type { BrowserWindow } from 'electron'
 import type {
-  AppsState,
   AppStatus,
   Exchange,
   InsightEntry,
@@ -64,7 +63,6 @@ class Hub {
   reminders: Reminder[] = []
   log: LogEntry[] = []
   mcp: McpServerStatus[] = []
-  apps: AppsState = { configured: false, apps: [], error: null }
   settings: Settings = {
     quietMode: false,
     nudgesEnabled: true,
@@ -119,7 +117,6 @@ class Hub {
       reminders: this.reminders,
       log: this.log,
       mcp: this.mcp,
-      apps: this.apps,
       settings: this.settings,
       status: this.status,
       partialTranscript: this.partialTranscript,

@@ -5,7 +5,6 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { bindSmartSpectraIpc } from '@smartspectra/node-sdk/main'
 import icon from '../../resources/icon.png?asset'
 import type { Settings, WindowRole } from '../shared/types'
-import { apps } from './composio'
 import { llmKeyPresent, loadConfig } from './config'
 import {
   handleUserText,
@@ -95,7 +94,7 @@ function createDashboard(): BrowserWindow {
     win.hide()
   })
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    if (url.startsWith('https://')) void shell.openExternal(url)
     return { action: 'deny' }
   })
   loadRole(win, 'dashboard')
@@ -199,9 +198,10 @@ function registerIpc(): void {
     await mcp.load(loadConfig().mcpConfigPath)
     return hub.mcp
   })
-  ipcMain.handle('wisp:connectApp', (_e, slug: string) => apps.connect(slug))
-  ipcMain.handle('wisp:disconnectApp', (_e, slug: string) => apps.disconnect(slug))
-  ipcMain.handle('wisp:refreshApps', () => apps.refresh())
+  ipcMain.handle('wisp:mcpSignIn', (_e, id: string) => mcp.signIn(id))
+  ipcMain.handle('wisp:mcpCancelSignIn', (_e, id: string) => mcp.cancelSignIn(id))
+  ipcMain.handle('wisp:mcpSignOut', (_e, id: string) => mcp.signOut(id))
+  ipcMain.handle('wisp:mcpAddServer', (_e, name: string, url: string) => mcp.addServer(name, url))
   ipcMain.handle('wisp:wipeData', () => {
     wipeData()
     memory.clear()
@@ -209,6 +209,7 @@ function registerIpc(): void {
     hub.reminders = []
     hub.clearLog()
     hub.record('session', 'All local Wisp data was deleted')
+    void mcp.load(loadConfig().mcpConfigPath)
   })
 }
 
@@ -286,7 +287,6 @@ app.whenReady().then(async () => {
   hub.setMood('idle')
   observer.start(say)
   void mcp.load(cfg.mcpConfigPath)
-  void apps.load()
   warmVoice()
   if (is.dev) watchEventLoop()
 

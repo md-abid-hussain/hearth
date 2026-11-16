@@ -1,23 +1,24 @@
 import { useState } from 'react'
-import { Button, Code } from '@mantine/core'
-import type { AppsState, AppStatus, ConnectedApp, McpServerStatus } from '@shared/types'
+import { Button, Code, TextInput } from '@mantine/core'
+import type { AppStatus, McpServerStatus } from '@shared/types'
 import { PageHeader } from '../shared'
 
 export function Connectors({
-  apps,
   servers,
   status
 }: {
-  apps: AppsState
   servers: McpServerStatus[]
   status: AppStatus
 }): React.JSX.Element {
+  const remote = servers.filter((s) => s.source !== 'mcp.json')
+  const fromFile = servers.filter((s) => s.source === 'mcp.json')
+
   return (
     <div className="page-inner">
       <PageHeader
         eyebrow="Connectors"
         title="Read-only, by design."
-        intro="Sign in to the apps Wisp may read. Composio holds the sign-in; Wisp only ever gets tools tagged read-only, and Composio enforces that when they run."
+        intro="Sign in to an app's own MCP server. Wisp keeps the tokens on this computer, encrypted by Windows, and every tool passes a read-only gate before the model sees it."
       />
 
       <div className="grid-2-even">
@@ -28,7 +29,7 @@ export function Connectors({
           <ul className="list-x">
             <li>Send, reply to or draft a message</li>
             <li>Create, edit, move or delete anything</li>
-            <li>Run code or raw requests against your accounts</li>
+            <li>Run a tool the server marks as destructive</li>
           </ul>
         </div>
         <div className="card solid panel">
@@ -37,107 +38,169 @@ export function Connectors({
           </h3>
           <ul className="list-arrow">
             <li>Your next meetings, to time a break around them</li>
-            <li>Unread mail, issues or messages, summarised</li>
-            <li>Notes and docs you point it at</li>
+            <li>Unread mail, issues or pages, summarised</li>
+            <li>Docs you point it at</li>
           </ul>
         </div>
       </div>
 
-      <AppList state={apps} />
-      <AdvancedMcp servers={servers} status={status} />
-    </div>
-  )
-}
-
-function AppList({ state }: { state: AppsState }): React.JSX.Element {
-  if (!state.configured) {
-    return (
       <div className="card panel">
-        <h3 className="display" style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
-          Apps
-        </h3>
-        <p className="muted" style={{ margin: 0 }}>
-          Add <Code>COMPOSIO_API_KEY</Code> to <Code>.env</Code> and restart Wisp to sign in to
-          Gmail, Calendar, GitHub and more. A free key comes from platform.composio.dev.
-        </p>
+        <div className="panel-head">
+          <h3>Apps</h3>
+        </div>
+        <div className="app-grid">
+          {remote.map((s) => (
+            <AppRow key={s.id} server={s} />
+          ))}
+        </div>
+        <AddServer />
       </div>
-    )
-  }
-  return (
-    <div className="card panel">
-      <div
-        className="panel-head"
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <h3>Apps</h3>
-        <Button size="xs" variant="subtle" onClick={() => void window.wisp.refreshApps()}>
-          Refresh
-        </Button>
-      </div>
-      {state.error && (
-        <p style={{ color: 'var(--red)', margin: '0 0 10px', fontSize: 14 }}>{state.error}</p>
-      )}
-      {state.apps.length === 0 && !state.error && <p className="empty">Loading apps…</p>}
-      <div className="app-grid">
-        {state.apps.map((app) => (
-          <AppRow key={app.slug} app={app} />
+
+      {remote
+        .filter((s) => s.tools.length > 0)
+        .map((s) => (
+          <ToolTable key={s.id} server={s} />
         ))}
-      </div>
+
+      <details className="advanced">
+        <summary className="label">Advanced: servers from mcp.json</summary>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12
+          }}
+        >
+          <span className="label">
+            Config file{' '}
+            <Code ml={6}>{status.mcpConfigPath ?? 'none, copy mcp.example.json next to .env'}</Code>
+          </span>
+          <ReloadButton />
+        </div>
+        {fromFile.map((s) => (
+          <div key={s.id} style={{ marginTop: 12 }}>
+            <AppRow server={s} />
+            {s.tools.length > 0 && <ToolTable server={s} />}
+          </div>
+        ))}
+      </details>
     </div>
   )
 }
 
-function AppRow({ app }: { app: ConnectedApp }): React.JSX.Element {
+function stateLabel(s: McpServerStatus): string {
+  if (s.unavailable) return s.unavailable
+  if (s.auth === 'signingIn') return 'Waiting for you to finish in the browser…'
+  if (s.connected) return `Connected · ${s.tools.filter((t) => t.allowed).length} read tools`
+  if (s.auth === 'signedIn') return 'Signed in, but not connected'
+  if (s.auth === 'signedOut') return 'Not signed in'
+  return 'Not connected'
+}
+
+function AppRow({ server }: { server: McpServerStatus }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
-  const run = async (action: (slug: string) => Promise<void>): Promise<void> => {
+  const signOut = async (): Promise<void> => {
     setBusy(true)
     try {
-      await action(app.slug)
+      await window.wisp.mcpSignOut(server.id)
     } finally {
       setBusy(false)
     }
   }
+  const signingIn = server.auth === 'signingIn'
+  const canSignIn = !server.unavailable && server.auth !== 'none' && !server.connected && !signingIn
+  const canSignOut =
+    server.source !== 'mcp.json' &&
+    !signingIn &&
+    (server.auth === 'signedIn' || server.connected || server.source === 'custom')
+  const tone = server.connected ? 'ok' : signingIn ? 'busy' : server.unavailable ? 'muted' : 'off'
+
   return (
     <div className="app-row">
-      <span className="app-logo" aria-hidden>
-        {app.name.charAt(0)}
-      </span>
-      <div className="app-name">
-        <span>{app.name}</span>
-        <span className="chip">
-          <span className={app.connected ? 'sq' : 'sq off'} />
-          {app.pending
-            ? 'finish signing in, in your browser'
-            : app.connected
-              ? 'connected'
-              : 'not connected'}
+      <div className="app-head">
+        <span className="app-logo" aria-hidden>
+          {server.name.charAt(0)}
         </span>
+        <span className="app-title">{server.name}</span>
+        <div className="app-actions">
+          {signingIn && (
+            <Button
+              size="xs"
+              variant="default"
+              onClick={() => window.wisp.mcpCancelSignIn(server.id)}
+            >
+              Cancel
+            </Button>
+          )}
+          {canSignIn && (
+            <Button size="xs" onClick={() => void window.wisp.mcpSignIn(server.id)}>
+              {server.auth === 'signedIn' ? 'Reconnect' : 'Sign in'}
+            </Button>
+          )}
+          {canSignOut && (
+            <Button size="xs" variant="subtle" color="gray" loading={busy} onClick={signOut}>
+              {server.source === 'custom' ? 'Remove' : 'Sign out'}
+            </Button>
+          )}
+        </div>
       </div>
-      {app.connected ? (
-        <Button
-          size="xs"
-          variant="default"
-          loading={busy}
-          onClick={() => run(window.wisp.disconnectApp)}
-        >
-          Disconnect
-        </Button>
-      ) : (
-        <Button size="xs" loading={busy || app.pending} onClick={() => run(window.wisp.connectApp)}>
-          Connect
-        </Button>
-      )}
+      <div className={`app-status ${tone}`}>
+        <span className="dot" />
+        {stateLabel(server)}
+      </div>
+      {server.error && <div className="app-error">{server.error}</div>}
     </div>
   )
 }
 
-function AdvancedMcp({
-  servers,
-  status
-}: {
-  servers: McpServerStatus[]
-  status: AppStatus
-}): React.JSX.Element {
+function AddServer(): React.JSX.Element {
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const add = async (): Promise<void> => {
+    setBusy(true)
+    try {
+      const problem = await window.wisp.mcpAddServer(name, url)
+      setError(problem)
+      if (!problem) {
+        setName('')
+        setUrl('')
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <span className="label">Any other app with a remote MCP server</span>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' }}>
+        <TextInput
+          size="xs"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+        />
+        <TextInput
+          size="xs"
+          placeholder="https://mcp.example.com/mcp"
+          style={{ flex: 1 }}
+          value={url}
+          error={error}
+          onChange={(e) => setUrl(e.currentTarget.value)}
+        />
+        <Button size="xs" variant="default" loading={busy} disabled={!name || !url} onClick={add}>
+          Add
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function ReloadButton(): React.JSX.Element {
   const [loading, setLoading] = useState(false)
   const reload = async (): Promise<void> => {
     setLoading(true)
@@ -147,79 +210,44 @@ function AdvancedMcp({
       setLoading(false)
     }
   }
-
   return (
-    <details className="advanced">
-      <summary className="label">Advanced: your own MCP servers</summary>
-      <p className="muted" style={{ fontSize: 14 }}>
-        Local or self-hosted MCP servers go in mcp.json. Every tool passes a read-only gate before
-        the model sees it.
-      </p>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 12
-        }}
-      >
-        <span className="label">
-          Config file{' '}
-          <Code ml={6}>{status.mcpConfigPath ?? 'none, copy mcp.example.json next to .env'}</Code>
-        </span>
-        <Button size="xs" variant="default" loading={loading} onClick={reload}>
-          Reload mcp.json
-        </Button>
-      </div>
+    <Button size="xs" variant="default" loading={loading} onClick={reload}>
+      Reload
+    </Button>
+  )
+}
 
-      {servers.map((s) => {
-        const allowed = s.tools.filter((t) => t.allowed).length
-        return (
-          <div key={s.name} className="card panel" style={{ marginBottom: 12 }}>
-            <div className="panel-head">
-              <h3>
-                {s.name}{' '}
-                <span className="chip" style={{ marginLeft: 8 }}>
-                  <span className={s.connected ? 'sq' : 'sq off'} />
-                  {s.connected
-                    ? `connected, ${allowed} read, ${s.tools.length - allowed} blocked`
-                    : 'failed'}
+function ToolTable({ server }: { server: McpServerStatus }): React.JSX.Element {
+  return (
+    <details className="card panel advanced">
+      <summary className="label">
+        {server.name}: {server.tools.filter((t) => !t.allowed).length} of {server.tools.length}{' '}
+        tools blocked
+      </summary>
+      <table className="plain">
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Decision</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          {server.tools.map((t) => (
+            <tr key={t.name}>
+              <td>
+                <code>{t.name}</code>
+              </td>
+              <td>
+                <span className={t.allowed ? 'tag ok' : 'tag no'}>
+                  {t.allowed ? 'allowed' : 'blocked'}
                 </span>
-              </h3>
-            </div>
-            {s.error && (
-              <p style={{ color: 'var(--red)', margin: '0 0 10px', fontSize: 14 }}>{s.error}</p>
-            )}
-            {s.tools.length > 0 && (
-              <table className="plain">
-                <thead>
-                  <tr>
-                    <th>Tool</th>
-                    <th>Decision</th>
-                    <th>Why</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.tools.map((t) => (
-                    <tr key={t.name}>
-                      <td>
-                        <code>{t.name}</code>
-                      </td>
-                      <td>
-                        <span className={t.allowed ? 'tag ok' : 'tag no'}>
-                          {t.allowed ? 'allowed' : 'blocked'}
-                        </span>
-                      </td>
-                      <td className="muted">{t.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )
-      })}
+              </td>
+              <td className="muted">{t.reason}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </details>
   )
 }

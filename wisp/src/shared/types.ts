@@ -81,27 +81,26 @@ export interface McpToolInfo {
   reason: string
 }
 
+/**
+ * - none: the server needs no sign-in, or its credentials come from mcp.json
+ * - signedOut: it answered 401 and is waiting for the user to sign in
+ * - signingIn: the browser sign-in is open
+ * - signedIn: OAuth tokens are stored and working
+ */
+export type McpAuthState = 'none' | 'signedOut' | 'signingIn' | 'signedIn'
+
 export interface McpServerStatus {
+  /** Stable key used for sign-in calls: a preset id, a custom id or the mcp.json name. */
+  id: string
   name: string
+  source: 'preset' | 'custom' | 'mcp.json'
+  url: string | null
+  auth: McpAuthState
+  /** Why a preset cannot be used yet, such as a missing OAuth client in .env. */
+  unavailable: string | null
   connected: boolean
   error: string | null
   tools: McpToolInfo[]
-}
-
-/** An app the user can link through Composio's hosted sign-in. */
-export interface ConnectedApp {
-  slug: string
-  name: string
-  connected: boolean
-  /** True while a sign-in started from Wisp is waiting for the browser. */
-  pending: boolean
-}
-
-export interface AppsState {
-  /** False when COMPOSIO_API_KEY is missing from .env. */
-  configured: boolean
-  apps: ConnectedApp[]
-  error: string | null
 }
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -163,7 +162,6 @@ export interface WispState {
   reminders: Reminder[]
   log: LogEntry[]
   mcp: McpServerStatus[]
-  apps: AppsState
   settings: Settings
   status: AppStatus
   partialTranscript: string

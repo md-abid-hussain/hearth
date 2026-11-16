@@ -10,9 +10,6 @@ import {
 
 type StreamListener = (stream: MediaStream | null) => void
 
-const START_RETRY_DELAY_MS = 2_000
-const NETWORK_RETRY_DELAY_MS = 3_000
-
 /**
  * Every frame is copied from this renderer to the main process, so the SDK's default
  * 1280x720 costs about three times the bandwidth of 640x480 and can starve both
@@ -171,11 +168,6 @@ class Sensing {
   private sdk: SmartSpectraSDK | null = null
   private listeners = new Set<StreamListener>()
   private lastError: SensingError | null = null
-  private telemetry = false
-  /** One automatic restart per user-started session, so a dead network does not loop. */
-  private retriedNetwork = false
-  /** Bumped by stop(), so a pending automatic restart is abandoned. */
-  private generation = 0
   stream: MediaStream | null = null
   running = false
 
@@ -217,66 +209,40 @@ class Sensing {
     return sdk
   }
 
-  start(telemetry: boolean): Promise<void> {
-    this.retriedNetwork = false
-    return this.begin(telemetry)
-  }
-
-  private async begin(telemetry: boolean): Promise<void> {
+  /** One attempt. Per the SDK docs a retryable failure is the user's to retry, never automatic. */
+  async start(telemetry: boolean): Promise<void> {
     if (this.running || this.sdk) return
     const apiKey = await window.wisp.getSmartSpectraKey()
     if (!apiKey) throw new SensingError('SMARTSPECTRA_API_KEY is not set in .env.', null, false)
 
-    this.telemetry = telemetry
     this.lastError = null
-    for (let attempt = 0; ; attempt++) {
-      const sdk = this.create(apiKey, telemetry)
-      this.sdk = sdk
-      try {
-        const camera = await openCamera()
-        await restoreAutoModes(camera.getVideoTracks()[0])
-        this.setStream(camera)
-        sdk.useMediaStream(camera)
-        await sdk.start()
-        this.running = true
-        window.wisp.setSensing(true)
-        return
-      } catch (err) {
-        const failure = toSensingError(err)
-        await this.teardown(sdk)
-        if (failure.retryable && attempt === 0) {
-          await new Promise((resolve) => setTimeout(resolve, START_RETRY_DELAY_MS))
-          continue
-        }
-        throw failure
-      }
+    const sdk = this.create(apiKey, telemetry)
+    this.sdk = sdk
+    try {
+      const camera = await openCamera()
+      await restoreAutoModes(camera.getVideoTracks()[0])
+      this.setStream(camera)
+      sdk.useMediaStream(camera)
+      await sdk.start()
+      this.running = true
+      window.wisp.setSensing(true)
+    } catch (err) {
+      await this.teardown(sdk)
+      throw toSensingError(err)
     }
   }
 
-  /**
-   * The SDK reached kError mid-session. A failed key check over the network gets one
-   * quiet fresh start; anything else stops the camera and says why once.
-   */
+  /** The SDK reached kError mid-session: release the camera and say why once. */
   private async fail(sdk: SmartSpectraSDK): Promise<void> {
-    const error = this.lastError
     this.running = false
-    // No reset(): it rebuilds the pipeline, and the next start() creates a fresh session anyway.
+    // destroy() plus a new instance on the next start() is the SDK's documented fresh start.
     await this.teardown(sdk)
-    if (error?.code === SmartSpectraErrorCode.kNetworkError && !this.retriedNetwork) {
-      this.retriedNetwork = true
-      const generation = this.generation
-      await new Promise((resolve) => setTimeout(resolve, NETWORK_RETRY_DELAY_MS))
-      if (generation !== this.generation) return
-      try {
-        await this.begin(this.telemetry)
-        return
-      } catch (err) {
-        this.lastError = toSensingError(err)
-      }
-    }
-    const reason = this.lastError?.message ?? 'SmartSpectra hit an error it could not recover from.'
+    const error = this.lastError
+    const reason = error?.message ?? 'SmartSpectra hit an error it could not recover from.'
+    const retry =
+      error?.retryable && !/start sensing/i.test(reason) ? ' Press Start sensing to try again.' : ''
     window.wisp.setSensing(false)
-    window.wisp.reportSdkError(`Sensing stopped. ${reason}`, true)
+    window.wisp.reportSdkError(`Sensing stopped. ${reason}${retry}`, true)
   }
 
   private async teardown(sdk: SmartSpectraSDK): Promise<void> {
@@ -297,7 +263,6 @@ class Sensing {
   }
 
   async stop(): Promise<void> {
-    this.generation++
     const sdk = this.sdk
     this.running = false
     window.wisp.setSensing(false)

@@ -1,5 +1,6 @@
 import type { StreamingTranscriber, TurnEvent } from 'assemblyai'
 import { loadConfig } from '../config'
+import { hub } from '../hub'
 import { QUIET_CLOSE_CODES, assembly, describeStreamingCode, describeVoiceError } from './assembly'
 
 /** The server closes a session that is left open by accident after this many idle seconds. */
@@ -14,6 +15,7 @@ const MAX_QUEUED_CHUNKS = 400
 /** A standby session is billed while open, so it only outlives a conversation briefly. */
 const STANDBY_MS = 90_000
 const KEEPALIVE_MS = 5_000
+const AGENT_CONTEXT_MAX = 1_750
 
 const live = new Set<PttSession>()
 let standby: PttSession | null = null
@@ -42,13 +44,16 @@ export class PttSession {
   error: string | null = null
 
   constructor() {
+    const lastReply = hub.lastReply.trim()
     this.transcriber = assembly().streaming.transcriber({
       speechModel: 'universal-3-6-pro',
       sampleRate: 16_000,
       encoding: 'pcm_s16le',
       inactivityTimeout: INACTIVITY_TIMEOUT_S,
       connectTimeout: CONNECT_TIMEOUT_MS,
-      maxConnectionRetries: 2
+      maxConnectionRetries: 2,
+      // What Wisp just said, so short answers like "yes" or "7pm" transcribe in context.
+      ...(lastReply ? { agentContext: lastReply.slice(0, AGENT_CONTEXT_MAX) } : {})
     })
     this.transcriber.on('turn', (turn) => this.onTurn(turn))
     this.transcriber.on('error', (err) => {

@@ -23,7 +23,9 @@ export interface WispConfig {
   reasoningEffort: ReasoningEffort | null
   openaiKey: string
   anthropicKey: string
-  composioKey: string
+  /** A Google OAuth client the user created; Google's MCP servers do not allow dynamic registration. */
+  googleClientId: string
+  googleClientSecret: string
   ttsVoice: string
   projectRoot: string
   dataDir: string
@@ -66,7 +68,8 @@ export function loadConfig(): WispConfig {
     reasoningEffort: parseEffort(env.OPENAI_MODEL_REASONING ?? env.LLM_REASONING),
     openaiKey: env.OPENAI_API_KEY ?? '',
     anthropicKey: env.ANTHROPIC_API_KEY ?? '',
-    composioKey: env.COMPOSIO_API_KEY ?? '',
+    googleClientId: env.GOOGLE_OAUTH_CLIENT_ID ?? '',
+    googleClientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
     ttsVoice: env.WISP_TTS_VOICE || 'aai-kyla',
     projectRoot,
     dataDir: join(app.getPath('userData'), 'wisp-data'),

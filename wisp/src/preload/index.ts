@@ -28,9 +28,10 @@ const api: WispApi = {
   unpin: (index: number) => ipcRenderer.invoke('wisp:unpin', index),
   cancelReminder: (id: string) => ipcRenderer.invoke('wisp:cancelReminder', id),
   reloadMcp: () => ipcRenderer.invoke('wisp:reloadMcp'),
-  connectApp: (slug: string) => ipcRenderer.invoke('wisp:connectApp', slug),
-  disconnectApp: (slug: string) => ipcRenderer.invoke('wisp:disconnectApp', slug),
-  refreshApps: () => ipcRenderer.invoke('wisp:refreshApps'),
+  mcpSignIn: (id: string) => ipcRenderer.invoke('wisp:mcpSignIn', id),
+  mcpCancelSignIn: (id: string) => ipcRenderer.invoke('wisp:mcpCancelSignIn', id),
+  mcpSignOut: (id: string) => ipcRenderer.invoke('wisp:mcpSignOut', id),
+  mcpAddServer: (name: string, url: string) => ipcRenderer.invoke('wisp:mcpAddServer', name, url),
   wipeData: () => ipcRenderer.invoke('wisp:wipeData'),
 
   onEvent: (listener: (msg: MainToRenderer) => void) => {

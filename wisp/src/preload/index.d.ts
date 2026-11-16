@@ -26,9 +26,12 @@ export interface WispApi {
   cancelReminder(id: string): Promise<boolean>
   reloadMcp(): Promise<McpServerStatus[]>
   /** Resolves once the browser sign-in finishes, fails or times out. */
-  connectApp(slug: string): Promise<void>
-  disconnectApp(slug: string): Promise<void>
-  refreshApps(): Promise<void>
+  mcpSignIn(id: string): Promise<void>
+  mcpCancelSignIn(id: string): Promise<void>
+  /** Forgets the stored tokens; servers added by URL are removed as well. */
+  mcpSignOut(id: string): Promise<void>
+  /** Returns an error message, or null once the server is saved. */
+  mcpAddServer(name: string, url: string): Promise<string | null>
   wipeData(): Promise<void>
 
   onEvent(listener: (msg: MainToRenderer) => void): () => void
