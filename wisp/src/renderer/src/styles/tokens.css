@@ -766,6 +766,13 @@ p {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--s-3);
 }
+.connector-note {
+  margin: 0 0 var(--s-3);
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
 .app-row {
   display: flex;
   flex-direction: column;
@@ -971,4 +978,89 @@ table.plain td code {
   border-radius: 2px;
   display: block;
   transition: height 80ms linear;
+}
+
+/* structured insight cards */
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: var(--s-2) 0 var(--s-1);
+}
+.insight-card.lead {
+  margin: var(--s-3) 0 var(--s-4);
+}
+.insight-headline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--t-base);
+  line-height: 1.4;
+  margin: 0;
+}
+.insight-card.lead .insight-headline {
+  font-size: var(--t-lg);
+}
+.insight-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-2);
+}
+.insight-metric {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: var(--s-2) var(--s-3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.insight-metric .name {
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.insight-metric .value {
+  font-family: var(--font-mono);
+  font-size: var(--t-base);
+  font-weight: 600;
+}
+.insight-metric .note {
+  font-size: var(--t-xs);
+  color: var(--faint);
+}
+.insight-status {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 8px;
+  color: var(--faint);
+}
+.insight-status.good {
+  color: var(--accent);
+}
+.insight-status.watch {
+  color: var(--amber);
+}
+.insight-status.low,
+.insight-status.high {
+  color: var(--red);
+}
+.insight-list ul {
+  margin: var(--s-1) 0 0;
+  padding-left: 1.2em;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+.insight-list li + li {
+  margin-top: 2px;
+}
+.insight-toggle {
+  align-self: flex-start;
+  font-size: var(--t-xs);
+}
+.insight-original {
+  border-left: 2px solid var(--line);
+  padding-left: var(--s-3);
+  font-size: var(--t-sm);
+  color: var(--muted);
 }

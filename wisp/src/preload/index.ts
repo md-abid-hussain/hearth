@@ -31,7 +31,11 @@ const api: WispApi = {
   mcpSignIn: (id: string) => ipcRenderer.invoke('wisp:mcpSignIn', id),
   mcpCancelSignIn: (id: string) => ipcRenderer.invoke('wisp:mcpCancelSignIn', id),
   mcpSignOut: (id: string) => ipcRenderer.invoke('wisp:mcpSignOut', id),
-  mcpAddServer: (name: string, url: string) => ipcRenderer.invoke('wisp:mcpAddServer', name, url),
+  mcpAddServer: (name: string, url: string, apiKey?: string) =>
+    ipcRenderer.invoke('wisp:mcpAddServer', name, url, apiKey),
+  mcpSetKey: (id: string, key: string) => ipcRenderer.invoke('wisp:mcpSetKey', id, key),
+  mcpSetEnabled: (id: string, enabled: boolean) =>
+    ipcRenderer.invoke('wisp:mcpSetEnabled', id, enabled),
   wipeData: () => ipcRenderer.invoke('wisp:wipeData'),
 
   onEvent: (listener: (msg: MainToRenderer) => void) => {

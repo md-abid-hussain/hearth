@@ -77,17 +77,21 @@ export function Pill(): React.JSX.Element | null {
   }, [mood, reply, partial])
 
   if (!state) return null
-  const { text, sub } = headline(state)
+  const consented = state.settings.consentAt != null
+  const { text, sub } = consented
+    ? headline(state)
+    : { text: 'Wisp', sub: 'click to review consent in the dashboard' }
+  const press = consented ? ptt.press : () => window.wisp.openDashboard()
   const error = ptt.error ?? state.notice ?? (!state.status.assemblyReady ? 'Add ASSEMBLYAI_API_KEY to talk' : null)
 
   return (
     <div className="pill-wrap">
       {(caption || error) && <div className={error ? 'caption problem' : 'caption'}>{error ?? caption}</div>}
       <div className="pill">
-        <Tooltip label="Hold to talk" openDelay={600}>
+        <Tooltip label={consented ? 'Hold to talk' : 'Review consent'} openDelay={600}>
           <button
             className="orb-hit"
-            onPointerDown={ptt.press}
+            onPointerDown={press}
             onPointerUp={ptt.release}
             onPointerLeave={ptt.release}
             aria-label="Hold to talk to Wisp"

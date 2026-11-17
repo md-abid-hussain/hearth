@@ -28,10 +28,17 @@ export interface WispApi {
   /** Resolves once the browser sign-in finishes, fails or times out. */
   mcpSignIn(id: string): Promise<void>
   mcpCancelSignIn(id: string): Promise<void>
-  /** Forgets the stored tokens; servers added by URL are removed as well. */
+  /** Forgets the stored tokens or key; servers added by URL are removed as well. */
   mcpSignOut(id: string): Promise<void>
-  /** Returns an error message, or null once the server is saved. */
-  mcpAddServer(name: string, url: string): Promise<string | null>
+  /**
+   * Returns an error message, or null once the server is saved. An API key is stored encrypted
+   * and sent as a Bearer token instead of signing in with OAuth.
+   */
+  mcpAddServer(name: string, url: string, apiKey?: string): Promise<string | null>
+  /** Saves a pasted key for a key-based connector and connects. Returns an error message or null. */
+  mcpSetKey(id: string, key: string): Promise<string | null>
+  /** Off hides the connector's tools from the model but keeps its credentials. */
+  mcpSetEnabled(id: string, enabled: boolean): Promise<void>
   wipeData(): Promise<void>
 
   onEvent(listener: (msg: MainToRenderer) => void): () => void

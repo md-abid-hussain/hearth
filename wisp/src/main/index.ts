@@ -5,6 +5,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { bindSmartSpectraIpc } from '@smartspectra/node-sdk/main'
 import icon from '../../resources/icon.png?asset'
 import type { Settings, WindowRole } from '../shared/types'
+import { composio } from './composio'
 import { llmKeyPresent, loadConfig } from './config'
 import {
   handleUserText,
@@ -135,6 +136,16 @@ function showDashboard(): void {
   win.focus()
 }
 
+const consented = (): boolean => hub.settings.consentAt != null
+
+/** The camera, microphone and model stay off until the first-run consent is accepted. */
+function requireConsent(): boolean {
+  if (consented()) return true
+  hub.notify('Accept the consent screen in the dashboard before Wisp can sense or listen.')
+  showDashboard()
+  return false
+}
+
 function allowMediaOnlyForAppPages(): void {
   const devOrigin =
     is.dev && process.env['ELECTRON_RENDERER_URL']
@@ -149,10 +160,10 @@ function allowMediaOnlyForAppPages(): void {
     }
   }
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback) => {
-    callback(permission === 'media' && trusted(wc.getURL()))
+    callback(permission === 'media' && consented() && trusted(wc.getURL()))
   })
   session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => {
-    return permission === 'media' && trusted(origin)
+    return permission === 'media' && consented() && trusted(origin)
   })
 }
 
@@ -163,7 +174,10 @@ function registerIpc(): void {
   ipcMain.handle('wisp:getHistory', () => vitals.history)
   ipcMain.handle('wisp:getSmartSpectraKey', () => cfg.smartspectraKey)
 
-  ipcMain.on('wisp:sensing', (_e, on: boolean) => (on ? vitals.start() : vitals.stop()))
+  ipcMain.on('wisp:sensing', (_e, on: boolean) => {
+    if (!on) vitals.stop()
+    else if (requireConsent()) vitals.start()
+  })
   ipcMain.on('wisp:metrics', (_e, buf: Uint8Array) => vitals.ingest(buf))
   ipcMain.on('wisp:validation', (_e, hint: string | null) => vitals.setValidationHint(hint))
   ipcMain.on('wisp:insight', (_e, buf: Uint8Array, requestId: number) =>
@@ -179,14 +193,16 @@ function registerIpc(): void {
 
   ipcMain.on('wisp:pttStart', () => {
     hotkeys.reset()
-    pttStart('hold')
+    if (requireConsent()) pttStart('hold')
   })
   ipcMain.on('wisp:pttAudio', (_e, chunk: Uint8Array) => pttAudio(chunk))
   ipcMain.on('wisp:pttStop', () => {
     hotkeys.reset()
     void pttStop()
   })
-  ipcMain.on('wisp:typed', (_e, text: string) => void handleUserText(text, 'typed'))
+  ipcMain.on('wisp:typed', (_e, text: string) => {
+    if (requireConsent()) void handleUserText(text, 'typed')
+  })
   ipcMain.on('wisp:playbackIdle', () => playbackIdle())
   ipcMain.on('wisp:openDashboard', () => showDashboard())
   ipcMain.on('wisp:quit', () => app.quit())
@@ -195,27 +211,53 @@ function registerIpc(): void {
   ipcMain.handle('wisp:unpin', (_e, index: number) => memory.unpin(index))
   ipcMain.handle('wisp:cancelReminder', (_e, id: string) => reminders.cancel(id))
   ipcMain.handle('wisp:reloadMcp', async () => {
-    await mcp.load(loadConfig().mcpConfigPath)
-    return hub.mcp
+    await Promise.all([mcp.load(loadConfig().mcpConfigPath), composio.load()])
+    return hub.connectors()
   })
-  ipcMain.handle('wisp:mcpSignIn', (_e, id: string) => mcp.signIn(id))
-  ipcMain.handle('wisp:mcpCancelSignIn', (_e, id: string) => mcp.cancelSignIn(id))
-  ipcMain.handle('wisp:mcpSignOut', (_e, id: string) => mcp.signOut(id))
-  ipcMain.handle('wisp:mcpAddServer', (_e, name: string, url: string) => mcp.addServer(name, url))
-  ipcMain.handle('wisp:wipeData', () => {
+  // Connector ids starting with "composio" belong to the Composio session; the rest are MCP servers.
+  ipcMain.handle('wisp:mcpSignIn', (_e, id: string) =>
+    composio.owns(id) ? composio.signIn(id) : mcp.signIn(id)
+  )
+  ipcMain.handle('wisp:mcpCancelSignIn', (_e, id: string) =>
+    composio.owns(id) ? composio.cancelSignIn(id) : mcp.cancelSignIn(id)
+  )
+  ipcMain.handle('wisp:mcpSignOut', (_e, id: string) =>
+    composio.owns(id) ? composio.signOut(id) : mcp.signOut(id)
+  )
+  ipcMain.handle('wisp:mcpAddServer', (_e, name: string, url: string, apiKey?: unknown) =>
+    mcp.addServer(name, url, typeof apiKey === 'string' ? apiKey : undefined)
+  )
+  ipcMain.handle('wisp:mcpSetKey', (_e, id: string, key: unknown) =>
+    mcp.setKey(id, typeof key === 'string' ? key : '')
+  )
+  ipcMain.handle('wisp:mcpSetEnabled', (_e, id: string, enabled: unknown) =>
+    composio.owns(id)
+      ? composio.setEnabled(id, enabled === true)
+      : mcp.setEnabled(id, enabled === true)
+  )
+  ipcMain.handle('wisp:wipeData', async () => {
+    // Composio keeps the Google connections on its servers, so remove them before the local id goes.
+    const composioProblem = await composio.forgetAll()
     wipeData()
     memory.clear()
     hub.insights = []
     hub.reminders = []
     hub.clearLog()
+    hub.updateSettings({ consentAt: null })
     hub.record('session', 'All local Wisp data was deleted')
+    if (composioProblem) hub.record('error', composioProblem)
     void mcp.load(loadConfig().mcpConfigPath)
+    void composio.load()
   })
 }
 
 function startTalkKeys(): void {
   const problem = hotkeys.start(hub.settings.hotkey, {
     start: (handsFree) => {
+      if (!requireConsent()) {
+        hotkeys.reset()
+        return
+      }
       const pill = hub.window('pill')
       if (pill && !pill.isVisible()) pill.showInactive()
       pttStart(handsFree ? 'handsFree' : 'hold')
@@ -287,6 +329,7 @@ app.whenReady().then(async () => {
   hub.setMood('idle')
   observer.start(say)
   void mcp.load(cfg.mcpConfigPath)
+  void composio.load()
   warmVoice()
   if (is.dev) watchEventLoop()
 

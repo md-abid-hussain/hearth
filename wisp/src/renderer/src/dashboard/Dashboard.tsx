@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button, Center, Loader } from '@mantine/core'
 import type { WispState } from '@shared/types'
+import { Consent } from '../components/Consent'
 import { useHistory, useWisp } from '../lib/store'
 import { Connectors } from './pages/Connectors'
 import { Insights } from './pages/Insights'
@@ -90,6 +91,7 @@ export function Dashboard(): React.JSX.Element {
         <StatusFooter state={state} />
       </nav>
       <main className="page">{body}</main>
+      <Consent state={state} />
     </div>
   )
 }

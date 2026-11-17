@@ -30,6 +30,24 @@ export interface InsightEntry {
   text: string
   isError: boolean
   onDemand: boolean
+  structured?: InsightStructured
+}
+
+export type InsightMetricStatus = 'good' | 'watch' | 'low' | 'high' | 'unknown'
+
+export interface InsightMetric {
+  name: string
+  value: string
+  status: InsightMetricStatus
+  note?: string
+}
+
+/** An LLM-extracted view of an insight's markdown; never adds facts the text lacks. */
+export interface InsightStructured {
+  headline: string
+  metrics: InsightMetric[]
+  observations: string[]
+  suggestions: string[]
 }
 
 export interface ChatTurn {
@@ -85,19 +103,27 @@ export interface McpToolInfo {
  * - none: the server needs no sign-in, or its credentials come from mcp.json
  * - signedOut: it answered 401 and is waiting for the user to sign in
  * - signingIn: the browser sign-in is open
- * - signedIn: OAuth tokens are stored and working
+ * - signedIn: OAuth tokens or a pasted key are stored
  */
 export type McpAuthState = 'none' | 'signedOut' | 'signingIn' | 'signedIn'
 
+export type McpGroup = 'work' | 'code' | 'search' | 'composio' | 'custom'
+
 export interface McpServerStatus {
-  /** Stable key used for sign-in calls: a preset id, a custom id or the mcp.json name. */
+  /** Stable key used for sign-in calls: a preset id, a custom id, the mcp.json name or a Composio app. */
   id: string
   name: string
-  source: 'preset' | 'custom' | 'mcp.json'
+  /** composio: the Composio session and the Google accounts linked through it, not an MCP server. */
+  source: 'preset' | 'custom' | 'mcp.json' | 'composio'
   url: string | null
   auth: McpAuthState
   /** Why a preset cannot be used yet, such as a missing OAuth client in .env. */
   unavailable: string | null
+  group: McpGroup
+  /** Set when the server takes a pasted key instead of OAuth, naming what to paste. */
+  keyLabel: string | null
+  /** Off keeps the credentials but hides the server's tools from the model. */
+  enabled: boolean
   connected: boolean
   error: string | null
   tools: McpToolInfo[]
@@ -152,6 +178,8 @@ export interface Settings {
   hotkey: HotkeyId
   /** Runtime override of OPENAI_MODEL_REASONING; null uses the .env value. */
   reasoningEffort: ReasoningEffort | null
+  /** When the user accepted the first-run consent; null until then, and the camera and mic stay off. */
+  consentAt: number | null
 }
 
 export interface WispState {

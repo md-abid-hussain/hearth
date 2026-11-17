@@ -1,5 +1,6 @@
 import { isStepCount, streamText, tool, type ModelMessage, type ToolSet } from 'ai'
 import { z } from 'zod'
+import { composio } from './composio'
 import { hub } from './hub'
 import { insights } from './insights'
 import { getModel, providerOptions } from './llm'
@@ -19,6 +20,8 @@ Tools:
 - ask_presage_insight: Presage's own read on their physiology, for "how am I doing" questions.
 - set_reminder when asked to be reminded; remember when they share a lasting fact or preference.
 - Tools named "app__tool" read the apps listed under Linked apps. They are read-only; if asked to send, edit or delete, say you can't and offer what you can read.
+- GMAIL_*, GOOGLECALENDAR_* and GOOGLEDRIVE_* read the user's Google accounts through Composio; call them directly. Ask for few results and only the fields you need.
+- For any other app or a web lookup, COMPOSIO_SEARCH_TOOLS finds a read tool and COMPOSIO_MULTI_EXECUTE_TOOL runs it. Some of those cost credits, so use them only when the user asks for that. If a tool says the account is not connected, ask the user to sign in on the Connectors page.
 
 Rules:
 - Signals are wellness estimates, not medical readings. Never diagnose or suggest treatment; point medical worries to a professional.
@@ -35,7 +38,10 @@ function contextBlock(): string {
     )
     .join('\n')
   const recentInsight = insights.recent(1)[0]
-  const linked = hub.mcp.filter((s) => s.connected).map((s) => s.name)
+  const linked = hub
+    .connectors()
+    .filter((s) => s.connected && s.enabled)
+    .map((s) => s.name)
   return [
     `Now: ${new Date().toLocaleString()}`,
     `Linked apps: ${linked.join(', ') || 'none'}`,
@@ -119,8 +125,19 @@ const ACTIVITY: Record<string, string> = {
   quiet_mode: 'changing quiet mode'
 }
 
+/** Composio tools are named TOOLKIT_ACTION; the meta tools search and run the rest of its catalog. */
+const COMPOSIO_ACTIVITY: [prefix: string, label: string][] = [
+  ['GMAIL_', 'reading your mail'],
+  ['GOOGLECALENDAR_', 'checking your calendar'],
+  ['GOOGLEDRIVE_', 'looking in your Drive'],
+  ['COMPOSIO_SEARCH', 'finding the right app'],
+  ['COMPOSIO_', 'reading your apps']
+]
+
 function activityFor(toolName: string): string {
   if (ACTIVITY[toolName]) return ACTIVITY[toolName]
+  const composioLabel = COMPOSIO_ACTIVITY.find(([prefix]) => toolName.startsWith(prefix))
+  if (composioLabel) return composioLabel[1]
   const server = toolName.split('__')[0]
   return `reading ${server}`
 }
@@ -153,7 +170,7 @@ export async function respond(userText: string, onText: (delta: string) => void)
     model: getModel(),
     system: `${PERSONA}\n\n--- Context ---\n${contextBlock()}`,
     messages: [...history, { role: 'user', content: userText }],
-    tools: { ...builtinTools(), ...mcp.toolset() },
+    tools: { ...builtinTools(), ...mcp.toolset(), ...composio.toolset() },
     stopWhen: isStepCount(MAX_STEPS),
     maxRetries: 1,
     providerOptions: providerOptions(),

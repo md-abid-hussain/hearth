@@ -1,6 +1,7 @@
-import { Button, Code, Switch, Text } from '@mantine/core'
+import { Anchor, Button, Code, Switch, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import type { Settings, WispState } from '@shared/types'
+import { reviewConsent } from '../../lib/consent'
 import { PageHeader } from '../shared'
 
 export function Privacy({ state }: { state: WispState }): React.JSX.Element {
@@ -10,7 +11,7 @@ export function Privacy({ state }: { state: WispState }): React.JSX.Element {
   const confirmWipe = (): void => {
     modals.openConfirmModal({
       title: 'Delete all Wisp data?',
-      children: <Text size="sm">Conversation, memory, reminders, insights and the event log will be removed from this computer.</Text>,
+      children: <Text size="sm">Conversation, memory, reminders, insights and the event log will be removed from this computer. You will be signed out of every connector, and Composio will delete your Google connections.</Text>,
       labels: { confirm: 'Delete everything', cancel: 'Keep' },
       confirmProps: { color: 'red' },
       onConfirm: () => void window.wisp.wipeData()
@@ -40,7 +41,11 @@ export function Privacy({ state }: { state: WispState }): React.JSX.Element {
             <Switch checked={settings.telemetry} onChange={(e) => update({ telemetry: e.currentTarget.checked })} />
           </div>
           <div className="field">
-            <div><div className="name">Delete all local data</div><div className="help">memory, reminders, insights, logs</div></div>
+            <div><div className="name">Consent</div><div className="help">{settings.consentAt != null ? `agreed ${new Date(settings.consentAt).toLocaleDateString()}` : 'not given, camera and mic stay off'}</div></div>
+            <Anchor size="sm" component="button" onClick={reviewConsent}>Review consent</Anchor>
+          </div>
+          <div className="field">
+            <div><div className="name">Delete all local data</div><div className="help">memory, reminders, insights, logs, consent and connector sign-ins, including Composio&apos;s</div></div>
             <Button size="xs" variant="default" c="var(--red)" onClick={confirmWipe}>Delete</Button>
           </div>
         </div>

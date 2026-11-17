@@ -7,6 +7,7 @@ import {
   cardioMetrics,
   faceMetrics
 } from '@smartspectra/node-sdk/renderer'
+import { reviewConsent } from './consent'
 
 type StreamListener = (stream: MediaStream | null) => void
 
@@ -212,6 +213,11 @@ class Sensing {
   /** One attempt. Per the SDK docs a retryable failure is the user's to retry, never automatic. */
   async start(telemetry: boolean): Promise<void> {
     if (this.running || this.sdk) return
+    const { settings } = await window.wisp.getState()
+    if (settings.consentAt == null) {
+      reviewConsent()
+      throw new SensingError('Accept the consent screen before the camera can start.', null, false)
+    }
     const apiKey = await window.wisp.getSmartSpectraKey()
     if (!apiKey) throw new SensingError('SMARTSPECTRA_API_KEY is not set in .env.', null, false)
 

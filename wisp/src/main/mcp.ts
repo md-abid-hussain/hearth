@@ -2,11 +2,14 @@ import { readFileSync } from 'fs'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError
+} from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { dynamicTool, jsonSchema, type ToolSet } from 'ai'
 import { z } from 'zod'
-import type { McpAuthState, McpServerStatus, McpToolInfo } from '../shared/types'
+import type { McpAuthState, McpGroup, McpServerStatus, McpToolInfo } from '../shared/types'
 import { loadConfig, type WispConfig } from './config'
 import { hub } from './hub'
 import {
@@ -16,6 +19,7 @@ import {
   type AuthCodeWait,
   type AuthOptions
 } from './mcpAuth'
+import { StoredApiKey } from './mcpKeys'
 import { readJson, writeJson } from './store'
 
 const serverSchema = z.union([
@@ -100,6 +104,11 @@ function nameWords(name: string): string[] {
     .filter(Boolean)
 }
 
+/** The first word in a tool name that signals a side effect, if any. */
+export function writeVerb(name: string): string | undefined {
+  return nameWords(name).find((w) => WRITE_WORDS.has(w))
+}
+
 /** Deny-by-default read-only gate. Returns why a tool is allowed or blocked. */
 export function gateTool(
   tool: ToolMeta,
@@ -112,7 +121,7 @@ export function gateTool(
     return { allowed: false, reason: 'server marks it destructive' }
   if (hints.readOnlyHint === false)
     return { allowed: false, reason: 'server marks it not read-only' }
-  const verb = nameWords(tool.name).find((w) => WRITE_WORDS.has(w))
+  const verb = writeVerb(tool.name)
   if (verb) return { allowed: false, reason: `name contains write verb "${verb}"` }
   if (server.requireReadOnlyHint && hints.readOnlyHint !== true) {
     return { allowed: false, reason: 'readOnlyHint required but missing' }
@@ -157,64 +166,106 @@ interface Preset {
   id: string
   name: string
   url: string
+  group: McpGroup
+  /** What to paste, for servers without OAuth dynamic client registration. Skips OAuth. */
+  key?: string
   /** Auth options, or why the preset cannot be used with this .env. */
-  auth(cfg: WispConfig): AuthOptions | string
+  auth?(cfg: WispConfig): AuthOptions | string
 }
 
-const GOOGLE_SCOPE = (scopes: string[]): string =>
-  scopes.map((s) => `https://www.googleapis.com/auth/${s}`).join(' ')
-
-function google(id: string, name: string, url: string, scopes: string[]): Preset {
-  return {
-    id,
-    name,
-    url,
-    auth: (cfg) =>
-      cfg.googleClientId
-        ? {
-            client: {
-              client_id: cfg.googleClientId,
-              client_secret: cfg.googleClientSecret || undefined,
-              issuer: 'https://accounts.google.com'
-            },
-            scope: GOOGLE_SCOPE(scopes),
-            // Google only issues a refresh token with these, otherwise sign-in lasts an hour.
-            authParams: { access_type: 'offline', prompt: 'consent' }
-          }
-        : 'Needs GOOGLE_OAUTH_CLIENT_ID in .env'
-  }
-}
-
-/** Official hosted MCP servers. Notion and Linear register Wisp themselves; Google needs a client. */
+/**
+ * Official hosted MCP servers. Most register Wisp themselves; GitHub and Linkup have no dynamic
+ * client registration, so they take a pasted key.
+ */
 const PRESETS: Preset[] = [
-  { id: 'notion', name: 'Notion', url: 'https://mcp.notion.com/mcp', auth: () => ({}) },
+  {
+    id: 'notion',
+    name: 'Notion',
+    group: 'work',
+    url: 'https://mcp.notion.com/mcp',
+    auth: () => ({})
+  },
   {
     id: 'linear',
     name: 'Linear',
+    group: 'work',
     url: 'https://mcp.linear.app/mcp/readonly',
     auth: () => ({ scope: 'read' })
   },
-  google('gmail', 'Gmail', 'https://gmailmcp.googleapis.com/mcp/v1', ['gmail.readonly']),
-  google('calendar', 'Google Calendar', 'https://calendarmcp.googleapis.com/mcp/v1', [
-    'calendar.calendarlist.readonly',
-    'calendar.events.freebusy',
-    'calendar.events.readonly'
-  ]),
-  google('drive', 'Google Drive', 'https://drivemcp.googleapis.com/mcp/v1', ['drive.readonly'])
+  {
+    id: 'atlassian',
+    name: 'Atlassian',
+    group: 'work',
+    url: 'https://mcp.atlassian.com/v1/mcp',
+    auth: () => ({})
+  },
+  {
+    id: 'todoist',
+    name: 'Todoist',
+    group: 'work',
+    url: 'https://ai.todoist.net/mcp',
+    auth: () => ({})
+  },
+  {
+    id: 'github',
+    name: 'GitHub',
+    group: 'code',
+    url: 'https://api.githubcopilot.com/mcp/readonly',
+    key: 'Fine-grained personal access token, read-only'
+  },
+  {
+    id: 'sentry',
+    name: 'Sentry',
+    group: 'code',
+    url: 'https://mcp.sentry.dev/mcp',
+    auth: () => ({})
+  },
+  {
+    id: 'vercel',
+    name: 'Vercel',
+    group: 'code',
+    url: 'https://mcp.vercel.com',
+    auth: () => ({})
+  },
+  {
+    id: 'linkup',
+    name: 'Linkup',
+    group: 'search',
+    url: 'https://mcp.linkup.so/mcp',
+    key: 'Linkup API key'
+  }
 ]
 
 const CUSTOM_FILE = 'connectors.json'
+const CUSTOM_KEY_LABEL = 'API key'
 
 interface CustomServer {
   id: string
   name: string
   url: string
+  /** The key itself lives in mcp-keys/, encrypted. */
+  key?: boolean
 }
+
+interface ConnectorsFile {
+  custom: CustomServer[]
+  disabled: string[]
+}
+
+/** Older versions saved a bare array of custom servers. */
+function readConnectors(): ConnectorsFile {
+  const raw = readJson<CustomServer[] | Partial<ConnectorsFile>>(CUSTOM_FILE, [])
+  if (Array.isArray(raw)) return { custom: raw, disabled: [] }
+  return { custom: raw.custom ?? [], disabled: raw.disabled ?? [] }
+}
+
+type Credential = { oauth: AuthOptions } | { keyLabel: string } | null
 
 interface Entry {
   status: McpServerStatus
   config: ServerConfig | null
   provider: StoredOAuthProvider | null
+  key: StoredApiKey | null
   client: Client | null
   tools: ToolSet
 }
@@ -222,33 +273,42 @@ interface Entry {
 class McpManager {
   private entries = new Map<string, Entry>()
   private signInWaits = new Map<string, AuthCodeWait>()
+  private disabled = new Set<string>()
 
   async load(configPath: string | null): Promise<void> {
     await this.close()
     const cfg = loadConfig()
+    const saved = readConnectors()
+    this.disabled = new Set(saved.disabled)
 
     for (const preset of PRESETS) {
-      const auth = preset.auth(cfg)
-      const usable = typeof auth !== 'string'
+      const auth = preset.key ? null : (preset.auth?.(cfg) ?? {})
+      const unavailable = typeof auth === 'string' ? auth : null
+      let credential: Credential = null
+      if (preset.key) credential = { keyLabel: preset.key }
+      else if (auth && typeof auth !== 'string') credential = { oauth: auth }
       this.add(
         preset.id,
         preset.name,
         'preset',
+        preset.group,
         { url: preset.url },
-        usable ? auth : null,
-        usable ? null : auth
+        credential,
+        unavailable
       )
     }
-    for (const custom of readJson<CustomServer[]>(CUSTOM_FILE, [])) {
-      this.add(custom.id, custom.name, 'custom', { url: custom.url }, {}, null)
+    for (const custom of saved.custom) {
+      const credential = custom.key ? { keyLabel: CUSTOM_KEY_LABEL } : { oauth: {} }
+      this.add(custom.id, custom.name, 'custom', 'custom', { url: custom.url }, credential, null)
     }
     if (configPath) {
       try {
         const parsed = configSchema.parse(JSON.parse(readFileSync(configPath, 'utf8')))
         for (const [name, server] of Object.entries(parsed.mcpServers)) {
           if (server.disabled) continue
-          const oauth = 'url' in server && !hasAuthHeader(server.headers) ? {} : null
-          this.add(`json-${name}`, name, 'mcp.json', server, oauth, null)
+          const credential =
+            'url' in server && !hasAuthHeader(server.headers) ? { oauth: {} } : null
+          this.add(`json-${name}`, name, 'mcp.json', 'custom', server, credential, null)
         }
       } catch (err) {
         hub.record('error', `mcp.json could not be parsed: ${(err as Error).message}`)
@@ -263,7 +323,8 @@ class McpManager {
           (e) =>
             e.config &&
             !e.status.unavailable &&
-            (e.status.source !== 'preset' || e.provider?.hasTokens())
+            e.status.enabled &&
+            (e.key ? e.key.has() : e.status.source !== 'preset' || e.provider?.hasTokens())
         )
         .map((e) => this.open(e))
     )
@@ -272,6 +333,11 @@ class McpManager {
 
   async signIn(id: string): Promise<void> {
     const entry = this.entries.get(id)
+    if (entry?.key?.has()) {
+      await this.open(entry)
+      this.publish()
+      return
+    }
     if (!entry?.provider || !entry.config || entry.status.auth === 'signingIn') return
     const provider = entry.provider
     provider.interactive = true
@@ -312,27 +378,64 @@ class McpManager {
     const entry = this.entries.get(id)
     if (!entry) return
     entry.provider?.forget()
+    entry.key?.forget()
     await entry.client?.close().catch(() => {})
     entry.client = null
     entry.tools = {}
     if (entry.status.source === 'custom') {
       this.entries.delete(id)
-      writeJson(CUSTOM_FILE, this.customServers())
     } else {
       entry.status = {
         ...entry.status,
         connected: false,
         auth: 'signedOut',
+        enabled: true,
         error: null,
         tools: []
       }
     }
+    this.disabled.delete(id)
+    this.save()
     hub.record('mcp', `Signed out of ${entry.status.name}`)
     this.publish()
   }
 
+  /** Stores a pasted key for a key-based server and connects with it. */
+  async setKey(id: string, key: string): Promise<string | null> {
+    const entry = this.entries.get(id)
+    if (!entry?.key) return 'This connector signs in through the browser'
+    const value = key.trim()
+    if (!value) return 'Paste a key first'
+    entry.key.save(value)
+    entry.status = { ...entry.status, auth: 'signedIn', error: null }
+    await this.open(entry)
+    this.publish()
+    if (entry.status.connected) hub.record('mcp', `Signed in to ${entry.status.name}`)
+    return entry.status.connected ? null : (entry.status.error ?? 'Could not connect')
+  }
+
+  /** Off closes the connection and hides the tools, keeping tokens and keys for later. */
+  async setEnabled(id: string, enabled: boolean): Promise<void> {
+    const entry = this.entries.get(id)
+    if (!entry || entry.status.enabled === enabled) return
+    entry.status = { ...entry.status, enabled }
+    if (enabled) this.disabled.delete(id)
+    else this.disabled.add(id)
+    this.save()
+    if (enabled) {
+      await this.open(entry)
+    } else {
+      await entry.client?.close().catch(() => {})
+      entry.client = null
+      entry.tools = {}
+      entry.status = { ...entry.status, connected: false, error: null, tools: [] }
+    }
+    hub.record('mcp', `Turned ${enabled ? 'on' : 'off'} ${entry.status.name}`)
+    this.publish()
+  }
+
   /** Saves a remote MCP server by URL and connects; it will ask for sign-in if it needs one. */
-  async addServer(name: string, url: string): Promise<string | null> {
+  async addServer(name: string, url: string, apiKey?: string): Promise<string | null> {
     const label = name.trim()
     let parsed: URL
     try {
@@ -347,15 +450,32 @@ class McpManager {
     const id = `custom-${safeName(label).toLowerCase()}`
     if (this.entries.has(id)) return 'A connector with that name already exists'
 
-    const entry = this.add(id, label, 'custom', { url: parsed.toString() }, {}, null)
-    writeJson(CUSTOM_FILE, this.customServers())
+    const key = apiKey?.trim()
+    const credential = key ? { keyLabel: CUSTOM_KEY_LABEL } : { oauth: {} }
+    const entry = this.add(
+      id,
+      label,
+      'custom',
+      'custom',
+      { url: parsed.toString() },
+      credential,
+      null
+    )
+    if (key) {
+      entry.key?.save(key)
+      entry.status = { ...entry.status, auth: 'signedIn' }
+    }
+    this.save()
     await this.open(entry)
     this.publish()
     return null
   }
 
   toolset(): ToolSet {
-    return Object.assign({}, ...[...this.entries.values()].map((e) => e.tools))
+    return Object.assign(
+      {},
+      ...[...this.entries.values()].filter((e) => e.status.enabled).map((e) => e.tools)
+    )
   }
 
   async close(): Promise<void> {
@@ -367,14 +487,19 @@ class McpManager {
     id: string,
     name: string,
     source: McpServerStatus['source'],
+    group: McpGroup,
     config: ServerConfig,
-    oauth: AuthOptions | null,
+    credential: Credential,
     unavailable: string | null
   ): Entry {
-    const provider = oauth ? new StoredOAuthProvider(id, oauth) : null
+    const provider =
+      credential && 'oauth' in credential ? new StoredOAuthProvider(id, credential.oauth) : null
+    const key = credential && 'keyLabel' in credential ? new StoredApiKey(id) : null
+    const stored = provider?.hasTokens() ?? key?.has()
     const entry: Entry = {
       config,
       provider,
+      key,
       client: null,
       tools: {},
       status: {
@@ -382,8 +507,11 @@ class McpManager {
         name,
         source,
         url: 'url' in config ? config.url : null,
-        auth: provider ? (provider.hasTokens() ? 'signedIn' : 'signedOut') : 'none',
+        auth: stored === undefined ? 'none' : stored ? 'signedIn' : 'signedOut',
         unavailable,
+        group,
+        keyLabel: credential && 'keyLabel' in credential ? credential.keyLabel : null,
+        enabled: !this.disabled.has(id),
         connected: false,
         error: null,
         tools: []
@@ -418,6 +546,7 @@ class McpManager {
         }
       }
     )
+    const key = entry.key?.get()
     const transport =
       'command' in cfg
         ? new StdioClientTransport({
@@ -428,7 +557,9 @@ class McpManager {
             stderr: 'ignore'
           })
         : new StreamableHTTPClientTransport(new URL(cfg.url), {
-            requestInit: { headers: cfg.headers },
+            requestInit: {
+              headers: key ? { ...cfg.headers, Authorization: `Bearer ${key}` } : cfg.headers
+            },
             authProvider: entry.provider ?? undefined,
             fetch: networkFetch
           })
@@ -439,6 +570,11 @@ class McpManager {
       if (err instanceof UnauthorizedError && transport instanceof StreamableHTTPClientTransport) {
         this.setAuth(entry, entry.status.auth === 'signingIn' ? 'signingIn' : 'signedOut', null)
         return { unauthorized: true, transport }
+      }
+      if (entry.key && err instanceof StreamableHTTPError && [401, 403].includes(err.code ?? 0)) {
+        entry.key.forget()
+        this.setAuth(entry, 'signedOut', `${entry.status.name} rejected the key`)
+        return { unauthorized: false }
       }
       entry.status = { ...entry.status, connected: false, error: (err as Error).message, tools: [] }
       hub.record('error', `MCP ${entry.status.name} failed: ${(err as Error).message}`)
@@ -501,7 +637,7 @@ class McpManager {
       entry.status = {
         ...entry.status,
         connected: true,
-        auth: entry.provider ? 'signedIn' : 'none',
+        auth: entry.provider || entry.key ? 'signedIn' : 'none',
         error: null,
         tools: infos
       }
@@ -521,10 +657,17 @@ class McpManager {
     this.publish()
   }
 
-  private customServers(): CustomServer[] {
-    return [...this.entries.values()]
+  private save(): void {
+    const custom: CustomServer[] = [...this.entries.values()]
       .filter((e) => e.status.source === 'custom' && e.status.url)
-      .map((e) => ({ id: e.status.id, name: e.status.name, url: e.status.url as string }))
+      .map((e) => ({
+        id: e.status.id,
+        name: e.status.name,
+        url: e.status.url as string,
+        ...(e.key ? { key: true } : {})
+      }))
+    const file: ConnectorsFile = { custom, disabled: [...this.disabled] }
+    writeJson(CUSTOM_FILE, file)
   }
 
   private publish(): void {

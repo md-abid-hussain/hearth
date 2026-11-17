@@ -63,13 +63,16 @@ class Hub {
   reminders: Reminder[] = []
   log: LogEntry[] = []
   mcp: McpServerStatus[] = []
+  /** Composio and the Google accounts linked through it; shown alongside the MCP servers. */
+  composio: McpServerStatus[] = []
   settings: Settings = {
     quietMode: false,
     nudgesEnabled: true,
     telemetry: false,
     theme: 'dark',
     hotkey: 'ctrl-win',
-    reasoningEffort: null
+    reasoningEffort: null,
+    consentAt: null
   }
   status!: AppStatus
   partialTranscript = ''
@@ -116,7 +119,7 @@ class Hub {
       memory: this.memory,
       reminders: this.reminders,
       log: this.log,
-      mcp: this.mcp,
+      mcp: this.connectors(),
       settings: this.settings,
       status: this.status,
       partialTranscript: this.partialTranscript,
@@ -126,6 +129,10 @@ class Hub {
       listenMode: this.listenMode,
       notice: this.notice
     }
+  }
+
+  connectors(): McpServerStatus[] {
+    return [...this.mcp, ...this.composio]
   }
 
   /** Shows a problem on the pill for a few seconds and records it once in the timeline. */
@@ -177,7 +184,8 @@ class Hub {
   record(kind: LogKind, message: string, data?: Record<string, unknown>): LogEntry | null {
     if (kind === 'error') {
       const now = Date.now()
-      if (message === this.lastError.message && now - this.lastError.at < REPEAT_ERROR_MS) return null
+      if (message === this.lastError.message && now - this.lastError.at < REPEAT_ERROR_MS)
+        return null
       this.lastError = { message, at: now }
     }
     const entry: LogEntry = { id: newId(), at: Date.now(), kind, message, data }

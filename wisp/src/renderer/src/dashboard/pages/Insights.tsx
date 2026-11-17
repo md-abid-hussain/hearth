@@ -1,5 +1,5 @@
 import type { InsightEntry } from '@shared/types'
-import { Markdown } from '../../components/Markdown'
+import { InsightCard } from '../../components/InsightCard'
 import { PageHeader, clock } from '../shared'
 
 export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.Element {
@@ -19,7 +19,7 @@ export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.
       {first && (
         <div className="card pop quote" style={{ maxWidth: 760 }}>
           <div className="mark">&ldquo;</div>
-          <Markdown text={first.text} className="quote-body" />
+          <InsightCard insight={first} lead className="quote-body" />
           <div className="quote-foot">
             <span className="label">Latest, {clock(first.at)}</span>
             <span className={first.isError ? 'tag no' : 'chip'}>
@@ -37,7 +37,7 @@ export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.
                 <div className="who" style={i.isError ? { color: 'var(--red)' } : undefined}>
                   {i.isError ? 'Presage, error' : i.onDemand ? 'Presage, asked by Wisp' : 'Presage'}
                 </div>
-                <Markdown text={i.text} className={i.isError ? 'body' : 'body voice'} />
+                <InsightCard insight={i} className={i.isError ? 'body' : 'body voice'} />
               </div>
             </div>
           ))}

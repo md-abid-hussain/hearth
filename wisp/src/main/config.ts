@@ -13,7 +13,14 @@ const DEFAULT_MODELS: Record<LlmProviderName, string> = {
   anthropic: 'claude-haiku-4-5'
 }
 
-const REASONING_LEVELS: readonly ReasoningEffort[] = ['none', 'low', 'medium', 'high', 'xhigh', 'max']
+const REASONING_LEVELS: readonly ReasoningEffort[] = [
+  'none',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max'
+]
 
 export interface WispConfig {
   smartspectraKey: string
@@ -23,9 +30,11 @@ export interface WispConfig {
   reasoningEffort: ReasoningEffort | null
   openaiKey: string
   anthropicKey: string
-  /** A Google OAuth client the user created; Google's MCP servers do not allow dynamic registration. */
-  googleClientId: string
-  googleClientSecret: string
+  /**
+   * A Composio Platform project key (ak_...). Composio handles Google sign-in and runs the Gmail,
+   * Calendar and Drive tools. The For You consumer key (ck_...) does not work with the SDK.
+   */
+  composioKey: string
   ttsVoice: string
   projectRoot: string
   dataDir: string
@@ -68,8 +77,7 @@ export function loadConfig(): WispConfig {
     reasoningEffort: parseEffort(env.OPENAI_MODEL_REASONING ?? env.LLM_REASONING),
     openaiKey: env.OPENAI_API_KEY ?? '',
     anthropicKey: env.ANTHROPIC_API_KEY ?? '',
-    googleClientId: env.GOOGLE_OAUTH_CLIENT_ID ?? '',
-    googleClientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
+    composioKey: env.COMPOSIO_API_KEY || env.COMPOSIO_PLATFORM_KEY || '',
     ttsVoice: env.WISP_TTS_VOICE || 'aai-kyla',
     projectRoot,
     dataDir: join(app.getPath('userData'), 'wisp-data'),

@@ -341,9 +341,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
           {insight ? (
             <div className="card quote" style={{ flex: 1 }}>
               <div className="mark">&ldquo;</div>
-              <h3>
-                {preview(insight.text, 220)}
-              </h3>
+              <h3>{insight.structured?.headline || preview(insight.text, 220)}</h3>
               <div className="quote-foot">
                 <span className="label">{clock(insight.at)}, from your numbers only</span>
                 <span className="chip">{insight.onDemand ? 'asked by Wisp' : 'automatic'}</span>
