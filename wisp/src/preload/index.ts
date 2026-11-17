@@ -23,6 +23,7 @@ const api: HearthApi = {
   sendTyped: (text: string) => ipcRenderer.send('hearth:typed', text),
   playbackIdle: () => ipcRenderer.send('hearth:playbackIdle'),
   openDashboard: () => ipcRenderer.send('hearth:openDashboard'),
+  setPillInteractive: (on: boolean) => ipcRenderer.send('hearth:pillInteractive', on),
   quit: () => ipcRenderer.send('hearth:quit'),
 
   updateSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('hearth:updateSettings', patch),

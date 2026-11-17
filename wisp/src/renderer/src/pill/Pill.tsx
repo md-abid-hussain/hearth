@@ -1,20 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ActionIcon, Menu, Tooltip } from '@mantine/core'
 import { IconCamera, IconCameraOff, IconDots, IconLayoutDashboard } from '@tabler/icons-react'
 import type { HearthState } from '@shared/types'
 import { Orb } from '../components/Orb'
-import { mic } from '../lib/mic'
-import { player } from '../lib/player'
 import { useHearth } from '../lib/store'
 import { usePushToTalk } from '../lib/usePushToTalk'
+import { CameraPanel } from './CameraPanel'
 
 const CAPTION_LINGER_MS = 7_000
-/** How long the pill says "starting camera" before giving up on hearing back. */
-const SENSING_START_MS = 30_000
+/** Leaving the widget collapses it after this pause, so a slip of the pointer does not. */
+const COLLAPSE_DELAY_MS = 450
 
-function headline(state: HearthState, starting: boolean): { text: string; sub: string } {
+function headline(state: HearthState): { text: string; sub: string } {
   const shortcut = state.status.pttShortcut
-  if (starting && state.mood === 'idle') return { text: 'Hearth', sub: 'starting the camera…' }
   switch (state.mood) {
     case 'listening':
       return state.listenMode === 'handsFree'
@@ -31,49 +29,60 @@ function headline(state: HearthState, starting: boolean): { text: string; sub: s
       return { text: 'Hearth', sub: 'asleep' }
     default:
       if (state.settings.quietMode) return { text: 'Hearth', sub: 'quiet mode, ask any time' }
+      if (state.vitals.sensing) return { text: 'Hearth', sub: `sensing · hold ${shortcut} to talk` }
       return { text: 'Hearth', sub: `hold ${shortcut} to talk` }
   }
 }
 
-/** Voice-level bars; heights are driven straight from the audio level each frame. */
-function Bars({ source, color }: { source: 'mic' | 'player'; color: string }): React.JSX.Element {
-  const ref = useRef<HTMLDivElement>(null)
+/**
+ * Tells the main process whether the pointer is over the widget. The window is transparent and
+ * click-through; mouse moves are still forwarded, so this can hit-test them.
+ */
+function useHover(): boolean {
+  const [hovered, setHovered] = useState(false)
   useEffect(() => {
-    let frame = 0
-    const tick = (time: number): void => {
-      const level = source === 'mic' ? mic.level : player.level()
-      const bars = ref.current?.children
-      if (bars) {
-        for (let i = 0; i < bars.length; i++) {
-          const wave = 0.5 + 0.5 * Math.sin(time / 120 + i * 1.7)
-          ;(bars[i] as HTMLElement).style.height = `${4 + Math.min(1, level * 2.2) * wave * 14}px`
-        }
+    let interactive = false
+    let collapse: ReturnType<typeof setTimeout> | null = null
+    const set = (inside: boolean): void => {
+      if (inside !== interactive) {
+        interactive = inside
+        window.hearth.setPillInteractive(inside)
       }
-      frame = requestAnimationFrame(tick)
+      if (inside) {
+        if (collapse) clearTimeout(collapse)
+        collapse = null
+        setHovered(true)
+      } else if (!collapse) {
+        collapse = setTimeout(() => {
+          collapse = null
+          setHovered(false)
+        }, COLLAPSE_DELAY_MS)
+      }
     }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [source])
-  return (
-    <div className="bars" ref={ref} style={{ color }}>
-      {Array.from({ length: 7 }, (_, i) => (
-        <i key={i} />
-      ))}
-    </div>
-  )
+    const onMove = (e: MouseEvent): void => {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      set(Boolean(el?.closest('[data-hit]')))
+    }
+    const onLeave = (): void => set(false)
+    window.addEventListener('mousemove', onMove)
+    document.documentElement.addEventListener('mouseleave', onLeave)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      document.documentElement.removeEventListener('mouseleave', onLeave)
+      if (collapse) clearTimeout(collapse)
+    }
+  }, [])
+  return hovered
 }
 
 export function Pill(): React.JSX.Element | null {
   const state = useHearth()
   const ptt = usePushToTalk()
+  const hovered = useHover()
   const [caption, setCaption] = useState<string | null>(null)
-  const [startRequested, setStartRequested] = useState(false)
-
-  useEffect(() => {
-    if (!startRequested) return undefined
-    const timer = setTimeout(() => setStartRequested(false), SENSING_START_MS)
-    return () => clearTimeout(timer)
-  }, [startRequested])
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeCamera = useCallback(() => setCameraOpen(false), [])
 
   const mood = state?.mood
   const reply = state?.lastReply
@@ -92,66 +101,87 @@ export function Pill(): React.JSX.Element | null {
   if (!state) return null
   const consented = state.settings.consentAt != null
   const sensingOn = state.vitals.sensing
-  const starting = startRequested && !sensingOn && !state.notice
   const { text, sub } = consented
-    ? headline(state, starting)
-    : { text: 'Hearth', sub: 'click to review consent in the dashboard' }
+    ? headline(state)
+    : { text: 'Hearth', sub: 'review consent in the dashboard' }
   const press = consented ? ptt.press : () => window.hearth.openDashboard()
-  const error =
-    ptt.error ??
-    state.notice ??
-    (!state.status.assemblyReady ? 'Add ASSEMBLYAI_API_KEY to talk' : null)
-  // SmartSpectra's own guidance ("Move closer", "Not enough light"), shown only while sensing.
-  const hint =
-    sensingOn && state.vitals.validationHint ? `Camera: ${state.vitals.validationHint}` : null
-  const toggleSensing = (): void => {
-    setStartRequested(!sensingOn)
-    window.hearth.requestSensing(!sensingOn)
-  }
+  const problem = ptt.error ?? state.notice
+  const hint = sensingOn ? state.vitals.validationHint : null
+  const busy = state.mood === 'listening' || state.mood === 'thinking' || state.mood === 'speaking'
+  const expanded = hovered || busy || cameraOpen || menuOpen || Boolean(problem) || !consented
+  // Lower priority notes show only while the widget is open, so the face can stay small.
+  const note =
+    problem ?? (expanded && !state.status.assemblyReady ? 'Add ASSEMBLYAI_API_KEY to talk' : null)
 
   return (
-    <div className="pill-wrap">
-      {error ? (
-        <div className="caption problem">{error}</div>
+    <div className="widget-wrap">
+      {cameraOpen ? (
+        <CameraPanel state={state} onClose={closeCamera} />
+      ) : note ? (
+        <div className="caption problem">{note}</div>
       ) : caption ? (
         <div className="caption">{caption}</div>
       ) : (
-        hint && <div className="caption hint">{hint}</div>
+        expanded && hint && <div className="caption hint">Camera: {hint}</div>
       )}
-      <div className="pill">
-        <Tooltip label={consented ? 'Hold to talk' : 'Review consent'} openDelay={600}>
+
+      <div
+        className={[
+          'hearth-bar',
+          expanded ? 'expanded' : 'compact',
+          sensingOn ? 'sensing' : ''
+        ].join(' ')}
+        data-hit
+      >
+        <Tooltip
+          label={consented ? 'Hold to talk' : 'Review consent'}
+          openDelay={700}
+          disabled={!expanded}
+        >
           <button
-            className="orb-hit"
+            className="face-hit"
             onPointerDown={press}
             onPointerUp={ptt.release}
             onPointerLeave={ptt.release}
-            aria-label="Hold to talk to Hearth"
+            aria-label={consented ? 'Hold to talk to Hearth' : 'Review consent'}
           >
-            <Orb mood={state.mood} breathing={state.vitals.breathing} size={34} />
+            <span className="face-wrap">
+              <Orb
+                mood={state.mood}
+                breathing={state.vitals.breathing}
+                size={expanded ? 42 : 46}
+                alert={problem ? 'problem' : 'none'}
+                expression={state.vitals.expression?.label ?? null}
+              />
+              {sensingOn && (
+                <span className="face-badge camera" title="Camera on">
+                  <IconCamera size={10} stroke={2.4} />
+                </span>
+              )}
+              {!expanded && hint && <span className="face-badge hint" title={hint} />}
+            </span>
           </button>
         </Tooltip>
 
-        {state.mood === 'listening' && <Bars source="mic" color="var(--green)" />}
-        {state.mood === 'speaking' && <Bars source="player" color="var(--amber)" />}
-
-        <div style={{ minWidth: 0, flex: 1, paddingRight: 4 }}>
-          <div className="pill-text">{text}</div>
-          {sub && <div className="pill-sub">{sub}</div>}
+        <div className="bar-info" aria-hidden={!expanded}>
+          <div className="bar-text">{text}</div>
+          {sub && <div className="bar-sub">{sub}</div>}
         </div>
 
-        <div className="pill-actions">
+        <div className="bar-actions" aria-hidden={!expanded}>
           <Tooltip
-            label={sensingOn ? 'Camera on: stop sensing' : 'Start sensing with the camera'}
+            label={
+              cameraOpen ? 'Hide camera' : sensingOn ? 'Camera on: check framing' : 'Open camera'
+            }
             openDelay={400}
           >
             <ActionIcon
-              variant={sensingOn ? 'light' : 'subtle'}
+              variant={sensingOn || cameraOpen ? 'light' : 'subtle'}
               color={sensingOn ? 'green' : 'gray'}
               radius="xl"
-              loading={starting}
-              aria-pressed={sensingOn}
-              aria-label={sensingOn ? 'Camera on, stop sensing' : 'Start sensing'}
-              onClick={toggleSensing}
+              aria-pressed={cameraOpen}
+              aria-label={cameraOpen ? 'Hide camera' : 'Open camera'}
+              onClick={() => setCameraOpen((open) => !open)}
             >
               {sensingOn ? <IconCamera size={17} /> : <IconCameraOff size={17} />}
             </ActionIcon>
@@ -161,12 +191,19 @@ export function Pill(): React.JSX.Element | null {
               variant="subtle"
               color="gray"
               radius="xl"
+              aria-label="Open dashboard"
               onClick={() => window.hearth.openDashboard()}
             >
               <IconLayoutDashboard size={17} />
             </ActionIcon>
           </Tooltip>
-          <Menu position="top-end" withinPortal={false} shadow="none">
+          <Menu
+            position="top-end"
+            withinPortal={false}
+            shadow="none"
+            opened={menuOpen}
+            onChange={setMenuOpen}
+          >
             <Menu.Target>
               <ActionIcon variant="subtle" color="gray" radius="xl" aria-label="More">
                 <IconDots size={17} />
@@ -180,6 +217,11 @@ export function Pill(): React.JSX.Element | null {
               >
                 {state.settings.quietMode ? 'Turn quiet mode off' : 'Quiet mode'}
               </Menu.Item>
+              {sensingOn && (
+                <Menu.Item onClick={() => window.hearth.requestSensing(false)}>
+                  Stop sensing
+                </Menu.Item>
+              )}
               <Menu.Item onClick={() => window.hearth.openDashboard()}>Open dashboard</Menu.Item>
               <Menu.Divider />
               <Menu.Item color="red" onClick={() => window.hearth.quit()}>

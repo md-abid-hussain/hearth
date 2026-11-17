@@ -1,87 +1,190 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { HearthMood } from '@shared/types'
 import { mic } from '../lib/mic'
 import { player } from '../lib/player'
 
-const COLORS: Record<HearthMood, string> = {
-  sleeping: '#6b665f',
-  idle: '#f0a43a',
-  listening: '#3fb27f',
-  thinking: '#8fb4ff',
-  speaking: '#f0a43a'
-}
+/** What the face is doing beyond its mood: a problem to show, or a small idle gesture. */
+export type FaceAlert = 'none' | 'problem'
+
+type IdleAction = 'blink' | 'glanceLeft' | 'glanceRight' | 'lookUp' | 'hop' | 'tilt' | 'wiggle'
 
 interface Props {
   mood: HearthMood
-  /** Breaths per minute; the idle orb swells in time with the user. */
+  /** Breaths per minute; the idle face swells in time with the user. */
   breathing: number | null
   size?: number
+  alert?: FaceAlert
+  /** The user's expression from SmartSpectra, when they switched expressions on. */
+  expression?: string | null
 }
 
-/** Flat amber orb with eyes; a halo ring shows voice level while listening or speaking. */
-export function Orb({ mood, breathing, size = 40 }: Props): React.JSX.Element {
-  const ref = useRef<HTMLCanvasElement>(null)
+const IDLE_ACTIONS: [IdleAction, number, number][] = [
+  // action, weight, duration in ms
+  ['blink', 40, 150],
+  ['glanceLeft', 12, 1300],
+  ['glanceRight', 12, 1300],
+  ['lookUp', 8, 1100],
+  ['hop', 12, 650],
+  ['tilt', 8, 1000],
+  ['wiggle', 8, 700]
+]
+
+function pickAction(reduced: boolean): [IdleAction, number] {
+  const options = reduced
+    ? IDLE_ACTIONS.filter(([a]) => a === 'blink' || a.startsWith('glance'))
+    : IDLE_ACTIONS
+  let roll = Math.random() * options.reduce((sum, [, w]) => sum + w, 0)
+  for (const [action, weight, ms] of options) {
+    roll -= weight
+    if (roll <= 0) return [action, ms]
+  }
+  return ['blink', 150]
+}
+
+const reducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * Hearth's face. Each mood has its own look: idle breathes with you and now and then blinks,
+ * glances, hops or tilts; listening opens its eyes wide with a ring that follows your voice;
+ * thinking looks up while dots circle; speaking squints happily and its mouth follows the
+ * audio; sleeping closes its eyes. A problem tints it red.
+ */
+export function Orb({
+  mood,
+  breathing,
+  size = 44,
+  alert = 'none',
+  expression = null
+}: Props): React.JSX.Element {
+  const root = useRef<HTMLDivElement>(null)
   const latest = useRef({ mood, breathing })
   latest.current = { mood, breathing }
+  const [action, setAction] = useState<IdleAction | null>(null)
 
+  // Voice level and breathing drive CSS variables directly, without re-rendering React.
   useEffect(() => {
-    const canvas = ref.current!
-    const ctx = canvas.getContext('2d')!
-    const pad = 8
-    const full = size + pad * 2
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = full * dpr
-    canvas.height = full * dpr
-    ctx.scale(dpr, dpr)
-
-    let level = 0
     let frame = 0
-    const draw = (time: number): void => {
+    let level = 0
+    const tick = (time: number): void => {
       const { mood: m, breathing: b } = latest.current
       const target = m === 'speaking' ? player.level() : m === 'listening' ? mic.level : 0
-      level += (target - level) * 0.25
-      const t = time / 1000
+      level += (Math.min(1, target * 2.2) - level) * 0.3
       const bpm = b && b > 4 && b < 40 ? b : 12
-      const breath = m === 'idle' ? 0.04 * Math.sin(t * Math.PI * 2 * (bpm / 60)) : 0
-      const c = full / 2
-      const r = (size / 2) * (1 + breath)
-
-      ctx.clearRect(0, 0, full, full)
-      if (m === 'listening' || m === 'speaking') {
-        ctx.beginPath()
-        ctx.arc(c, c, r + 2 + level * pad * 0.9 + 2, 0, Math.PI * 2)
-        ctx.fillStyle = m === 'listening' ? 'rgba(63, 178, 127, 0.24)' : 'rgba(240, 164, 58, 0.28)'
-        ctx.fill()
+      const breath =
+        m === 'idle' || m === 'sleeping' ? Math.sin((time / 1000) * Math.PI * 2 * (bpm / 60)) : 0
+      const el = root.current
+      if (el) {
+        el.style.setProperty('--level', level.toFixed(3))
+        el.style.setProperty('--breath', (1 + breath * 0.035).toFixed(4))
       }
-      if (m === 'thinking') {
-        ctx.beginPath()
-        ctx.arc(c, c, r + 4, t * 4, t * 4 + Math.PI * 0.6)
-        ctx.strokeStyle = COLORS.thinking
-        ctx.lineWidth = 2
-        ctx.stroke()
-      }
-
-      ctx.beginPath()
-      ctx.arc(c, c, r, 0, Math.PI * 2)
-      ctx.fillStyle = COLORS[m]
-      ctx.fill()
-
-      const blink = m === 'sleeping' || Math.sin(t * 1.3) > 0.992
-      const eyeW = size * 0.11
-      const eyeH = blink ? size * 0.03 : size * 0.17
-      const dx = size * 0.16
-      const lookUp = m === 'thinking' ? -size * 0.06 : 0
-      ctx.fillStyle = '#141414'
-      for (const sx of [-dx, dx]) {
-        ctx.beginPath()
-        ctx.roundRect(c + sx - eyeW / 2, c - size * 0.1 + lookUp, eyeW, eyeH, eyeW / 2)
-        ctx.fill()
-      }
-      frame = requestAnimationFrame(draw)
+      frame = requestAnimationFrame(tick)
     }
-    frame = requestAnimationFrame(draw)
+    frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [size])
+  }, [])
 
-  return <canvas ref={ref} style={{ width: size + 16, height: size + 16, display: 'block' }} aria-label={`Hearth is ${mood}`} />
+  // Small gestures at random moments, plus ordinary blinks while listening or thinking.
+  useEffect(() => {
+    if (mood === 'sleeping' || mood === 'speaking') return undefined
+    let timer: ReturnType<typeof setTimeout>
+    const schedule = (): void => {
+      const wait = mood === 'idle' ? 2_500 + Math.random() * 5_000 : 3_000 + Math.random() * 3_000
+      timer = setTimeout(() => {
+        const [next, ms] = mood === 'idle' ? pickAction(reducedMotion()) : (['blink', 150] as const)
+        setAction(next)
+        timer = setTimeout(() => {
+          setAction(null)
+          schedule()
+        }, ms)
+      }, wait)
+    }
+    schedule()
+    return () => {
+      clearTimeout(timer)
+      setAction(null)
+    }
+  }, [mood])
+
+  const smiling = mood === 'speaking' || (mood === 'idle' && expression === 'happy')
+  const eyes =
+    mood === 'sleeping' ? 'closed' : smiling ? 'happy' : action === 'blink' ? 'blink' : 'open'
+  const classes = [
+    'face',
+    `mood-${mood}`,
+    alert === 'problem' ? 'problem' : '',
+    action ? `act-${action}` : ''
+  ]
+
+  return (
+    <div
+      ref={root}
+      className={classes.filter(Boolean).join(' ')}
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`Hearth is ${mood}`}
+    >
+      <svg viewBox="0 0 100 100" aria-hidden>
+        <defs>
+          <radialGradient id="face-shine" cx="35%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.38" />
+            <stop offset="55%" stopColor="#fff" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0.12" />
+          </radialGradient>
+        </defs>
+        <circle className="face-halo" cx="50" cy="50" r="47" />
+        {mood === 'thinking' && (
+          <g className="face-orbit">
+            <circle cx="50" cy="4" r="3.4" />
+            <circle cx="90" cy="68" r="2.6" />
+            <circle cx="12" cy="70" r="2" />
+          </g>
+        )}
+        <g className="face-body">
+          <circle className="face-fill" cx="50" cy="50" r="40" />
+          <circle cx="50" cy="50" r="40" fill="url(#face-shine)" />
+          {smiling && (
+            <g className="face-cheeks">
+              <ellipse cx="29" cy="61" rx="6" ry="3.6" />
+              <ellipse cx="71" cy="61" rx="6" ry="3.6" />
+            </g>
+          )}
+          <g className="face-eyes">
+            {eyes === 'open' && (
+              <>
+                <rect className="eye" x="33" y="38" width="9" height="16" rx="4.5" />
+                <rect className="eye" x="58" y="38" width="9" height="16" rx="4.5" />
+              </>
+            )}
+            {eyes === 'blink' && (
+              <>
+                <rect className="eye" x="33" y="45" width="9" height="2.6" rx="1.3" />
+                <rect className="eye" x="58" y="45" width="9" height="2.6" rx="1.3" />
+              </>
+            )}
+            {eyes === 'happy' && (
+              <>
+                <path className="eye-line" d="M32 49 Q37.5 41 43 49" />
+                <path className="eye-line" d="M57 49 Q62.5 41 68 49" />
+              </>
+            )}
+            {eyes === 'closed' && (
+              <>
+                <path className="eye-line" d="M32 46 Q37.5 52 43 46" />
+                <path className="eye-line" d="M57 46 Q62.5 52 68 46" />
+              </>
+            )}
+          </g>
+          {mood === 'speaking' && (
+            <ellipse className="face-mouth" cx="50" cy="66" rx="6.5" ry="5" />
+          )}
+          {mood === 'idle' && smiling && <path className="eye-line" d="M42 63 Q50 70 58 63" />}
+        </g>
+        {mood === 'sleeping' && (
+          <text className="face-z" x="76" y="24">
+            z
+          </text>
+        )}
+      </svg>
+    </div>
+  )
 }

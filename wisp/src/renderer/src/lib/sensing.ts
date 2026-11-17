@@ -65,7 +65,8 @@ export function chooseCamera(id: string | null): void {
   else localStorage.removeItem(CAMERA_KEY)
 }
 
-async function openCamera(): Promise<MediaStream> {
+/** Opens the chosen camera (or the default) with the sensing constraints; also used for the widget preview. */
+export async function openCamera(): Promise<MediaStream> {
   const id = chosenCamera()
   try {
     if (id) {
@@ -107,7 +108,7 @@ async function openCamera(): Promise<MediaStream> {
   }
 }
 
-const stopTracks = (stream: MediaStream | null): void =>
+export const stopTracks = (stream: MediaStream | null): void =>
   stream?.getTracks().forEach((t) => t.stop())
 
 type Range = { min: number; max: number }

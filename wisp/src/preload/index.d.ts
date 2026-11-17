@@ -21,6 +21,8 @@ export interface HearthApi {
   sendTyped(text: string): void
   playbackIdle(): void
   openDashboard(): void
+  /** The pill window passes clicks through except where this says the pointer is over the widget. */
+  setPillInteractive(on: boolean): void
   quit(): void
 
   updateSettings(patch: Partial<Settings>): Promise<Settings>

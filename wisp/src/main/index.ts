@@ -46,7 +46,11 @@ function watchEventLoop(): void {
     delay.reset()
   }, 5_000).unref()
 }
-const PILL_SIZE = { width: 440, height: 210 }
+/**
+ * Room for the camera preview above the bar. Only the widget itself takes the mouse; the rest
+ * of this transparent window passes clicks through to whatever is underneath.
+ */
+const PILL_SIZE = { width: 460, height: 520 }
 let quitting = false
 
 function loadRole(win: BrowserWindow, role: WindowRole): void {
@@ -124,6 +128,7 @@ function createPill(): BrowserWindow {
   win.setAlwaysOnTop(true, 'floating')
   win.setVisibleOnAllWorkspaces(true)
   hub.attach('pill', win)
+  win.setIgnoreMouseEvents(true, { forward: true })
   win.on('ready-to-show', () => win.showInactive())
   loadRole(win, 'pill')
   return win
@@ -216,6 +221,11 @@ function registerIpc(): void {
   })
   ipcMain.on('hearth:playbackIdle', () => playbackIdle())
   ipcMain.on('hearth:openDashboard', () => showDashboard())
+  // The pill renderer hit-tests forwarded mouse moves and asks for clicks only over its widget.
+  ipcMain.on('hearth:pillInteractive', (e, on: unknown) => {
+    const pill = hub.window('pill')
+    if (pill && e.sender === pill.webContents) pill.setIgnoreMouseEvents(on !== true, { forward: true })
+  })
   ipcMain.on('hearth:quit', () => app.quit())
 
   ipcMain.handle('hearth:updateSettings', (_e, patch: Partial<Settings>) => applySettings(patch))
