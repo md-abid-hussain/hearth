@@ -1,7 +1,9 @@
 import { decodeMetrics } from '@smartspectra/node-sdk/messages'
 import type { VitalsPoint } from '../shared/types'
 import { away } from './away'
+import { isDemo } from './demo'
 import { emptyVitals, hub } from './hub'
+import { appendJsonl } from './store'
 
 const POINT_INTERVAL_MS = 2_000
 const HISTORY_MS = 60 * 60_000
@@ -12,6 +14,8 @@ const TALKING_WINDOW_MS = 8_000
 const BREATHING_AFTER_TALK_MS = 20_000
 /** A value not refreshed for this long is left out of the history instead of being repeated. */
 const STALE_MS = 6_000
+/** Demo mode only: every history point, kept for editing the demo video. */
+const DEMO_VITALS_FILE = 'vitals.jsonl'
 
 /**
  * Confidence floors behind the SDK's `stable` flag (SmartSpectra data types: pulse 40,
@@ -177,6 +181,15 @@ class VitalsTracker {
       while (this.history.length && this.history[0].t < cutoff) this.history.shift()
       hub.send({ type: 'vitalsPoint', point })
       hub.changed()
+      // Demo recordings get the full signal trace, so the edit can draw real charts in sync.
+      if (isDemo())
+        appendJsonl(DEMO_VITALS_FILE, {
+          ...point,
+          blinksPerMinute: v.blinksPerMinute,
+          talking: v.talking,
+          expression: v.expression?.label ?? null,
+          hint: v.validationHint
+        })
     }
   }
 

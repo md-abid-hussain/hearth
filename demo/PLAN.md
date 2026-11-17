@@ -2,6 +2,8 @@
 
 Deadline: **November 22, 2026, 11:59 PM PST.**
 
+> **Recording changed.** Instead of separate OBS clips, you use Hearth for one long session, recorded with `node tools/record.mjs`; see [RECORDING.md](RECORDING.md). The script below still describes the video I cut from that footage.
+
 ## What the judges look for
 
 Taken from the challenge page and the contest rules:

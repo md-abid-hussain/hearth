@@ -18,13 +18,13 @@ const T = {
     return timing(5 * 60_000, 30_000)
   },
   get minGap(): number {
-    return timing(15 * 60_000, 60_000)
+    return timing(15 * 60_000, 2 * 60_000)
   },
   get sameRuleCooldown(): number {
-    return timing(45 * 60_000, 2 * 60_000)
+    return timing(45 * 60_000, 10 * 60_000)
   },
   get maxPerHour(): number {
-    return timing(3, 20)
+    return timing(3, 8)
   },
   get quietAfterChat(): number {
     return timing(2 * 60_000, 20_000)

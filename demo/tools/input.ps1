@@ -29,6 +29,7 @@ while ($true) {
     'pos' { $xy = $parts[1].Split(' '); [void][HearthInput]::SetCursorPos([int]$xy[0], [int]$xy[1]); [Console]::Out.WriteLine('ok') }
     'down' { [HearthInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); [Console]::Out.WriteLine('ok') }
     'up' { [HearthInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero); [Console]::Out.WriteLine('ok') }
+    'wheel' { [HearthInput]::mouse_event(0x0800, 0, 0, [uint32]([int]$parts[1] -band 0xFFFFFFFF), [UIntPtr]::Zero); [Console]::Out.WriteLine('ok') }
     'where' { $p = New-Object HearthInput+POINT; [void][HearthInput]::GetCursorPos([ref]$p); [Console]::Out.WriteLine("pos $($p.X) $($p.Y)") }
     'cue' { $voice.SpeakAsyncCancelAll(); [void]$voice.SpeakAsync($parts[1]); [Console]::Out.WriteLine('ok') }
     default { [Console]::Out.WriteLine("error unknown command $($parts[0])") }

@@ -39,7 +39,7 @@ import { closeSpeech } from './voice/tts'
 const SHUTDOWN_TIMEOUT_MS = 3_000
 /** Hearth falls asleep after this long without being talked to or speaking. */
 /** Asleep after this long without talking to Hearth; HEARTH_DEMO=1 shortens it. */
-const sleepAfterMs = (): number => timing(5 * 60_000, 45_000)
+const sleepAfterMs = (): number => timing(5 * 60_000, 90_000)
 const LAG_WARN_MS = 100
 
 /** Development aid: reports when the main process is blocked long enough to freeze the windows. */

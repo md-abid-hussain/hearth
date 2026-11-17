@@ -62,6 +62,14 @@ export async function openInput(scaleFactor) {
       await new Promise((r) => setTimeout(r, 120))
       await send('up')
     },
+    /** Scrolls gently: `notches` wheel steps (negative scrolls down), spread over `ms`. */
+    async scroll(notches, ms = 1500) {
+      const steps = Math.abs(notches) * 4
+      for (let i = 0; i < steps; i++) {
+        await send(`wheel ${Math.sign(notches) * 30}`)
+        await new Promise((r) => setTimeout(r, ms / steps))
+      }
+    },
     /** Speaks a cue to the person on camera; the recording has no audio, so it never shows up. */
     cue: (text) => send(`cue ${text}`),
     close() {

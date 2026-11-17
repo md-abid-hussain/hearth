@@ -12,13 +12,13 @@
 //   node tools/do.mjs click | drag X Y [ms]
 //   node tools/do.mjs cue "text"               speak a cue to the person on camera
 //   node tools/do.mjs shot [name]              screenshot to build/<name>.png
-//   node tools/do.mjs rec NAME                 record raw/NAME.mp4 until `stop NAME` (run it in the background)
+//   node tools/do.mjs rec NAME                 record raw/NAME.mkv (+ mics) until `stop NAME` (run it in the background)
 //   node tools/do.mjs stop NAME
 import { existsSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import * as hearth from './hearth.mjs'
 import { openInput } from './input.mjs'
-import { RAW_DIR, screenshot, startRecording } from './recorder.mjs'
+import { RAW_DIR, screenshot, startSession } from './recorder.mjs'
 
 const [cmd, ...args] = process.argv.slice(2)
 const num = (i) => Number(args[i])
@@ -102,6 +102,9 @@ switch (cmd) {
   case 'click':
     await withInput((i) => i.click())
     break
+  case 'scroll':
+    await withInput((i) => i.scroll(num(0), args[1] ? num(1) : 1500))
+    break
   case 'drag':
     await withInput((i) => i.drag(num(0), num(1), args[2] ? num(2) : 1200))
     break
@@ -118,12 +121,12 @@ switch (cmd) {
     const name = args[0]
     const stopFile = join(RAW_DIR, `${name}.stop`)
     if (existsSync(stopFile)) rmSync(stopFile)
-    const rec = startRecording(name)
-    console.log(`recording ${rec.out}`)
+    const rec = startSession(name)
+    console.log(`recording ${rec.screen.out}`)
     while (!existsSync(stopFile)) await hearth.sleep(200)
     rmSync(stopFile)
     const meta = await rec.stop()
-    console.log(`saved ${rec.out} (${((meta.stoppedAt - meta.firstFrameAt) / 1000).toFixed(1)} s)`)
+    console.log(`saved ${meta.video.out} (${((meta.video.stoppedAt - meta.video.firstAt) / 1000).toFixed(1)} s)`)
     break
   }
   case 'stop':
