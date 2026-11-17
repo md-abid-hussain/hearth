@@ -13,7 +13,13 @@ import { readJson, writeJson } from './store'
 const FILE = 'composio.json'
 /** Bump when the session policy below changes, so a stored session with the old policy is replaced. */
 const POLICY_VERSION = 1
-const SIGN_IN_TIMEOUT_MS = 3 * 60_000
+/** Google's consent screens for Gmail take a while, especially with the full-access warning. */
+const SIGN_IN_TIMEOUT_MS = 5 * 60_000
+const POLL_FIRST_MS = 1_500
+const POLL_MAX_MS = 5_000
+/** Creating a sign-in link is a POST, which the Composio client never retries on its own. */
+const LINK_ATTEMPTS = 3
+const FAILED_STATES = new Set(['FAILED', 'EXPIRED', 'REVOKED'])
 /** Mail and file listings can be huge; the model only needs enough to answer out loud. */
 const RESULT_LIMIT = 8_000
 const HUB_ID = 'composio'
@@ -53,6 +59,18 @@ function keyProblem(key: string): string | null {
   if (key.startsWith('ck_'))
     return 'COMPOSIO_API_KEY is a For You key (ck_); use a Platform key (ak_)'
   return null
+}
+
+/** Runs a request again after a short pause when it fails on the network, not on the server. */
+async function withRetries<T>(run: () => Promise<T>, attempts: number): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run()
+    } catch (err) {
+      if (attempt >= attempts || !isNetworkError(err)) throw err
+      await new Promise((resolve) => setTimeout(resolve, 700 * attempt))
+    }
+  }
 }
 
 /** Timeouts and dropped connections, as opposed to a rejected key or request. */
@@ -154,12 +172,13 @@ class ComposioApps {
     this.setStatus(id, { auth: 'signingIn', error: null })
     this.publish()
     try {
-      const request = await this.session.authorize(app.toolkit)
+      const session = this.session
+      const request = await withRetries(() => session.authorize(app.toolkit), LINK_ATTEMPTS)
       const url = new URL(request.redirectUrl ?? '')
       if (url.protocol !== 'https:')
         throw new Error('Composio returned a sign-in link that is not https')
       await shell.openExternal(url.toString())
-      await Promise.race([request.waitForConnection(SIGN_IN_TIMEOUT_MS), cancelled])
+      await Promise.race([this.waitUntilConnected(request.id), cancelled])
       hub.record('mcp', `Signed in to ${app.name} through Composio`)
     } catch (err) {
       const wasCancelled = err instanceof SignInCancelled
@@ -169,6 +188,31 @@ class ComposioApps {
       this.signIns.delete(id)
       await this.refresh().catch(() => {})
       this.publish()
+    }
+  }
+
+  /**
+   * Polls the new connection until the user finishes in the browser. The SDK's own wait gives up
+   * on the first network error; this one keeps waiting through blips until the connection is
+   * active, fails, or the time runs out.
+   */
+  private async waitUntilConnected(accountId: string): Promise<void> {
+    const client = this.client
+    if (!client) throw new Error('Composio is not connected')
+    const deadline = Date.now() + SIGN_IN_TIMEOUT_MS
+    let delay = POLL_FIRST_MS
+    for (;;) {
+      try {
+        const account = await client.connectedAccounts.get(accountId)
+        if (account.status === 'ACTIVE') return
+        if (FAILED_STATES.has(account.status))
+          throw new Error(`Google sign-in ended: ${account.status.toLowerCase()}`)
+      } catch (err) {
+        if (!isNetworkError(err)) throw err
+      }
+      if (Date.now() >= deadline) throw new Error('Sign-in was not finished within 5 minutes')
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      delay = Math.min(delay * 1.5, POLL_MAX_MS)
     }
   }
 
