@@ -79,6 +79,30 @@ function useHover(): boolean {
   return hovered
 }
 
+/**
+ * A caption above the widget at a fixed height. Longer text scrolls: it follows the newest words
+ * while Hearth speaks, and can be scrolled back while the pointer is over it.
+ */
+function Caption({ text, tone }: { text: string; tone?: 'problem' | 'hint' }): React.JSX.Element {
+  const ref = useRef<HTMLDivElement>(null)
+  const hovering = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (el && !hovering.current) el.scrollTop = el.scrollHeight
+  }, [text])
+  return (
+    <div
+      ref={ref}
+      className={tone ? `caption ${tone}` : 'caption'}
+      data-hit
+      onMouseEnter={() => (hovering.current = true)}
+      onMouseLeave={() => (hovering.current = false)}
+    >
+      {text}
+    </div>
+  )
+}
+
 export function Pill(): React.JSX.Element | null {
   const state = useHearth()
   const ptt = usePushToTalk()
@@ -158,11 +182,11 @@ export function Pill(): React.JSX.Element | null {
       {cameraOpen ? (
         <CameraPanel state={state} onClose={closeCamera} />
       ) : note ? (
-        <div className="caption problem">{note}</div>
+        <Caption text={note} tone="problem" />
       ) : caption ? (
-        <div className="caption">{caption}</div>
+        <Caption text={caption} />
       ) : (
-        expanded && hint && <div className="caption hint">Camera: {hint}</div>
+        expanded && hint && <Caption text={`Camera: ${hint}`} tone="hint" />
       )}
 
       <div

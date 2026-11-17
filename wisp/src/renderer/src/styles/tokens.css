@@ -959,17 +959,19 @@ table.plain td code {
   background: var(--surface);
   border: 1px solid var(--line);
   color: var(--text);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* Two lines tall; longer text scrolls instead of being cut off. */
+  max-height: calc(2 * 1.35em + 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
 .caption.problem {
   font-family: var(--font-sans);
   font-style: normal;
   font-size: var(--t-sm);
   border-color: var(--red);
-  -webkit-line-clamp: 3;
+  max-height: calc(3 * 1.35em + 16px);
 }
 /* Camera guidance from SmartSpectra, such as light or face position: advice, not an error. */
 .caption.hint {
