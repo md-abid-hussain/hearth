@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { AbsoluteFill, Audio, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
-import { color, fonts, s } from './theme'
+import { FPS, color, fonts, s } from './theme'
 
 /** The app's dark canvas with a faint warm glow, optionally centered somewhere else. */
 export function Backdrop({ glow = 0.07, x = '50%', y = '46%' }: { glow?: number; x?: string; y?: string }): React.JSX.Element {
@@ -76,30 +76,39 @@ export function Headline({ children, size = 84, style }: { children: ReactNode; 
   )
 }
 
-/** Hearth's own words: serif, revealed word by word from `at` at `wps` words a second. */
+/**
+ * Hearth's own words: serif, revealed word by word from `at`, either at `wps` words a second or
+ * at `times` (each word's start, in seconds after `at`) when the audio's timing is known.
+ */
 export function Spoken({
   text,
   at = 0,
   wps = 2.6,
+  times,
   size = 46,
   style
 }: {
   text: string
   at?: number
   wps?: number
+  times?: number[]
   size?: number
   style?: CSSProperties
 }): React.JSX.Element {
   const frame = useCurrentFrame()
-  const shown = Math.max(0, (frame - s(at)) / s(1 / wps))
+  const t = frame / FPS - at
   const words = text.split(' ')
+  const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
   return (
     <div style={{ font: `400 ${size}px ${fonts.serif}`, color: color.text, lineHeight: 1.35, ...style }}>
-      {words.map((w, i) => (
-        <span key={i} style={{ opacity: interpolate(shown - i, [0, 1], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }}>
-          {w}{' '}
-        </span>
-      ))}
+      {words.map((w, i) => {
+        const start = times?.[i] ?? i / wps
+        return (
+          <span key={i} style={{ opacity: interpolate(t - start, [0, 0.18], [0, 1], clamp) }}>
+            {w}{' '}
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -109,11 +118,24 @@ export function Mono({ children, size = 26, tone = color.muted, style }: { child
   return <span style={{ font: `500 ${size}px ${fonts.mono}`, color: tone, ...style }}>{children}</span>
 }
 
-/** One narration line (public/voice/<file>.mp3, ElevenLabs, Carolyn) starting `at` seconds in. */
-export function Narration({ file, at }: { file: string; at: number }): React.JSX.Element {
+/**
+ * A voice line from public/voice starting `at` seconds in: the narration (ElevenLabs, Carolyn,
+ * mp3) or Hearth's own voice (AssemblyAI, wav).
+ */
+export function Narration({
+  file,
+  at,
+  ext = 'mp3',
+  volume = 1
+}: {
+  file: string
+  at: number
+  ext?: 'mp3' | 'wav'
+  volume?: number
+}): React.JSX.Element {
   return (
     <Sequence from={s(at)} layout="none">
-      <Audio src={staticFile(`voice/${file}.mp3`)} />
+      <Audio src={staticFile(`voice/${file}.${ext}`)} volume={volume} />
     </Sequence>
   )
 }

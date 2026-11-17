@@ -1,6 +1,6 @@
 # Hearth demo video: script
 
-Target length: about **3:10**.
+Target length: about **3:12**.
 
 - **Generated** scenes are animated in Remotion and need no footage. They are built, and their animation beats are timed to the narration's words.
 - **Footage** scenes come from your recording session.
@@ -10,7 +10,7 @@ Target length: about **3:10**.
 
 | # | Time | Scene | Source | What's on screen | Narration (N) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 0:00–0:08 | Cold open | Generated | Black screen. Hearth's face fades in, breathing. It blinks, glances at you, hops, then speaks. | **H:** a real nudge from your session, such as "You've been at it for a while. Want to stand up and stretch for a minute?" |
+| 1 | 0:00–0:10 | Cold open | Generated | Black screen. Hearth fades in, breathing. It blinks, glances at you, hops, then introduces itself; its mouth follows the real audio and the caption keeps pace. | **H:** in its own app voice (AssemblyAI, Kyla): "Oh, hi there. I'm Hearth. You've been at it for a while. Want to stand up and stretch with me?" |
 | 2 | 0:08–0:12 | Title | Generated | The face slides aside and the wordmark "Hearth" appears, with "a small companion that notices" in italics. | none |
 | 3 | 0:12–0:30 | The problem | Generated | Kinetic words over simple drawings: a clock running through the workday, an eye that blinks less and less, a breathing line going shallow, a sitting timer counting up. Then a laptop with its camera dot, and Hearth popping up there. | "Most of us spend the day staring at a screen. We blink less, our breathing gets shallow, and hours pass without getting up. Your laptop already has a camera. What if it could notice, and look after you, kindly?" |
 | 4a | 0:30–0:46 | Meet Hearth | Generated | A large Hearth face goes through its moods, each with a small label: idle (blink, glance, hop), listening (green, ring pulsing), thinking (violet, dots circling), speaking (mouth moving), asleep (eyes closed, z). | "This is Hearth. It lives at the edge of your screen. It blinks, looks around, and hops when it's bored. Talk to it, and it listens, thinks, and answers out loud. Leave it alone, and it dozes off." |
@@ -28,9 +28,9 @@ Target length: about **3:10**.
 
 | Part | Length |
 | --- | --- |
-| Generated scenes (1, 2, 3, 4a, 6, 11, 12) | **1:26** (opening 12 s, problem 16.5 s, moods 16.5 s, how it works 21.5 s, privacy 12.5 s, outro 7 s) |
+| Generated scenes (1, 2, 3, 4a, 6, 11, 12) | **1:28** (opening 13.5 s, problem 16.5 s, moods 16.5 s, how it works 21.5 s, privacy 12.5 s, outro 7 s) |
 | Footage scenes (4b, 5, 7, 8, 9, 10, part of 11) | about **1:45** |
-| Total | about **3:10** |
+| Total | about **3:12** |
 
 The narration runs 1:53 in all. The rest is Hearth's own voice, the smile beat, and the music.
 

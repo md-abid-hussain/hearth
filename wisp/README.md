@@ -123,6 +123,13 @@ What the consent screen says, and what the code does:
 - **SDK telemetry** is off by default (the SDK's own default is on). If you switch it on in Privacy, the SDK sends measurement-session summaries and device readiness reports: device model, OS version, frame rates, warning counts and error codes. They are tied to the API key, so they are not anonymous, and Presage sets no fixed retention period for them. Telemetry never includes video frames or vital-sign values ([Telemetry and Privacy](https://smartspectra.presagetech.com/docs/telemetry-and-privacy)).
 - **Retention.** Data stays until you delete it. There are no servers or accounts beyond the providers above, Composio included.
 
+**Sources for the SmartSpectra statements:**
+- Presage's [docs index](https://smartspectra.presagetech.com/llms.txt): every metric is computed on the device, and the backend is contacted only to check the API key and subscription.
+- The [LLM Insights page](https://smartspectra.presagetech.com/docs/llm-insights.md): only the derived numbers and the prompt go to Presage, never raw video or facial images.
+- The [Telemetry and privacy page](https://smartspectra.presagetech.com/docs/telemetry-and-privacy): telemetry carries no video frames and no vital-sign values.
+
+Presage's general [privacy policy](https://api.physiology.presagetech.com/privacypolicy) is broader than these technical docs. It describes collecting biometric information and vital signs from use of its SDK, for research. Read it before you register for an API key.
+
 ## Wellness disclaimer
 
 Hearth's signals are wellness estimates from a webcam. They are not medical readings. Hearth does not diagnose, treat or give medical advice. If you are worried about your health, talk to a professional.
