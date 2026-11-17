@@ -3,7 +3,7 @@ import { ActionIcon, Menu, Tooltip } from '@mantine/core'
 import { IconCamera, IconCameraOff, IconDots, IconLayoutDashboard } from '@tabler/icons-react'
 import type { HearthState } from '@shared/types'
 import { Orb } from '../components/Orb'
-import { useHearth } from '../lib/store'
+import { onReact, useHearth } from '../lib/store'
 import { usePushToTalk } from '../lib/usePushToTalk'
 import { CameraPanel } from './CameraPanel'
 import { VoiceMeter } from './VoiceMeter'
@@ -105,6 +105,9 @@ function Caption({ text, tone }: { text: string; tone?: 'problem' | 'hint' }): R
   )
 }
 
+/** How long Hearth stays dizzy after being shaken. */
+const DIZZY_MS = 1_800
+
 export function Pill(): React.JSX.Element | null {
   const state = useHearth()
   const ptt = usePushToTalk()
@@ -115,6 +118,21 @@ export function Pill(): React.JSX.Element | null {
   const [micSilent, setMicSilent] = useState(false)
   const closeCamera = useCallback(() => setCameraOpen(false), [])
   const drag = useRef<{ x: number; y: number; moved: boolean; onFace: boolean } | null>(null)
+  const [dizzy, setDizzy] = useState(false)
+
+  // Shaken while dragged: the face goes dizzy for a moment.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const off = onReact(() => {
+      setDizzy(true)
+      clearTimeout(timer)
+      timer = setTimeout(() => setDizzy(false), DIZZY_MS)
+    })
+    return () => {
+      off()
+      clearTimeout(timer)
+    }
+  }, [])
 
   const mood = state?.mood
   const reply = state?.lastReply
@@ -220,7 +238,7 @@ export function Pill(): React.JSX.Element | null {
                 mood={state.mood}
                 breathing={state.vitals.breathing}
                 size={expanded ? 42 : 46}
-                alert={problem ? 'problem' : 'none'}
+                alert={problem ? 'problem' : dizzy ? 'dizzy' : 'none'}
                 expression={state.vitals.expression?.label ?? null}
               />
               {sensingOn && (

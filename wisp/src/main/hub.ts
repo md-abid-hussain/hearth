@@ -36,7 +36,8 @@ const ROUTES: Partial<Record<MainToRenderer['type'], WindowRole>> = {
   pttRemote: 'pill',
   requestInsight: 'dashboard',
   sensingCommand: 'dashboard',
-  showPage: 'dashboard'
+  showPage: 'dashboard',
+  react: 'pill'
 }
 
 export const emptyVitals = (): VitalsSnapshot => ({

@@ -1389,6 +1389,13 @@ table.plain td code {
 .act-wiggle .face-float {
   animation: face-wiggle 700ms ease-in-out;
 }
+/* Shaken while dragged: a double wobble, flushed cheeks and > < eyes. */
+.face.dizzy .face-float {
+  animation: face-wiggle 600ms ease-in-out 2;
+}
+.face.dizzy .face-cheeks ellipse {
+  opacity: 0.6;
+}
 @keyframes face-spin {
   to {
     transform: rotate(360deg);

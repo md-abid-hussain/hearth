@@ -248,4 +248,6 @@ export type MainToRenderer =
   | { type: 'sensingCommand'; on: boolean }
   /** Open a dashboard page, such as Reminders when a reminder notification is clicked. */
   | { type: 'showPage'; page: string }
+  /** A brief reaction on Hearth's face, such as dizzy after the widget is shaken. */
+  | { type: 'react'; kind: 'dizzy' }
   | { type: 'pttRemote'; on: boolean; discard?: boolean }

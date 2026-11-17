@@ -44,7 +44,18 @@ function handle(msg: MainToRenderer): void {
     case 'showPage':
       pageListeners.forEach((l) => l(msg.page))
       break
+    case 'react':
+      reactListeners.forEach((l) => l(msg.kind))
+      break
   }
+}
+
+const reactListeners = new Set<(kind: 'dizzy') => void>()
+
+/** Subscribe to brief face reactions, such as dizzy after the widget is shaken. */
+export function onReact(listener: (kind: 'dizzy') => void): () => void {
+  reactListeners.add(listener)
+  return () => reactListeners.delete(listener)
 }
 
 const pageListeners = new Set<(page: string) => void>()

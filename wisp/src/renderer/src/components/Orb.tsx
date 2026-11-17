@@ -3,8 +3,8 @@ import type { HearthMood } from '@shared/types'
 import { mic } from '../lib/mic'
 import { player } from '../lib/player'
 
-/** What the face is doing beyond its mood: a problem to show, or a small idle gesture. */
-export type FaceAlert = 'none' | 'problem'
+/** What the face is showing beyond its mood: a problem, or dizziness after being shaken. */
+export type FaceAlert = 'none' | 'problem' | 'dizzy'
 
 type IdleAction = 'blink' | 'glanceLeft' | 'glanceRight' | 'lookUp' | 'hop' | 'tilt' | 'wiggle'
 
@@ -105,14 +105,24 @@ export function Orb({
     }
   }, [mood])
 
+  const dizzy = alert === 'dizzy' && mood !== 'sleeping'
   const smiling = mood === 'speaking' || (mood === 'idle' && expression === 'happy')
   const eyes =
-    mood === 'sleeping' ? 'closed' : smiling ? 'happy' : action === 'blink' ? 'blink' : 'open'
+    mood === 'sleeping'
+      ? 'closed'
+      : dizzy
+        ? 'dizzy'
+        : smiling
+          ? 'happy'
+          : action === 'blink'
+            ? 'blink'
+            : 'open'
   const classes = [
     'face',
     `mood-${mood}`,
     alert === 'problem' ? 'problem' : '',
-    action ? `act-${action}` : ''
+    dizzy ? 'dizzy' : '',
+    action && !dizzy ? `act-${action}` : ''
   ]
 
   return (
@@ -167,7 +177,7 @@ export function Orb({
               filter="url(#face-soft)"
             />
             <circle className="face-rim" cx="50" cy="50" r="39.3" />
-            {smiling && (
+            {(smiling || dizzy) && (
               <g className="face-cheeks">
                 <ellipse cx="29" cy="61" rx="6" ry="3.6" />
                 <ellipse cx="71" cy="61" rx="6" ry="3.6" />
@@ -190,6 +200,12 @@ export function Orb({
                 <>
                   <path className="eye-line" d="M32 49 Q37.5 41 43 49" />
                   <path className="eye-line" d="M57 49 Q62.5 41 68 49" />
+                </>
+              )}
+              {eyes === 'dizzy' && (
+                <>
+                  <path className="eye-line" d="M33 40 L41 46 L33 52" />
+                  <path className="eye-line" d="M67 40 L59 46 L67 52" />
                 </>
               )}
               {eyes === 'closed' && (

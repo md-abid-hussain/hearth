@@ -162,6 +162,51 @@ const DRAG_FRAME_MS = 16
 const DRAG_MAX_MS = 60_000
 let pillDrag: { timer: NodeJS.Timeout; startedAt: number } | null = null
 
+/** Shaking the widget: this fast, with this many changes of direction, within the window. */
+const SHAKE_WINDOW_MS = 700
+const SHAKE_SPEED = 1_800
+const SHAKE_TURNS = 3
+const SHAKE_COOLDOWN_MS = 20_000
+const SHAKE_LINES = [
+  'Whoa! Slow down, buddy.',
+  "Easy, easy. I'm getting dizzy!",
+  "Hey, gently! I'm right here."
+]
+let lastShakeAt = 0
+
+/**
+ * True when the recent cursor path (DIPs, newest last) is a shake: fast, and reversing
+ * direction several times, not one long fling across the screen.
+ */
+function isShake(samples: { t: number; x: number; y: number }[]): boolean {
+  if (samples.length < 6) return false
+  let distance = 0
+  let turns = 0
+  let lastDir = 0
+  for (let i = 1; i < samples.length; i++) {
+    const dx = samples[i].x - samples[i - 1].x
+    const dy = samples[i].y - samples[i - 1].y
+    distance += Math.hypot(dx, dy)
+    const main = Math.abs(dx) >= Math.abs(dy) ? dx : dy
+    if (Math.abs(main) < 4) continue
+    const dir = Math.sign(main)
+    if (lastDir && dir !== lastDir) turns++
+    lastDir = dir
+  }
+  const seconds = (samples[samples.length - 1].t - samples[0].t) / 1000
+  return seconds > 0 && distance / seconds >= SHAKE_SPEED && turns >= SHAKE_TURNS
+}
+
+/** The widget was shaken: its face goes dizzy, and it says so unless it is busy or in quiet mode. */
+function onShake(): void {
+  const now = Date.now()
+  if (now - lastShakeAt < SHAKE_COOLDOWN_MS) return
+  lastShakeAt = now
+  hub.send({ type: 'react', kind: 'dizzy' })
+  if (hub.settings.quietMode || (hub.mood !== 'idle' && hub.mood !== 'sleeping')) return
+  void say(SHAKE_LINES[Math.floor(Math.random() * SHAKE_LINES.length)])
+}
+
 /**
  * Moves the pill window with the cursor until the drag stops. Bounds are set with the fixed
  * size each frame: repeated setPosition calls can grow a transparent window on scaled Windows
@@ -173,9 +218,17 @@ function startPillDrag(pill: BrowserWindow): void {
   const [wx, wy] = pill.getPosition()
   const offset = { x: cursor.x - wx, y: cursor.y - wy }
   const startedAt = Date.now()
+  const samples: { t: number; x: number; y: number }[] = []
   const timer = setInterval(() => {
-    if (pill.isDestroyed() || Date.now() - startedAt > DRAG_MAX_MS) return stopPillDrag()
+    const now = Date.now()
+    if (pill.isDestroyed() || now - startedAt > DRAG_MAX_MS) return stopPillDrag()
     const p = screen.getCursorScreenPoint()
+    samples.push({ t: now, x: p.x, y: p.y })
+    while (samples.length && now - samples[0].t > SHAKE_WINDOW_MS) samples.shift()
+    if (isShake(samples)) {
+      samples.length = 0
+      onShake()
+    }
     const next = clampPill(p.x - offset.x, p.y - offset.y)
     const [cx, cy] = pill.getPosition()
     if (next.x !== cx || next.y !== cy) pill.setBounds({ ...next, ...PILL_SIZE })
