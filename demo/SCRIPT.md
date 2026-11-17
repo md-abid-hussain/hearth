@@ -7,7 +7,8 @@ The full demo is built in Remotion (`Demo` composition, about **3:39**). Every s
 - **Signals must be real footage before you submit.** Judges look for a live Presage signal in the video.
 - **N** is the narrator: ElevenLabs `eleven_v4`, voice "Carolyn - Warm Grounded Narrator" (`public/voice/n*.mp3`).
 - **H** is Hearth's own voice: AssemblyAI text-to-speech, the voice the app uses, made with `tools/hearth-voice.mjs` (`public/voice/h*.wav`). Hearth's mouth follows the real loudness of each line.
-- **You** are shown as the words in Hearth's caption while it listens. No voice is needed.
+- **You** are voiced by ElevenLabs "Ibrahim - Talkative Friend" (`public/voice/u-*.mp3`). Your words also appear in Hearth's caption while it listens, and its listening ring pulses with your voice.
+- **Music:** a 75-second ElevenLabs Music bed (`public/music/bed.mp3`, soft Rhodes, guitar and pads). `tools/mix.mjs` loops it with crossfades, keeps it about 16 dB under the voices and ducks it further whenever anyone speaks.
 
 | # | Scene | Length | Kind | What happens | Voices |
 | --- | --- | --- | --- | --- | --- |

@@ -2,7 +2,7 @@
 // replace them. Every behavior shown here exists in the app; the live-signals scene must be
 // swapped for a real recording before submitting.
 import { AbsoluteFill } from 'remotion'
-import { type Cue, type Gesture, type Mood, speechLevel } from '../HearthFace'
+import type { Cue, Gesture, Mood } from '../HearthFace'
 import {
   Card,
   Cursor,
@@ -21,9 +21,11 @@ import {
 } from '../mock'
 import { color, fonts } from '../theme'
 import { HearthSays, Narration } from '../ui'
-import { HEARTH_LINES, type HearthLine, levelsFor, lineSeconds } from '../voices'
+import { HEARTH_LINES, type HearthLine, YOU_LINES, type YouLine, levelsFor, lineSeconds } from '../voices'
 
 const IDLE_SUB = 'click me or hold Right Ctrl to talk'
+/** A shorter think where a scene's narration follows soon after Hearth's reply. */
+const THINK = 0.6
 const WIDGET_X = 960
 const WIDGET_Y = 998
 
@@ -54,19 +56,23 @@ function widgetAt(steps: Step[], t: number): { cues: Cue[]; title: string; sub: 
 }
 
 /** You speak (listening, your words appear), Hearth thinks (activity), then answers in its voice. */
-function exchange(at: number, you: string, activity: string, line: HearthLine, thinkFor = 0.9): Step[] {
-  const listenFor = Math.max(1.6, you.split(' ').length / 3)
+/** How long Hearth listens: your line, plus a moment for the key release. */
+const listenTime = (you: YouLine): number => lineSeconds(you) + 0.25
+
+function exchange(at: number, youLine: YouLine, activity: string, line: HearthLine, thinkFor = 0.9): Step[] {
+  const you = YOU_LINES[youLine].text
+  const listenFor = listenTime(youLine)
   const speakAt = at + listenFor + thinkFor
   const hearth = HEARTH_LINES[line]
   return [
-    { at, mood: 'listening', title: 'listening', sub: 'release to send', say: { text: you, who: 'you', wps: 3.2 } },
+    { at, mood: 'listening', title: 'listening', sub: 'release to send', say: { text: you, who: 'you', wps: you.split(' ').length / lineSeconds(youLine) } },
     { at: at + listenFor, mood: 'thinking', title: activity, sub: `"${you}"`, say: { text: you, who: 'you' } },
     { at: speakAt, mood: 'speaking', title: 'Hearth', sub: 'speaking', say: { text: hearth.text, who: 'hearth', wps: hearth.text.split(' ').length / lineSeconds(line) } },
     { at: speakAt + lineSeconds(line) + 0.1, mood: 'idle', title: 'Hearth', sub: IDLE_SUB },
     { at: speakAt + lineSeconds(line) + 1.6, say: null }
   ]
 }
-const speakTime = (at: number, you: string, thinkFor = 0.9): number => at + Math.max(1.6, you.split(' ').length / 3) + thinkFor
+const speakTime = (at: number, you: YouLine, thinkFor = 0.9): number => at + listenTime(you) + thinkFor
 
 // ---------------------------------------------------------------------------------------------
 
@@ -303,7 +309,7 @@ export function SignalsScene(): React.JSX.Element {
 /** Hearth smiles back when you smile, then answers how you are doing (12 s). */
 export function AskScene(): React.JSX.Element {
   const t = useT()
-  const you = 'Hearth, how am I doing?'
+  const you = 'u-howami'
   const steps: Step[] = [
     { at: 0, mood: 'idle', sub: 'sensing · click me or hold Right Ctrl' },
     { at: 0.6, smile: true },
@@ -315,13 +321,14 @@ export function AskScene(): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Desktop />
+      <Narration file="u-howami" at={3.0} />
       <HearthSays file="h-howami" at={speakAt} />
       <div style={{ position: 'absolute', left: WIDGET_X - 330, top: WIDGET_Y - 300, width: 660, textAlign: 'center', opacity: ramp(t, 0.6, 0.9) * (1 - ramp(t, 2.6, 2.9)) }}>
         <span style={{ font: `500 22px ${fonts.mono}`, color: color.amber, padding: '10px 20px', borderRadius: 12, border: '2px dashed rgba(240,164,58,0.6)', background: 'rgba(20,18,15,0.9)' }}>
           you smile · Hearth smiles back · expressions are opt-in
         </span>
       </div>
-      <Widget x={WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={w.caption} camera level={(tt) => (tt < speakAt ? speechLevel(tt) : levelsFor([['h-howami', speakAt]])(tt))} />
+      <Widget x={WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={w.caption} camera level={levelsFor([['u-howami', 3.0], ['h-howami', speakAt]])} />
     </AbsoluteFill>
   )
 }
@@ -331,12 +338,12 @@ export function AskScene(): React.JSX.Element {
 /** The breathing check-in: set it up, quiet "all fine" checks, speaking up, then the away pause (33 s). */
 export function CheckInScene(): React.JSX.Element {
   const t = useT()
-  const you = 'Keep an eye on my breathing every minute.'
-  const okAt = speakTime(0.3, you)
+  const you = 'u-checkin'
+  const okAt = speakTime(0.3, you, THINK)
   const alertAt = 20.0
   const steps: Step[] = [
     { at: 0, mood: 'idle', sub: 'sensing · click me or hold Right Ctrl' },
-    ...exchange(0.3, you, 'setting up a check-in', 'h-checkin-ok'),
+    ...exchange(0.3, you, 'setting up a check-in', 'h-checkin-ok', THINK),
     { at: alertAt, mood: 'speaking', sub: 'speaking', say: { text: HEARTH_LINES['h-checkin-alert'].text, who: 'hearth', wps: 3.1 } },
     { at: alertAt + lineSeconds('h-checkin-alert') + 0.1, mood: 'idle', sub: 'sensing · click me or hold Right Ctrl' },
     { at: 25.0, say: null },
@@ -356,6 +363,7 @@ export function CheckInScene(): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Desktop dim={onDashboard || away ? 0.3 : 0} />
+      <Narration file="u-checkin" at={0.3} />
       <HearthSays file="h-checkin-ok" at={okAt} />
       <Narration file="n07-checkin" at={8.4} />
       <HearthSays file="h-checkin-alert" at={alertAt} />
@@ -385,7 +393,7 @@ export function CheckInScene(): React.JSX.Element {
         </Dashboard>
       )}
       <FastClock from={12.4} to={18.0} start="3:14" end="3:18" place={{ left: 470, bottom: 150 }} />
-      <Widget x={onDashboard || away ? 1560 : WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={onDashboard ? null : w.caption} camera={!away} level={levelsFor([['h-checkin-ok', okAt], ['h-checkin-alert', alertAt]])} />
+      <Widget x={onDashboard || away ? 1560 : WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={onDashboard ? null : w.caption} camera={!away} level={levelsFor([['u-checkin', 0.3], ['h-checkin-ok', okAt], ['h-checkin-alert', alertAt]])} />
     </AbsoluteFill>
   )
 }
@@ -395,13 +403,13 @@ export function CheckInScene(): React.JSX.Element {
 /** A spoken reminder that waits while you talk, then quiet mode's notification instead (24 s). */
 export function ReminderScene(): React.JSX.Element {
   const t = useT()
-  const you = 'Remind me to drink some water in one minute.'
-  const okAt = speakTime(0.3, you)
+  const you = 'u-remind'
+  const okAt = speakTime(0.3, you, THINK)
   const waterAt = 10.2
   const quiet = t >= 15.6
   const steps: Step[] = [
     { at: 0, mood: 'idle', sub: 'sensing · click me or hold Right Ctrl' },
-    ...exchange(0.3, you, 'setting a reminder', 'h-remind-ok'),
+    ...exchange(0.3, you, 'setting a reminder', 'h-remind-ok', THINK),
     { at: waterAt, mood: 'speaking', sub: 'speaking', say: { text: HEARTH_LINES['h-remind-water'].text, who: 'hearth', wps: 3.2 } },
     { at: waterAt + lineSeconds('h-remind-water') + 0.1, mood: 'idle', sub: 'sensing · click me or hold Right Ctrl' },
     { at: 14.6, say: null },
@@ -412,6 +420,7 @@ export function ReminderScene(): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Desktop />
+      <Narration file="u-remind" at={0.3} />
       <HearthSays file="h-remind-ok" at={okAt} />
       <Narration file="n09-gentle" at={7.4} from={0} to={2.0} />
       <HearthSays file="h-remind-water" at={waterAt} />
@@ -423,7 +432,7 @@ export function ReminderScene(): React.JSX.Element {
         </span>
       </div>
       <Toast at={18.7} until={23.6} title="Hearth reminder" body="Stretch for a minute" />
-      <Widget x={WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={w.caption} camera level={levelsFor([['h-remind-ok', okAt], ['h-remind-water', waterAt]])} />
+      <Widget x={WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={w.caption} camera level={levelsFor([['u-remind', 0.3], ['h-remind-ok', okAt], ['h-remind-water', waterAt]])} />
       {quiet && (
         <div style={{ position: 'absolute', left: WIDGET_X - 290, top: WIDGET_Y - 150, opacity: ramp(t, 15.6, 16.0) }}>
           <Pill tone="amber">quiet mode</Pill>
@@ -447,8 +456,8 @@ const APPS: [string, string, string, 'green' | 'plain'][] = [
 /** The Apps page, then Hearth reading your calendar and mail (24 s). */
 export function AppsScene(): React.JSX.Element {
   const t = useT()
-  const q1 = "What's on my calendar today?"
-  const q2 = 'Anything important in my email?'
+  const q1 = 'u-calendar'
+  const q2 = 'u-mail'
   const calAt = speakTime(7.0, q1, 1.2)
   const mailStart = calAt + lineSeconds('h-calendar') + 0.9
   const mailAt = speakTime(mailStart, q2, 1.4)
@@ -463,7 +472,9 @@ export function AppsScene(): React.JSX.Element {
     <AbsoluteFill>
       <Desktop dim={onApps ? 0.3 : 0} />
       <Narration file="n10-apps" at={0.5} />
+      <Narration file="u-calendar" at={7.0} />
       <HearthSays file="h-calendar" at={calAt} />
+      <Narration file="u-mail" at={mailStart} />
       <HearthSays file="h-mail" at={mailAt} />
       {onApps && (
         <Dashboard page="apps" status="sensing" camera>
@@ -481,11 +492,11 @@ export function AppsScene(): React.JSX.Element {
         </Dashboard>
       )}
       {!onApps && (
-        <Widget x={WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={w.caption} camera level={(tt) => (tt < calAt ? speechLevel(tt) : levelsFor([['h-calendar', calAt], ['h-mail', mailAt]])(tt))} />
+        <Widget x={WIDGET_X} y={WIDGET_Y} expand={1} cues={w.cues} title={w.title} sub={w.sub} caption={w.caption} camera level={levelsFor([['u-calendar', 7.0], ['h-calendar', calAt], ['u-mail', mailStart], ['h-mail', mailAt]])} />
       )}
     </AbsoluteFill>
   )
 }
 
-export const PRODUCT_SECONDS = { DragScene: 13, ConsentScene: 13, SignalsScene: 12.5, AskScene: 12, CheckInScene: 33.5, ReminderScene: 24.5, AppsScene: 24.5 }
+export const PRODUCT_SECONDS = { DragScene: 13, ConsentScene: 13, SignalsScene: 12.5, AskScene: 12, CheckInScene: 33.5, ReminderScene: 24.5, AppsScene: 25 }
 
