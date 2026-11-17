@@ -3,10 +3,17 @@ import { mic } from './mic'
 import { onRemotePtt } from './store'
 
 /**
- * Hold the orb to talk. The global talk keys live in the main process, which starts
- * speech-to-text itself and only asks this window to open or close the microphone.
+ * Click Hearth's face to talk and click again to send. The global talk keys live in the main
+ * process, which starts speech-to-text itself and only asks this window to open or close the
+ * microphone; a click while they are listening sends that turn too.
  */
-export function usePushToTalk(): { holding: boolean; press: () => void; release: () => void; error: string | null } {
+export function usePushToTalk(): {
+  holding: boolean
+  press: () => void
+  release: () => void
+  toggle: () => void
+  error: string | null
+} {
   const [holding, setHolding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const orbActive = useRef(false)
@@ -36,6 +43,20 @@ export function usePushToTalk(): { holding: boolean; press: () => void; release:
     window.hearth.pttStop()
   }, [closeMic])
 
+  const toggle = useCallback(() => {
+    if (orbActive.current) {
+      release()
+    } else if (holding) {
+      // Listening was started by the talk keys; a click sends it.
+      closeMic()
+      window.hearth.pttStop()
+    } else {
+      orbActive.current = true
+      window.hearth.pttStart('handsFree')
+      openMic()
+    }
+  }, [holding, release, closeMic, openMic])
+
   useEffect(
     () =>
       onRemotePtt((on) => {
@@ -46,5 +67,5 @@ export function usePushToTalk(): { holding: boolean; press: () => void; release:
     [openMic, closeMic]
   )
 
-  return { holding, press, release, error }
+  return { holding, press, release, toggle, error }
 }

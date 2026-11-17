@@ -15,7 +15,8 @@ export interface HearthApi {
   failInsight(token: string): void
   reportSdkError(message: string, fatal: boolean): void
 
-  pttStart(): void
+  /** hold: until pttStop, as with the talk keys; handsFree: from a click, until the next one. */
+  pttStart(mode?: 'hold' | 'handsFree'): void
   pttAudio(chunk: Uint8Array): void
   pttStop(): void
   sendTyped(text: string): void
@@ -23,6 +24,8 @@ export interface HearthApi {
   openDashboard(): void
   /** The pill window passes clicks through except where this says the pointer is over the widget. */
   setPillInteractive(on: boolean): void
+  /** Moves the widget by the pointer's offset from where the drag started, in screen pixels. */
+  dragPill(phase: 'start' | 'move' | 'end', dx?: number, dy?: number): void
   quit(): void
 
   updateSettings(patch: Partial<Settings>): Promise<Settings>

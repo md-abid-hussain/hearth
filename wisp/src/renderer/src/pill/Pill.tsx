@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActionIcon, Menu, Tooltip } from '@mantine/core'
 import { IconCamera, IconCameraOff, IconDots, IconLayoutDashboard } from '@tabler/icons-react'
 import type { HearthState } from '@shared/types'
@@ -10,13 +10,15 @@ import { CameraPanel } from './CameraPanel'
 const CAPTION_LINGER_MS = 7_000
 /** Leaving the widget collapses it after this pause, so a slip of the pointer does not. */
 const COLLAPSE_DELAY_MS = 450
+/** A press that moves further than this is a drag that moves the widget, not a click. */
+const DRAG_THRESHOLD_PX = 5
 
 function headline(state: HearthState): { text: string; sub: string } {
   const shortcut = state.status.pttShortcut
   switch (state.mood) {
     case 'listening':
       return state.listenMode === 'handsFree'
-        ? { text: 'listening, hands-free', sub: `press ${shortcut} to send, Esc to cancel` }
+        ? { text: 'listening', sub: `click Hearth or press ${shortcut} to send` }
         : { text: 'listening', sub: 'release to send' }
     case 'thinking':
       return {
@@ -29,8 +31,9 @@ function headline(state: HearthState): { text: string; sub: string } {
       return { text: 'Hearth', sub: 'asleep' }
     default:
       if (state.settings.quietMode) return { text: 'Hearth', sub: 'quiet mode, ask any time' }
-      if (state.vitals.sensing) return { text: 'Hearth', sub: `sensing · hold ${shortcut} to talk` }
-      return { text: 'Hearth', sub: `hold ${shortcut} to talk` }
+      if (state.vitals.sensing)
+        return { text: 'Hearth', sub: `sensing · click me or hold ${shortcut}` }
+      return { text: 'Hearth', sub: `click me or hold ${shortcut} to talk` }
   }
 }
 
@@ -83,6 +86,7 @@ export function Pill(): React.JSX.Element | null {
   const [cameraOpen, setCameraOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const closeCamera = useCallback(() => setCameraOpen(false), [])
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
 
   const mood = state?.mood
   const reply = state?.lastReply
@@ -104,7 +108,35 @@ export function Pill(): React.JSX.Element | null {
   const { text, sub } = consented
     ? headline(state)
     : { text: 'Hearth', sub: 'review consent in the dashboard' }
-  const press = consented ? ptt.press : () => window.hearth.openDashboard()
+  const click = consented ? ptt.toggle : () => window.hearth.openDashboard()
+
+  // Press and drag moves the widget; a press that stays put is a click that toggles talking.
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>): void => {
+    if (e.button !== 0) return
+    drag.current = { x: e.screenX, y: e.screenY, moved: false }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>): void => {
+    const d = drag.current
+    if (!d) return
+    const dx = e.screenX - d.x
+    const dy = e.screenY - d.y
+    if (!d.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+      d.moved = true
+      window.hearth.dragPill('start')
+    }
+    window.hearth.dragPill('move', dx, dy)
+  }
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>): void => {
+    const d = drag.current
+    drag.current = null
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    if (!d) return
+    if (d.moved) window.hearth.dragPill('end')
+    else click()
+  }
   const problem = ptt.error ?? state.notice
   const hint = sensingOn ? state.vitals.validationHint : null
   const busy = state.mood === 'listening' || state.mood === 'thinking' || state.mood === 'speaking'
@@ -134,16 +166,23 @@ export function Pill(): React.JSX.Element | null {
         data-hit
       >
         <Tooltip
-          label={consented ? 'Hold to talk' : 'Review consent'}
+          label={
+            !consented
+              ? 'Review consent'
+              : state.mood === 'listening'
+                ? 'Click to send'
+                : 'Click to talk · drag to move'
+          }
           openDelay={700}
           disabled={!expanded}
         >
           <button
             className="face-hit"
-            onPointerDown={press}
-            onPointerUp={ptt.release}
-            onPointerLeave={ptt.release}
-            aria-label={consented ? 'Hold to talk to Hearth' : 'Review consent'}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            aria-label={consented ? 'Talk to Hearth' : 'Review consent'}
           >
             <span className="face-wrap">
               <Orb

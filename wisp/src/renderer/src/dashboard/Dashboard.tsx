@@ -14,9 +14,30 @@ import { Today } from './pages/Today'
 import { VoiceModel } from './pages/VoiceModel'
 
 const NAV: { group: string; items: { id: string; label: string }[] }[] = [
-  { group: 'Report', items: [{ id: 'today', label: 'Today' }, { id: 'signals', label: 'Signals' }, { id: 'timeline', label: 'Timeline' }, { id: 'insights', label: 'Insights' }] },
-  { group: 'Hearth', items: [{ id: 'memory', label: 'Memory' }, { id: 'reminders', label: 'Reminders' }] },
-  { group: 'Setup', items: [{ id: 'connectors', label: 'Connectors' }, { id: 'voice', label: 'Voice and model' }, { id: 'privacy', label: 'Privacy' }] }
+  {
+    group: 'Report',
+    items: [
+      { id: 'today', label: 'Today' },
+      { id: 'signals', label: 'Signals' },
+      { id: 'timeline', label: 'Timeline' },
+      { id: 'insights', label: 'Insights' }
+    ]
+  },
+  {
+    group: 'Hearth',
+    items: [
+      { id: 'memory', label: 'Memory' },
+      { id: 'reminders', label: 'Reminders' }
+    ]
+  },
+  {
+    group: 'Setup',
+    items: [
+      { id: 'connectors', label: 'Connectors' },
+      { id: 'voice', label: 'Voice and model' },
+      { id: 'privacy', label: 'Privacy' }
+    ]
+  }
 ]
 
 function StatusFooter({ state }: { state: HearthState }): React.JSX.Element {
@@ -35,7 +56,14 @@ function StatusFooter({ state }: { state: HearthState }): React.JSX.Element {
           {label}
         </div>
       ))}
-      <Button size="compact-xs" variant="subtle" color="gray" mt={4} onClick={() => window.hearth.quit()} styles={{ root: { alignSelf: 'flex-start', paddingInline: 0 } }}>
+      <Button
+        size="compact-xs"
+        variant="subtle"
+        color="gray"
+        mt={4}
+        onClick={() => window.hearth.quit()}
+        styles={{ root: { alignSelf: 'flex-start', paddingInline: 0 } }}
+      >
         Quit Hearth
       </Button>
     </div>
@@ -58,29 +86,45 @@ export function Dashboard(): React.JSX.Element {
   let n = 0
   const body = (() => {
     switch (page) {
-      case 'signals': return <Signals state={state} history={history} />
-      case 'timeline': return <Timeline log={state.log} />
-      case 'insights': return <Insights insights={state.insights} />
-      case 'memory': return <Memory memory={state.memory} />
-      case 'reminders': return <Reminders reminders={state.reminders} log={state.log} />
-      case 'connectors': return <Connectors servers={state.mcp} status={state.status} />
-      case 'voice': return <VoiceModel state={state} />
-      case 'privacy': return <Privacy state={state} />
-      default: return <Today state={state} history={history} go={setPage} />
+      case 'signals':
+        return <Signals state={state} history={history} />
+      case 'timeline':
+        return <Timeline log={state.log} />
+      case 'insights':
+        return <Insights insights={state.insights} />
+      case 'memory':
+        return <Memory memory={state.memory} />
+      case 'reminders':
+        return <Reminders reminders={state.reminders} log={state.log} />
+      case 'connectors':
+        return <Connectors servers={state.mcp} status={state.status} />
+      case 'voice':
+        return <VoiceModel state={state} />
+      case 'privacy':
+        return <Privacy state={state} />
+      default:
+        return <Today state={state} history={history} go={setPage} />
     }
   })()
 
   return (
     <div className="shell">
       <nav className="nav">
-        <div className="brand"><span className="brand-dot" />Hearth</div>
+        <div className="brand">
+          <span className="brand-dot" />
+          Hearth
+        </div>
         {NAV.map((g) => (
-          <div key={g.group}>
+          <div key={g.group} className="nav-section">
             <div className="label nav-group">{g.group}</div>
             {g.items.map((item) => {
               n += 1
               return (
-                <button key={item.id} className={page === item.id ? 'nav-item on' : 'nav-item'} onClick={() => setPage(item.id)}>
+                <button
+                  key={item.id}
+                  className={page === item.id ? 'nav-item on' : 'nav-item'}
+                  onClick={() => setPage(item.id)}
+                >
                   {item.label}
                   <span className="n">{String(n).padStart(2, '0')}</span>
                 </button>

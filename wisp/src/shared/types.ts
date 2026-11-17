@@ -189,6 +189,8 @@ export interface Settings {
   measureBlinks: boolean
   /** Ask SmartSpectra for facial expression estimates. Off by default; applies the next time sensing starts. */
   measureExpressions: boolean
+  /** Where the user dragged the widget's window, or null for bottom center. */
+  pillPosition: { x: number; y: number } | null
 }
 
 export interface HearthState {

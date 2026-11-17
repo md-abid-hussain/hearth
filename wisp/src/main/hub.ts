@@ -76,7 +76,8 @@ class Hub {
     reasoningEffort: null,
     consentAt: null,
     measureBlinks: true,
-    measureExpressions: false
+    measureExpressions: false,
+    pillPosition: null
   }
   status!: AppStatus
   partialTranscript = ''

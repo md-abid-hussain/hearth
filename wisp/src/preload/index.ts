@@ -17,13 +17,15 @@ const api: HearthApi = {
   failInsight: (token: string) => ipcRenderer.send('hearth:insightFailed', token),
   reportSdkError: (message: string, fatal: boolean) => ipcRenderer.send('hearth:sdkError', message, fatal),
 
-  pttStart: () => ipcRenderer.send('hearth:pttStart'),
+  pttStart: (mode?: 'hold' | 'handsFree') => ipcRenderer.send('hearth:pttStart', mode),
   pttAudio: (chunk: Uint8Array) => ipcRenderer.send('hearth:pttAudio', chunk),
   pttStop: () => ipcRenderer.send('hearth:pttStop'),
   sendTyped: (text: string) => ipcRenderer.send('hearth:typed', text),
   playbackIdle: () => ipcRenderer.send('hearth:playbackIdle'),
   openDashboard: () => ipcRenderer.send('hearth:openDashboard'),
   setPillInteractive: (on: boolean) => ipcRenderer.send('hearth:pillInteractive', on),
+  dragPill: (phase: 'start' | 'move' | 'end', dx = 0, dy = 0) =>
+    ipcRenderer.send('hearth:pillDrag', phase, dx, dy),
   quit: () => ipcRenderer.send('hearth:quit'),
 
   updateSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('hearth:updateSettings', patch),

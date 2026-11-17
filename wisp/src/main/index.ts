@@ -106,12 +106,34 @@ function createDashboard(): BrowserWindow {
   return win
 }
 
+/** Keeps the widget, which sits at the bottom center of the pill window, on a screen. */
+function clampPill(x: number, y: number): { x: number; y: number } {
+  const anchor = {
+    x: Math.round(x + PILL_SIZE.width / 2),
+    y: Math.round(y + PILL_SIZE.height - 30)
+  }
+  const { workArea: a } = screen.getDisplayNearestPoint(anchor)
+  const half = PILL_SIZE.width / 2
+  return {
+    x: Math.round(Math.min(Math.max(x, a.x - half + 40), a.x + a.width - half - 40)),
+    y: Math.round(
+      Math.min(Math.max(y, a.y + 90 - PILL_SIZE.height), a.y + a.height - PILL_SIZE.height + 6)
+    )
+  }
+}
+
 function createPill(): BrowserWindow {
   const { workArea } = screen.getPrimaryDisplay()
+  const saved = hub.settings.pillPosition
+  const start = saved
+    ? clampPill(saved.x, saved.y)
+    : {
+        x: Math.round(workArea.x + (workArea.width - PILL_SIZE.width) / 2),
+        y: workArea.y + workArea.height - PILL_SIZE.height - 12
+      }
   const win = new BrowserWindow({
     ...PILL_SIZE,
-    x: Math.round(workArea.x + (workArea.width - PILL_SIZE.width) / 2),
-    y: workArea.y + workArea.height - PILL_SIZE.height - 12,
+    ...start,
     frame: false,
     transparent: true,
     resizable: false,
@@ -207,9 +229,10 @@ function registerIpc(): void {
     fatal ? hub.notify(message) : hub.record('error', `SmartSpectra: ${message}`)
   )
 
-  ipcMain.on('hearth:pttStart', () => {
+  // From the pill: a click on Hearth's face listens until the next click (hands-free).
+  ipcMain.on('hearth:pttStart', (_e, mode: unknown) => {
     hotkeys.reset()
-    if (requireConsent()) pttStart('hold')
+    if (requireConsent()) pttStart(mode === 'handsFree' ? 'handsFree' : 'hold')
   })
   ipcMain.on('hearth:pttAudio', (_e, chunk: Uint8Array) => pttAudio(chunk))
   ipcMain.on('hearth:pttStop', () => {
@@ -222,9 +245,25 @@ function registerIpc(): void {
   ipcMain.on('hearth:playbackIdle', () => playbackIdle())
   ipcMain.on('hearth:openDashboard', () => showDashboard())
   // The pill renderer hit-tests forwarded mouse moves and asks for clicks only over its widget.
+  // Dragging Hearth's face moves the whole widget; the spot is remembered for next time.
+  let dragOrigin: number[] | null = null
+  ipcMain.on('hearth:pillDrag', (e, phase: unknown, dx: unknown, dy: unknown) => {
+    const pill = hub.window('pill')
+    if (!pill || e.sender !== pill.webContents) return
+    if (phase === 'start') dragOrigin = pill.getPosition()
+    else if (phase === 'move' && dragOrigin && typeof dx === 'number' && typeof dy === 'number') {
+      const next = clampPill(dragOrigin[0] + dx, dragOrigin[1] + dy)
+      pill.setPosition(next.x, next.y)
+    } else if (phase === 'end') {
+      dragOrigin = null
+      const [x, y] = pill.getPosition()
+      hub.updateSettings({ pillPosition: { x, y } })
+    }
+  })
   ipcMain.on('hearth:pillInteractive', (e, on: unknown) => {
     const pill = hub.window('pill')
-    if (pill && e.sender === pill.webContents) pill.setIgnoreMouseEvents(on !== true, { forward: true })
+    if (pill && e.sender === pill.webContents)
+      pill.setIgnoreMouseEvents(on !== true, { forward: true })
   })
   ipcMain.on('hearth:quit', () => app.quit())
 
