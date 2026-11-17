@@ -41,9 +41,10 @@ export interface HearthConfig {
   mcpConfigPath: string | null
 }
 
+/** Where .env may be, nearest first: the project itself, then the folder around it. */
 function candidateRoots(): string[] {
   const appPath = app.getAppPath()
-  return [resolve(appPath, '..'), appPath, process.cwd(), resolve(process.cwd(), '..')]
+  return [appPath, resolve(appPath, '..'), process.cwd(), resolve(process.cwd(), '..')]
 }
 
 let cached: HearthConfig | null = null
