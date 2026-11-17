@@ -10,6 +10,8 @@ import iconIco from '../../resources/icon.ico?asset'
 import type { Settings, WindowRole } from '../shared/types'
 import { away } from './away'
 import { composio } from './composio'
+import { isDemo, timing } from './demo'
+import { startDemoControl } from './demoControl'
 import { llmKeyPresent, loadConfig } from './config'
 import {
   handleUserText,
@@ -36,7 +38,8 @@ import { closeSpeech } from './voice/tts'
 
 const SHUTDOWN_TIMEOUT_MS = 3_000
 /** Hearth falls asleep after this long without being talked to or speaking. */
-const SLEEP_AFTER_MS = 5 * 60_000
+/** Asleep after this long without talking to Hearth; HEARTH_DEMO=1 shortens it. */
+const sleepAfterMs = (): number => timing(5 * 60_000, 45_000)
 const LAG_WARN_MS = 100
 
 /** Development aid: reports when the main process is blocked long enough to freeze the windows. */
@@ -229,8 +232,21 @@ function createPill(): BrowserWindow {
     icon,
     webPreferences
   })
-  win.setAlwaysOnTop(true, 'floating')
+  // Windows drops a window out of the always-on-top band when another topmost window (the
+  // taskbar, another app's overlay) comes forward, so Hearth puts itself back on top, without
+  // taking focus, whenever that happens and every few seconds.
+  const keepOnTop = (): void => {
+    if (win.isDestroyed() || !win.isVisible()) return
+    if (!win.isAlwaysOnTop()) win.setAlwaysOnTop(true, 'screen-saver')
+    win.moveTop()
+  }
+  win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true)
+  win.on('always-on-top-changed', (_e, onTop) => {
+    if (!onTop) keepOnTop()
+  })
+  const topTimer = setInterval(keepOnTop, 2_500)
+  win.on('closed', () => clearInterval(topTimer))
   hub.attach('pill', win)
   win.setIgnoreMouseEvents(true, { forward: true })
   win.on('ready-to-show', () => win.showInactive())
@@ -486,6 +502,14 @@ app.whenReady().then(async () => {
 
   allowMediaOnlyForAppPages()
   registerIpc()
+  startDemoControl({
+    say: (text) => {
+      if (requireConsent()) void handleUserText(text, 'typed')
+    },
+    showDashboard,
+    requestSensing
+  })
+  if (isDemo()) hub.record('session', 'Demo mode: short timers, separate data folder')
   createDashboard()
   createPill()
   startTalkKeys()
@@ -496,7 +520,7 @@ app.whenReady().then(async () => {
   uIOhook.on('input', () => away.input())
   hub.setMood('idle')
   // Asleep after a few quiet minutes; talking, a click on the face or Hearth speaking wakes it.
-  setInterval(() => hub.sleepIfIdle(SLEEP_AFTER_MS), 30_000).unref()
+  setInterval(() => hub.sleepIfIdle(sleepAfterMs()), timing(30_000, 5_000)).unref()
   observer.start(say)
   void mcp.load(cfg.mcpConfigPath)
   void composio.load()

@@ -84,7 +84,10 @@ export function loadConfig(): HearthConfig {
     composioKey: env.COMPOSIO_API_KEY || env.COMPOSIO_PLATFORM_KEY || '',
     ttsVoice: env.HEARTH_TTS_VOICE || 'aai-kyla',
     projectRoot,
-    dataDir: join(app.getPath('userData'), 'hearth-data'),
+    dataDir: join(
+      app.getPath('userData'),
+      env.HEARTH_DEMO === '1' ? 'hearth-demo-data' : 'hearth-data'
+    ),
     mcpConfigPath
   }
   return cached

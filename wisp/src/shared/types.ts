@@ -246,4 +246,6 @@ export type MainToRenderer =
   | { type: 'requestInsight'; token: string; prompt: string }
   /** Start or stop the camera session, which lives in the dashboard window. */
   | { type: 'sensingCommand'; on: boolean }
+  /** Open a dashboard page, such as Reminders when a reminder notification is clicked. */
+  | { type: 'showPage'; page: string }
   | { type: 'pttRemote'; on: boolean; discard?: boolean }

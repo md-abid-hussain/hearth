@@ -10,6 +10,9 @@ const LIGHT_CHECK_MS = 700
 /** Mean brightness (0-255) of the center of the frame, where the face should be. */
 const TOO_DARK = 60
 const TOO_BRIGHT = 215
+/** SmartSpectra stops a session that stays below this many frames a second. */
+const MIN_FPS = 25
+const FPS_WINDOW_MS = 2_000
 
 type Light = 'ok' | 'dark' | 'bright' | null
 
@@ -33,6 +36,7 @@ export function CameraPanel({
   const video = useRef<HTMLVideoElement>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [light, setLight] = useState<Light>(null)
+  const [fps, setFps] = useState<number | null>(null)
   const [startClicked, setStartClicked] = useState(false)
   const consented = state.settings.consentAt != null
   const sensing = state.vitals.sensing
@@ -90,6 +94,33 @@ export function CameraPanel({
     return () => clearInterval(timer)
   }, [])
 
+  // Frames the camera actually delivers, which can fall well below what it promises: low light
+  // lengthens exposure, and a phone or tablet camera over Wi-Fi stutters.
+  useEffect(() => {
+    const el = video.current
+    if (!el || !('requestVideoFrameCallback' in el)) return undefined
+    let frames = 0
+    let since = performance.now()
+    let handle = 0
+    let stopped = false
+    const onFrame = (): void => {
+      if (stopped) return
+      frames++
+      const now = performance.now()
+      if (now - since >= FPS_WINDOW_MS) {
+        setFps(Math.round((frames * 1000) / (now - since)))
+        frames = 0
+        since = now
+      }
+      handle = el.requestVideoFrameCallback(onFrame)
+    }
+    handle = el.requestVideoFrameCallback(onFrame)
+    return () => {
+      stopped = true
+      el.cancelVideoFrameCallback(handle)
+    }
+  }, [])
+
   useEffect(() => {
     if (!justStarted) return undefined
     const timer = setTimeout(onClose, DONE_CLOSE_MS)
@@ -120,6 +151,11 @@ export function CameraPanel({
         text: 'Too much light. Avoid a bright window right behind or beside you.',
         tone: 'warn'
       }
+    if (fps != null && fps < MIN_FPS)
+      return {
+        text: `The camera is sending ${fps} frames a second and SmartSpectra needs ${MIN_FPS}. Add light, close other camera apps, or keep a phone or tablet camera close to the Wi-Fi router.`,
+        tone: 'warn'
+      }
     if (sensing) return { text: 'Sensing is on. Keep your face inside the oval.', tone: 'ok' }
     return { text: 'Center your face in the oval, in even light, then start.', tone: 'plain' }
   })()
@@ -137,6 +173,7 @@ export function CameraPanel({
         <span className={sensing ? 'live on' : 'live'}>
           <i />
           {sensing ? 'sensing' : 'preview only'}
+          {fps != null ? ` · ${fps} fps` : ''}
         </span>
       </div>
       <div className={`camera-status ${status.tone}`} role="status">

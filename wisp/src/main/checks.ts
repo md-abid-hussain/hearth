@@ -1,4 +1,5 @@
 import type { CheckFocus } from '../shared/types'
+import { timing } from './demo'
 import { hub } from './hub'
 import { vitals } from './vitals'
 
@@ -8,7 +9,7 @@ const FAST_BREATHING_PER_MIN = 20
 const BREATHING_RISE_PER_MIN = 5
 const PULSE_RISE_BPM = 15
 const HIGH_PULSE_BPM = 100
-const SIT_LIMIT_MIN = 50
+const sitLimitMin = (): number => timing(50, 3)
 
 export const FOCUS_LABEL: Record<CheckFocus, string> = {
   eyes: 'your eyes',
@@ -75,7 +76,7 @@ function pulse(windowMs: number): CheckResult {
 function sitting(): CheckResult {
   const since = hub.vitals.sittingSince
   const minutes = since ? (Date.now() - since) / 60_000 : 0
-  return minutes >= SIT_LIMIT_MIN
+  return minutes >= sitLimitMin()
     ? { status: 'concern', facts: `At the desk for ${round(minutes)} minutes without a break.` }
     : { status: 'ok', facts: `At the desk for ${round(minutes)} minutes.` }
 }

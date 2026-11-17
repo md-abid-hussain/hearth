@@ -161,7 +161,7 @@ const MESSAGES: Partial<Record<number, string>> = {
   [SmartSpectraErrorCode.kMetricNotAuthorized]:
     'Your SmartSpectra plan does not include some of the requested metrics.',
   [SmartSpectraErrorCode.kSustainedLowFrameRate]:
-    'The camera could not keep up 25 frames a second. More light on your face or closing other camera apps should help.',
+    "The camera dropped below the 25 frames a second SmartSpectra needs. More light, closing other camera apps, or a steadier connection for a phone or tablet camera should help. The camera button on Hearth shows the camera's frame rate.",
   [SmartSpectraErrorCode.kConfigurationFailed]: 'SmartSpectra rejected the session settings.'
 }
 

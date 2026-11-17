@@ -16,6 +16,7 @@ import type {
   HearthMood,
   HearthState
 } from '../shared/types'
+import { tapSpeech } from './demoAudio'
 import { appendJsonl, newId, readJson, readJsonl, writeJson } from './store'
 
 const LOG_FILE = 'events.jsonl'
@@ -34,7 +35,8 @@ const ROUTES: Partial<Record<MainToRenderer['type'], WindowRole>> = {
   ttsCancel: 'pill',
   pttRemote: 'pill',
   requestInsight: 'dashboard',
-  sensingCommand: 'dashboard'
+  sensingCommand: 'dashboard',
+  showPage: 'dashboard'
 }
 
 export const emptyVitals = (): VitalsSnapshot => ({
@@ -112,6 +114,7 @@ class Hub {
   }
 
   send(msg: MainToRenderer): void {
+    tapSpeech(msg)
     const target = ROUTES[msg.type]
     for (const [role, win] of this.windows) {
       if (win.isDestroyed() || (target && role !== target)) continue

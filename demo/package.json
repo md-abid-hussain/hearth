@@ -1,0 +1,9 @@
+{
+  "name": "hearth-demo",
+  "private": true,
+  "type": "module",
+  "description": "Tools to record and edit the Hearth demo video",
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0"
+  }
+}

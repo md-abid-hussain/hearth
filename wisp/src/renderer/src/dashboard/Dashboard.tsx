@@ -3,7 +3,7 @@ import { Button, Center, Loader, useComputedColorScheme } from '@mantine/core'
 import type { HearthState } from '@shared/types'
 import { Consent } from '../components/Consent'
 import { Orb } from '../components/Orb'
-import { useHistory, useHearth } from '../lib/store'
+import { onShowPage, useHistory, useHearth } from '../lib/store'
 import { Connectors } from './pages/Connectors'
 import { Insights } from './pages/Insights'
 import { Memory } from './pages/Memory'
@@ -116,6 +116,7 @@ export function Dashboard(): React.JSX.Element {
 function DashboardBody({ state }: { state: HearthState | null }): React.JSX.Element {
   const history = useHistory()
   const [page, setPage] = useState('today')
+  useEffect(() => onShowPage(setPage), [])
 
   if (!state) {
     return (

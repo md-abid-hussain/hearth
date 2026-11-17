@@ -41,7 +41,18 @@ function handle(msg: MainToRenderer): void {
     case 'pttRemote':
       remotePtt.forEach((l) => l(msg.on))
       break
+    case 'showPage':
+      pageListeners.forEach((l) => l(msg.page))
+      break
   }
+}
+
+const pageListeners = new Set<(page: string) => void>()
+
+/** Subscribe to requests from the main process to open a dashboard page. */
+export function onShowPage(listener: (page: string) => void): () => void {
+  pageListeners.add(listener)
+  return () => pageListeners.delete(listener)
 }
 
 /** Sensing started or stopped from the pill; failures go back to the pill as a notice. */

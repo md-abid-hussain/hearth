@@ -1,19 +1,39 @@
 import { Notification } from 'electron'
 import { FOCUS_FALLBACK, FOCUS_LABEL, readCheck } from './checks'
+import { timing } from './demo'
 import { hub } from './hub'
 import { complete } from './llm'
 import { reminders } from './reminders'
 import { vitals } from './vitals'
 
-const TICK_MS = 30_000
-const REVIEW_EVERY_MS = 3 * 60_000
-const WARMUP_MS = 5 * 60_000
-const MIN_GAP_MS = 15 * 60_000
-const SAME_RULE_COOLDOWN_MS = 45 * 60_000
-const MAX_PER_HOUR = 3
-const QUIET_AFTER_CHAT_MS = 2 * 60_000
+/** Observer timings; HEARTH_DEMO=1 shortens them for recording a demo. */
+const T = {
+  get tick(): number {
+    return timing(30_000, 10_000)
+  },
+  get reviewEvery(): number {
+    return timing(3 * 60_000, 20_000)
+  },
+  get warmup(): number {
+    return timing(5 * 60_000, 30_000)
+  },
+  get minGap(): number {
+    return timing(15 * 60_000, 60_000)
+  },
+  get sameRuleCooldown(): number {
+    return timing(45 * 60_000, 2 * 60_000)
+  },
+  get maxPerHour(): number {
+    return timing(3, 20)
+  },
+  get quietAfterChat(): number {
+    return timing(2 * 60_000, 20_000)
+  },
+  get sitLimitMin(): number {
+    return timing(50, 3)
+  }
+}
 
-const SIT_LIMIT_MIN = 50
 const PULSE_RISE_BPM = 15
 const FAST_BREATHING_PER_MIN = 20
 
@@ -49,6 +69,7 @@ function showNotification(title: string, body: string): void {
     const win = hub.window('dashboard')
     win?.show()
     win?.focus()
+    hub.send({ type: 'showPage', page: 'reminders' })
   })
   note.show()
 }
@@ -65,7 +86,7 @@ class Observer {
 
   start(speakFn: SpeakFn): void {
     if (this.timer) return
-    this.timer = setInterval(() => void this.tick(speakFn), TICK_MS)
+    this.timer = setInterval(() => void this.tick(speakFn), T.tick)
   }
 
   stop(): void {
@@ -130,7 +151,7 @@ class Observer {
     if (!v.sensing || !v.present) return out
 
     const sittingMin = v.sittingSince ? (now - v.sittingSince) / 60_000 : 0
-    if (sittingMin >= SIT_LIMIT_MIN) {
+    if (sittingMin >= T.sitLimitMin) {
       out.push({
         rule: 'sit_break',
         urgent: false,
@@ -173,15 +194,15 @@ class Observer {
     if (this.pttActive) reasons.push('user is holding push-to-talk')
     if (hub.mood === 'speaking' || hub.mood === 'thinking') reasons.push('Hearth is mid-reply')
     if (v.talking) reasons.push('user appears to be talking')
-    if (now - this.lastUserTurnAt < QUIET_AFTER_CHAT_MS) reasons.push('just chatted with the user')
+    if (now - this.lastUserTurnAt < T.quietAfterChat) reasons.push('just chatted with the user')
     if (c.urgent) return reasons
 
-    if (v.sessionStartedAt && now - v.sessionStartedAt < WARMUP_MS) reasons.push('still warming up')
-    if (now - this.lastNudgeAt < MIN_GAP_MS) reasons.push('spoke less than 15 minutes ago')
-    if (now - (this.lastByRule.get(c.rule) ?? 0) < SAME_RULE_COOLDOWN_MS)
+    if (v.sessionStartedAt && now - v.sessionStartedAt < T.warmup) reasons.push('still warming up')
+    if (now - this.lastNudgeAt < T.minGap) reasons.push('spoke a short while ago')
+    if (now - (this.lastByRule.get(c.rule) ?? 0) < T.sameRuleCooldown)
       reasons.push('same nudge given recently')
     this.recentNudges = this.recentNudges.filter((t) => now - t < 60 * 60_000)
-    if (this.recentNudges.length >= MAX_PER_HOUR) reasons.push('hourly nudge budget used')
+    if (this.recentNudges.length >= T.maxPerHour) reasons.push('hourly nudge budget used')
     return reasons
   }
 
@@ -225,7 +246,7 @@ class Observer {
       alerts = []
     }
     const due = reminders.due(now).length > 0 || alerts.length > 0
-    if (!due && now - this.lastReviewAt < REVIEW_EVERY_MS) return
+    if (!due && now - this.lastReviewAt < T.reviewEvery) return
     this.lastReviewAt = now
 
     const candidates = [...alerts, ...this.candidates()]
