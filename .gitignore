@@ -13,3 +13,9 @@ wisp-data/
 
 .DS_Store
 Thumbs.db
+
+# Kept on disk, not in the repository: the demo video and DEV post tooling, the first UI mock,
+# and the hackathon notes.
+demo/
+design/
+PRESAGE-HACKATHON-GUIDE.md
