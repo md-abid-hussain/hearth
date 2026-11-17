@@ -49,7 +49,7 @@ export function VoiceModel({ state }: { state: HearthState }): React.JSX.Element
             <span className="chip">{status.ttsVoice}</span>
           </div>
           <div className="field stack">
-            <div><div className="name">Hold to talk</div><div className="help">Hold the keys from any app, speak, and let go to send. Clicking Hearth's face works too: click to talk, click again to send.</div></div>
+            <div><div className="name">Hold to talk</div><div className="help">Hold the keys from any app, speak, and let go to send. Clicking Hearth&apos;s face works too: click to talk, click again to send.</div></div>
             <SegmentedControl
               size="xs"
               value={settings.hotkey}
