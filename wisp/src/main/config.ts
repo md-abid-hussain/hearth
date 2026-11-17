@@ -60,7 +60,11 @@ export function loadConfig(): HearthConfig {
   const env = process.env
   const provider = (env.LLM_PROVIDER ?? 'openai').toLowerCase()
   const llmProvider: LlmProviderName = provider === 'anthropic' ? 'anthropic' : 'openai'
-  const projectRoot = roots.find((r) => existsSync(join(r, '.env'))) ?? roots[0]
+  // The folder with .env, else the one with .env.example (where .env belongs), else the app.
+  const projectRoot =
+    roots.find((r) => existsSync(join(r, '.env'))) ??
+    roots.find((r) => existsSync(join(r, '.env.example'))) ??
+    app.getAppPath()
   const mcpConfigPath =
     [env.HEARTH_MCP_CONFIG, join(projectRoot, 'mcp.json'), join(app.getAppPath(), 'mcp.json')]
       .filter((p): p is string => Boolean(p))

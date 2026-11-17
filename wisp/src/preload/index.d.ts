@@ -28,6 +28,8 @@ export interface HearthApi {
   dragPill(phase: 'start' | 'end'): void
   /** Puts the widget back at the bottom center of the main screen. */
   resetPill(): void
+  /** Opens Explorer at the .env file (or .env.example) Hearth reads its keys from. */
+  openEnvFolder(): void
   quit(): void
 
   updateSettings(patch: Partial<Settings>): Promise<Settings>

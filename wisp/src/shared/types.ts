@@ -173,6 +173,8 @@ export interface AppStatus {
   smartspectraReady: boolean
   mcpConfigPath: string | null
   dataDir: string
+  /** Where Hearth reads its keys: the .env next to package.json, or where it should go. */
+  envPath: string
 }
 
 export interface Settings {

@@ -33,9 +33,9 @@ const NAV: { group: string; items: { id: string; label: string }[] }[] = [
   {
     group: 'Setup',
     items: [
-      { id: 'connectors', label: 'Connectors' },
-      { id: 'voice', label: 'Voice and model' },
-      { id: 'privacy', label: 'Privacy' }
+      { id: 'connectors', label: 'Apps' },
+      { id: 'privacy', label: 'Privacy' },
+      { id: 'voice', label: 'Settings' }
     ]
   }
 ]

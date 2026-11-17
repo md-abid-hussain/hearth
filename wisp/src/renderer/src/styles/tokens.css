@@ -1081,7 +1081,6 @@ table.plain td code {
   padding: 6px 10px 6px 6px;
   background: var(--surface);
   border-color: var(--line-strong);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
 /* The bar itself is a drag handle; its buttons and the face keep their own cursors. */
 .hearth-bar.expanded {
@@ -1214,6 +1213,38 @@ table.plain td code {
   --face: #e5675b;
   --halo: #e5675b;
 }
+/* Depth: gestures move the face but not its shadow, which shrinks while the face is in the air. */
+.face-float {
+  transform-box: view-box;
+  transform-origin: 50px 90px;
+}
+.face-shadow {
+  fill: #000;
+  opacity: 0.34;
+  transform-box: view-box;
+  transform-origin: 50px 95px;
+}
+.mood-sleeping .face-shadow {
+  opacity: 0.2;
+}
+.act-hop .face-shadow {
+  animation: face-shadow-hop 650ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+@keyframes face-shadow-hop {
+  30% {
+    transform: scale(0.7, 0.8);
+    opacity: 0.18;
+  }
+}
+.face-gloss {
+  fill: #fff;
+  opacity: 0.55;
+}
+.face-rim {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.2;
+}
 .face-fill {
   fill: var(--face);
   transition: fill 420ms ease;
@@ -1299,16 +1330,16 @@ table.plain td code {
 .face.problem .face-eyes {
   transform: translate(0, 4px) scale(0.92);
 }
-.mood-thinking svg {
+.mood-thinking .face-float {
   animation: face-bob 1.3s ease-in-out infinite;
 }
-.act-hop svg {
+.act-hop .face-float {
   animation: face-hop 650ms cubic-bezier(0.3, 1.5, 0.5, 1);
 }
-.act-tilt svg {
+.act-tilt .face-float {
   animation: face-tilt 1s ease-in-out;
 }
-.act-wiggle svg {
+.act-wiggle .face-float {
   animation: face-wiggle 700ms ease-in-out;
 }
 @keyframes face-spin {
@@ -1387,7 +1418,8 @@ table.plain td code {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .face svg,
+  .face-float,
+  .face-shadow,
   .face-orbit,
   .face-halo,
   .face-z,
@@ -1491,4 +1523,21 @@ table.plain td code {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* Setup checklist on Today, only while a required key is missing. */
+.setup-checklist {
+  margin-bottom: var(--s-5);
+  border-color: var(--amber);
+}
+.setup-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+.setup-foot code {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
 }

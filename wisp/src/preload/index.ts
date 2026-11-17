@@ -26,6 +26,7 @@ const api: HearthApi = {
   setPillInteractive: (on: boolean) => ipcRenderer.send('hearth:pillInteractive', on),
   dragPill: (phase: 'start' | 'end') => ipcRenderer.send('hearth:pillDrag', phase),
   resetPill: () => ipcRenderer.send('hearth:resetPill'),
+  openEnvFolder: () => ipcRenderer.send('hearth:openEnvFolder'),
   quit: () => ipcRenderer.send('hearth:quit'),
 
   updateSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('hearth:updateSettings', patch),

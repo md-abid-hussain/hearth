@@ -31,8 +31,8 @@ const COMPOSIO_NOTE = (
   <>
     Composio keeps the Google sign-in on its servers and passes along what Hearth reads. Google asks
     for full mail, calendar and Drive access, but this session only offers tools Composio marks
-    read-only, and Hearth checks each one again. Composio&apos;s search can also reach other apps and
-    paid web tools, which use your Composio credits.
+    read-only, and Hearth checks each one again. Composio&apos;s search can also reach other apps
+    and paid web tools, which use your Composio credits.
   </>
 )
 
@@ -51,9 +51,9 @@ export function Connectors({
   return (
     <div className="page-inner">
       <PageHeader
-        eyebrow="Connectors"
+        eyebrow="Apps"
         title="Read-only, by design."
-        intro="Sign in to an app's own MCP server. Hearth keeps the tokens and keys on this computer, encrypted by Windows, and every tool passes a read-only gate before the model sees it."
+        intro="Sign in to the apps Hearth may read when you ask. Sign-ins stay on this computer, encrypted by Windows, and Hearth can only read: every tool passes a read-only check first."
       />
 
       <div className="grid-2-even">
@@ -102,22 +102,24 @@ export function Connectors({
             )
           )
         })}
-        <ConnectorSection title="Custom">
+      </div>
+
+      {/* Detail most people never need: what each app exposes, and servers of your own. */}
+      <details className="advanced">
+        <summary className="label">
+          Advanced: tools each app exposes, your own servers, mcp.json
+        </summary>
+        {remote
+          .filter((s) => s.tools.length > 0)
+          .map((s) => (
+            <ToolTable key={s.id} server={s} />
+          ))}
+        <ConnectorSection title="Your own MCP servers">
           {custom.map((s) => (
             <AppRow key={s.id} server={s} />
           ))}
         </ConnectorSection>
         <AddServer />
-      </div>
-
-      {remote
-        .filter((s) => s.tools.length > 0)
-        .map((s) => (
-          <ToolTable key={s.id} server={s} />
-        ))}
-
-      <details className="advanced">
-        <summary className="label">Advanced: servers from mcp.json</summary>
         <div
           style={{
             display: 'flex',

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, shell } from 'electron'
+import { existsSync } from 'fs'
 import { join } from 'path'
 import { monitorEventLoopDelay } from 'perf_hooks'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
@@ -304,6 +305,13 @@ function registerIpc(): void {
     else stopPillDrag()
   })
   ipcMain.on('hearth:resetPill', () => resetPill())
+  // Shows .env in Explorer, or .env.example when it has not been created yet.
+  ipcMain.on('hearth:openEnvFolder', () => {
+    const root = loadConfig().projectRoot
+    const file = [join(root, '.env'), join(root, '.env.example')].find((p) => existsSync(p))
+    if (file) shell.showItemInFolder(file)
+    else void shell.openPath(root)
+  })
   // The pill renderer hit-tests forwarded mouse moves and asks for clicks only over its widget.
   ipcMain.on('hearth:pillInteractive', (e, on: unknown) => {
     const pill = hub.window('pill')
@@ -424,6 +432,7 @@ app.whenReady().then(async () => {
     assemblyReady: Boolean(cfg.assemblyKey),
     smartspectraReady: Boolean(cfg.smartspectraKey),
     mcpConfigPath: cfg.mcpConfigPath,
+    envPath: join(cfg.projectRoot, '.env'),
     dataDir: cfg.dataDir
   })
   memory.load()

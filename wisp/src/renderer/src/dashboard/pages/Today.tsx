@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Alert, Button, SegmentedControl, TextInput } from '@mantine/core'
+import { Button, SegmentedControl, TextInput } from '@mantine/core'
 import type { Exchange, InsightEntry, VitalsPoint, HearthState } from '@shared/types'
+import { SetupChecklist } from '../../components/SetupChecklist'
 import { summarizeInsight } from '../../lib/text'
 import {
   RULE_TITLES,
@@ -248,21 +249,11 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
   const sinceBreak = minutesBetween(vitals.sittingSince, now)
   const nextReminder = [...state.reminders].sort((a, b) => a.dueAt - b.dueAt)[0]
 
-  const missing = [
-    !status.smartspectraReady && 'SMARTSPECTRA_API_KEY',
-    !status.assemblyReady && 'ASSEMBLYAI_API_KEY',
-    !status.llmReady && (status.llmProvider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY')
-  ].filter(Boolean)
-
   const day = new Date().toLocaleDateString([], { weekday: 'long' })
 
   return (
     <div className="page-inner">
-      {missing.length > 0 && (
-        <Alert color="yellow" variant="light" title="Some keys are missing in .env">
-          Add {missing.join(', ')} to the .env file in the project root, then restart Hearth.
-        </Alert>
-      )}
+      <SetupChecklist status={status} />
 
       <div className="hero">
         <div>
