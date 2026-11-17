@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Alert, SegmentedControl } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
-import type { VitalsPoint, WispState } from '@shared/types'
+import type { VitalsPoint, HearthState } from '@shared/types'
 import {
   CameraPicker,
   TIME_AXIS,
@@ -18,7 +18,7 @@ export function Signals({
   state,
   history
 }: {
-  state: WispState
+  state: HearthState
   history: VitalsPoint[]
 }): React.JSX.Element {
   const [range, setRange] = useState('1h')
@@ -105,7 +105,7 @@ export function Signals({
               <span className="idx">05</span>
               <div>
                 <div className="title">Talking</div>
-                <div className="sub">Wisp stays quiet while you talk</div>
+                <div className="sub">Hearth stays quiet while you talk</div>
               </div>
               <span className={v.talking ? 'chip amber' : 'chip'}>{v.talking ? 'yes' : 'no'}</span>
             </div>

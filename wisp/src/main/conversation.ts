@@ -42,7 +42,7 @@ export function pttStart(mode: ListenMode = 'hold'): void {
   hub.listenMode = mode
   hub.setMood('listening')
   if (!loadConfig().assemblyKey) {
-    hub.notify('Add ASSEMBLYAI_API_KEY to .env to talk to Wisp.')
+    hub.notify('Add ASSEMBLYAI_API_KEY to .env to talk to Hearth.')
     return
   }
   session = openPttSession((text) => {
@@ -154,7 +154,7 @@ export async function handleUserText(
   } catch (err) {
     cancelSpeech()
     void speech?.end()
-    hub.notify(`Wisp could not answer: ${(err as Error).message}`)
+    hub.notify(`Hearth could not answer: ${(err as Error).message}`)
     hub.setMood('idle')
   }
 }

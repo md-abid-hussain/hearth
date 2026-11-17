@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActionIcon, Menu, Tooltip } from '@mantine/core'
 import { IconDots, IconLayoutDashboard } from '@tabler/icons-react'
-import type { WispState } from '@shared/types'
+import type { HearthState } from '@shared/types'
 import { Orb } from '../components/Orb'
 import { mic } from '../lib/mic'
 import { player } from '../lib/player'
-import { useWisp } from '../lib/store'
+import { useHearth } from '../lib/store'
 import { usePushToTalk } from '../lib/usePushToTalk'
 
 const CAPTION_LINGER_MS = 7_000
 
-function headline(state: WispState): { text: string; sub: string } {
+function headline(state: HearthState): { text: string; sub: string } {
   const shortcut = state.status.pttShortcut
   switch (state.mood) {
     case 'listening':
@@ -20,12 +20,12 @@ function headline(state: WispState): { text: string; sub: string } {
     case 'thinking':
       return { text: state.activity ?? 'thinking', sub: state.partialTranscript ? `"${state.partialTranscript}"` : '' }
     case 'speaking':
-      return { text: 'Wisp', sub: 'speaking' }
+      return { text: 'Hearth', sub: 'speaking' }
     case 'sleeping':
-      return { text: 'Wisp', sub: 'asleep' }
+      return { text: 'Hearth', sub: 'asleep' }
     default:
-      if (state.settings.quietMode) return { text: 'Wisp', sub: 'quiet mode, ask any time' }
-      return { text: 'Wisp', sub: `hold ${shortcut} to talk` }
+      if (state.settings.quietMode) return { text: 'Hearth', sub: 'quiet mode, ask any time' }
+      return { text: 'Hearth', sub: `hold ${shortcut} to talk` }
   }
 }
 
@@ -58,7 +58,7 @@ function Bars({ source, color }: { source: 'mic' | 'player'; color: string }): R
 }
 
 export function Pill(): React.JSX.Element | null {
-  const state = useWisp()
+  const state = useHearth()
   const ptt = usePushToTalk()
   const [caption, setCaption] = useState<string | null>(null)
 
@@ -80,8 +80,8 @@ export function Pill(): React.JSX.Element | null {
   const consented = state.settings.consentAt != null
   const { text, sub } = consented
     ? headline(state)
-    : { text: 'Wisp', sub: 'click to review consent in the dashboard' }
-  const press = consented ? ptt.press : () => window.wisp.openDashboard()
+    : { text: 'Hearth', sub: 'click to review consent in the dashboard' }
+  const press = consented ? ptt.press : () => window.hearth.openDashboard()
   const error = ptt.error ?? state.notice ?? (!state.status.assemblyReady ? 'Add ASSEMBLYAI_API_KEY to talk' : null)
 
   return (
@@ -94,7 +94,7 @@ export function Pill(): React.JSX.Element | null {
             onPointerDown={press}
             onPointerUp={ptt.release}
             onPointerLeave={ptt.release}
-            aria-label="Hold to talk to Wisp"
+            aria-label="Hold to talk to Hearth"
           >
             <Orb mood={state.mood} breathing={state.vitals.breathing} size={34} />
           </button>
@@ -110,7 +110,7 @@ export function Pill(): React.JSX.Element | null {
 
         <div className="pill-actions">
           <Tooltip label="Open dashboard" openDelay={400}>
-            <ActionIcon variant="subtle" color="gray" radius="xl" onClick={() => window.wisp.openDashboard()}>
+            <ActionIcon variant="subtle" color="gray" radius="xl" onClick={() => window.hearth.openDashboard()}>
               <IconLayoutDashboard size={17} />
             </ActionIcon>
           </Tooltip>
@@ -121,13 +121,13 @@ export function Pill(): React.JSX.Element | null {
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item onClick={() => void window.wisp.updateSettings({ quietMode: !state.settings.quietMode })}>
+              <Menu.Item onClick={() => void window.hearth.updateSettings({ quietMode: !state.settings.quietMode })}>
                 {state.settings.quietMode ? 'Turn quiet mode off' : 'Quiet mode'}
               </Menu.Item>
-              <Menu.Item onClick={() => window.wisp.openDashboard()}>Open dashboard</Menu.Item>
+              <Menu.Item onClick={() => window.hearth.openDashboard()}>Open dashboard</Menu.Item>
               <Menu.Divider />
-              <Menu.Item color="red" onClick={() => window.wisp.quit()}>
-                Quit Wisp
+              <Menu.Item color="red" onClick={() => window.hearth.quit()}>
+                Quit Hearth
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>

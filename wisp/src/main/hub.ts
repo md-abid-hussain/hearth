@@ -13,8 +13,8 @@ import type {
   Settings,
   VitalsSnapshot,
   WindowRole,
-  WispMood,
-  WispState
+  HearthMood,
+  HearthState
 } from '../shared/types'
 import { appendJsonl, newId, readJson, readJsonl, writeJson } from './store'
 
@@ -56,7 +56,7 @@ class Hub {
   private windows = new Map<WindowRole, BrowserWindow>()
   private pushTimer: NodeJS.Timeout | null = null
 
-  mood: WispMood = 'sleeping'
+  mood: HearthMood = 'sleeping'
   vitals: VitalsSnapshot = emptyVitals()
   insights: InsightEntry[] = []
   memory: MemoryState = { summary: '', pins: [], turns: [], compactions: 0 }
@@ -70,7 +70,7 @@ class Hub {
     nudgesEnabled: true,
     telemetry: false,
     theme: 'dark',
-    hotkey: 'ctrl-win',
+    hotkey: 'right-ctrl',
     reasoningEffort: null,
     consentAt: null
   }
@@ -107,11 +107,11 @@ class Hub {
     const target = ROUTES[msg.type]
     for (const [role, win] of this.windows) {
       if (win.isDestroyed() || (target && role !== target)) continue
-      win.webContents.send('wisp:event', msg)
+      win.webContents.send('hearth:event', msg)
     }
   }
 
-  snapshot(): WispState {
+  snapshot(): HearthState {
     return {
       mood: this.mood,
       vitals: this.vitals,
@@ -156,7 +156,7 @@ class Hub {
     }, 80)
   }
 
-  setMood(mood: WispMood): void {
+  setMood(mood: HearthMood): void {
     if (this.mood === mood) return
     this.mood = mood
     if (mood !== 'thinking') this.activity = null

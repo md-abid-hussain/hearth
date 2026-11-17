@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Button, Center, Loader } from '@mantine/core'
-import type { WispState } from '@shared/types'
+import type { HearthState } from '@shared/types'
 import { Consent } from '../components/Consent'
-import { useHistory, useWisp } from '../lib/store'
+import { useHistory, useHearth } from '../lib/store'
 import { Connectors } from './pages/Connectors'
 import { Insights } from './pages/Insights'
 import { Memory } from './pages/Memory'
@@ -15,11 +15,11 @@ import { VoiceModel } from './pages/VoiceModel'
 
 const NAV: { group: string; items: { id: string; label: string }[] }[] = [
   { group: 'Report', items: [{ id: 'today', label: 'Today' }, { id: 'signals', label: 'Signals' }, { id: 'timeline', label: 'Timeline' }, { id: 'insights', label: 'Insights' }] },
-  { group: 'Wisp', items: [{ id: 'memory', label: 'Memory' }, { id: 'reminders', label: 'Reminders' }] },
+  { group: 'Hearth', items: [{ id: 'memory', label: 'Memory' }, { id: 'reminders', label: 'Reminders' }] },
   { group: 'Setup', items: [{ id: 'connectors', label: 'Connectors' }, { id: 'voice', label: 'Voice and model' }, { id: 'privacy', label: 'Privacy' }] }
 ]
 
-function StatusFooter({ state }: { state: WispState }): React.JSX.Element {
+function StatusFooter({ state }: { state: HearthState }): React.JSX.Element {
   const { vitals, status, settings } = state
   const rows: [boolean, string][] = [
     [vitals.sensing, vitals.sensing ? 'camera sensing' : 'camera off'],
@@ -35,15 +35,15 @@ function StatusFooter({ state }: { state: WispState }): React.JSX.Element {
           {label}
         </div>
       ))}
-      <Button size="compact-xs" variant="subtle" color="gray" mt={4} onClick={() => window.wisp.quit()} styles={{ root: { alignSelf: 'flex-start', paddingInline: 0 } }}>
-        Quit Wisp
+      <Button size="compact-xs" variant="subtle" color="gray" mt={4} onClick={() => window.hearth.quit()} styles={{ root: { alignSelf: 'flex-start', paddingInline: 0 } }}>
+        Quit Hearth
       </Button>
     </div>
   )
 }
 
 export function Dashboard(): React.JSX.Element {
-  const state = useWisp()
+  const state = useHearth()
   const history = useHistory()
   const [page, setPage] = useState('today')
 
@@ -73,7 +73,7 @@ export function Dashboard(): React.JSX.Element {
   return (
     <div className="shell">
       <nav className="nav">
-        <div className="brand"><span className="brand-dot" />Wisp</div>
+        <div className="brand"><span className="brand-dot" />Hearth</div>
         {NAV.map((g) => (
           <div key={g.group}>
             <div className="label nav-group">{g.group}</div>

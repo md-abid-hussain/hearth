@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Group, Modal, Text } from '@mantine/core'
-import type { WispState } from '@shared/types'
+import type { HearthState } from '@shared/types'
 import { onReviewConsent } from '../lib/consent'
 import { sensing } from '../lib/sensing'
 
@@ -17,7 +17,7 @@ const POINTS: { title: string; sub: string; chip: string }[] = [
   },
   {
     title: 'Your voice goes to AssemblyAI',
-    sub: 'only while you hold the talk keys or the orb, or in hands-free until you send; it also voices Wisp’s replies',
+    sub: 'only while you hold the talk keys or the orb, or in hands-free until you send; it also voices Hearth’s replies',
     chip: 'assemblyai'
   },
   {
@@ -27,12 +27,12 @@ const POINTS: { title: string; sub: string; chip: string }[] = [
   },
   {
     title: 'Connectors are read-only',
-    sub: 'Wisp only sees services you sign into, and cannot write to them',
+    sub: 'Hearth only sees services you sign into, and cannot write to them',
     chip: 'opt-in'
   },
   {
     title: 'Google apps go through Composio',
-    sub: 'if you sign in to Gmail, Calendar or Drive, Composio keeps that sign-in and passes along what Wisp reads; some of its web tools use your Composio credits',
+    sub: 'if you sign in to Gmail, Calendar or Drive, Composio keeps that sign-in and passes along what Hearth reads; some of its web tools use your Composio credits',
     chip: 'composio'
   },
   {
@@ -42,7 +42,7 @@ const POINTS: { title: string; sub: string; chip: string }[] = [
   }
 ]
 
-export function Consent({ state }: { state: WispState }): React.JSX.Element {
+export function Consent({ state }: { state: HearthState }): React.JSX.Element {
   const { consentAt } = state.settings
   const [opened, setOpened] = useState(consentAt == null)
   const sensingOn = state.vitals.sensing
@@ -62,11 +62,11 @@ export function Consent({ state }: { state: WispState }): React.JSX.Element {
   }, [consentAt, sensingOn])
 
   const agree = (): void => {
-    void window.wisp.updateSettings({ consentAt: Date.now() })
+    void window.hearth.updateSettings({ consentAt: Date.now() })
     setOpened(false)
   }
   const withdraw = (): void => {
-    void window.wisp.updateSettings({ consentAt: null })
+    void window.hearth.updateSettings({ consentAt: null })
     setOpened(false)
   }
 
@@ -74,12 +74,12 @@ export function Consent({ state }: { state: WispState }): React.JSX.Element {
     <Modal
       opened={opened}
       onClose={() => setOpened(false)}
-      title="Before Wisp turns on the camera or microphone"
+      title="Before Hearth turns on the camera or microphone"
       size="lg"
       centered
     >
       <Text size="sm" mb="md">
-        Wisp is a wellness companion, not a medical device. Nothing it says is medical advice.
+        Hearth is a wellness companion, not a medical device. Nothing it says is medical advice.
       </Text>
       <div className="numbered">
         {POINTS.map((p, i) => (

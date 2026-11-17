@@ -18,9 +18,9 @@ interface Persisted {
   compactions: number
 }
 
-const COMPACT_SYSTEM = `You maintain the long-term memory of Wisp, a desk companion.
+const COMPACT_SYSTEM = `You maintain the long-term memory of Hearth, a desk companion.
 Merge the previous summary with the older conversation turns into one updated summary.
-Keep: the user's ongoing tasks and goals, preferences about how Wisp should behave, promises Wisp made, and recurring patterns the user mentioned.
+Keep: the user's ongoing tasks and goals, preferences about how Hearth should behave, promises Hearth made, and recurring patterns the user mentioned.
 Drop: greetings, small talk, raw vitals numbers, anything already resolved.
 Write at most 12 short bullet lines in plain text. No health diagnoses.`
 
@@ -87,7 +87,7 @@ class Memory {
       const turns = hub.memory.turns
       const older = turns.slice(0, -KEEP_RECENT_TURNS)
       const recent = turns.slice(-KEEP_RECENT_TURNS)
-      const transcript = older.map((t) => `${t.role === 'user' ? 'User' : 'Wisp'}: ${t.text}`).join('\n')
+      const transcript = older.map((t) => `${t.role === 'user' ? 'User' : 'Hearth'}: ${t.text}`).join('\n')
       const summary = await complete(
         COMPACT_SYSTEM,
         `Previous summary:\n${hub.memory.summary || '(none)'}\n\nOlder turns:\n${transcript}`

@@ -29,9 +29,9 @@ export function ConnectorSection({
 
 const COMPOSIO_NOTE = (
   <>
-    Composio keeps the Google sign-in on its servers and passes along what Wisp reads. Google asks
+    Composio keeps the Google sign-in on its servers and passes along what Hearth reads. Google asks
     for full mail, calendar and Drive access, but this session only offers tools Composio marks
-    read-only, and Wisp checks each one again. Composio&apos;s search can also reach other apps and
+    read-only, and Hearth checks each one again. Composio&apos;s search can also reach other apps and
     paid web tools, which use your Composio credits.
   </>
 )
@@ -53,13 +53,13 @@ export function Connectors({
       <PageHeader
         eyebrow="Connectors"
         title="Read-only, by design."
-        intro="Sign in to an app's own MCP server. Wisp keeps the tokens and keys on this computer, encrypted by Windows, and every tool passes a read-only gate before the model sees it."
+        intro="Sign in to an app's own MCP server. Hearth keeps the tokens and keys on this computer, encrypted by Windows, and every tool passes a read-only gate before the model sees it."
       />
 
       <div className="grid-2-even">
         <div className="card dashed panel">
           <h3 className="display" style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>
-            What Wisp will never do
+            What Hearth will never do
           </h3>
           <ul className="list-x">
             <li>Send, reply to or draft a message</li>
@@ -160,7 +160,7 @@ function AppRow({ server }: { server: McpServerStatus }): React.JSX.Element {
   const signOut = async (): Promise<void> => {
     setBusy(true)
     try {
-      await window.wisp.mcpSignOut(server.id)
+      await window.hearth.mcpSignOut(server.id)
     } finally {
       setBusy(false)
     }
@@ -200,13 +200,13 @@ function AppRow({ server }: { server: McpServerStatus }): React.JSX.Element {
             <Button
               size="xs"
               variant="default"
-              onClick={() => window.wisp.mcpCancelSignIn(server.id)}
+              onClick={() => window.hearth.mcpCancelSignIn(server.id)}
             >
               Cancel
             </Button>
           )}
           {canSignIn && (
-            <Button size="xs" onClick={() => void window.wisp.mcpSignIn(server.id)}>
+            <Button size="xs" onClick={() => void window.hearth.mcpSignIn(server.id)}>
               {server.auth === 'signedIn' ? 'Reconnect' : 'Sign in'}
             </Button>
           )}
@@ -218,9 +218,9 @@ function AppRow({ server }: { server: McpServerStatus }): React.JSX.Element {
           {canToggle && (
             <Switch
               size="xs"
-              aria-label={`Let Wisp use ${server.name}`}
+              aria-label={`Let Hearth use ${server.name}`}
               checked={server.enabled}
-              onChange={(e) => void window.wisp.mcpSetEnabled(server.id, e.currentTarget.checked)}
+              onChange={(e) => void window.hearth.mcpSetEnabled(server.id, e.currentTarget.checked)}
             />
           )}
         </div>
@@ -241,7 +241,7 @@ function KeyForm({ server }: { server: McpServerStatus }): React.JSX.Element {
   const connect = async (): Promise<void> => {
     setBusy(true)
     try {
-      if (!(await window.wisp.mcpSetKey(server.id, key))) setKey('')
+      if (!(await window.hearth.mcpSetKey(server.id, key))) setKey('')
     } finally {
       setBusy(false)
     }
@@ -277,7 +277,7 @@ function AddServer(): React.JSX.Element {
   const add = async (): Promise<void> => {
     setBusy(true)
     try {
-      const problem = await window.wisp.mcpAddServer(name, url, apiKey.trim() || undefined)
+      const problem = await window.hearth.mcpAddServer(name, url, apiKey.trim() || undefined)
       setError(problem)
       if (!problem) {
         setName('')
@@ -328,7 +328,7 @@ function ReloadButton(): React.JSX.Element {
   const reload = async (): Promise<void> => {
     setLoading(true)
     try {
-      await window.wisp.reloadMcp()
+      await window.hearth.reloadMcp()
     } finally {
       setLoading(false)
     }

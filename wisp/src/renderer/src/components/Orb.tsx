@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
-import type { WispMood } from '@shared/types'
+import type { HearthMood } from '@shared/types'
 import { mic } from '../lib/mic'
 import { player } from '../lib/player'
 
-const COLORS: Record<WispMood, string> = {
+const COLORS: Record<HearthMood, string> = {
   sleeping: '#6b665f',
   idle: '#f0a43a',
   listening: '#3fb27f',
@@ -12,7 +12,7 @@ const COLORS: Record<WispMood, string> = {
 }
 
 interface Props {
-  mood: WispMood
+  mood: HearthMood
   /** Breaths per minute; the idle orb swells in time with the user. */
   breathing: number | null
   size?: number
@@ -83,5 +83,5 @@ export function Orb({ mood, breathing, size = 40 }: Props): React.JSX.Element {
     return () => cancelAnimationFrame(frame)
   }, [size])
 
-  return <canvas ref={ref} style={{ width: size + 16, height: size + 16, display: 'block' }} aria-label={`Wisp is ${mood}`} />
+  return <canvas ref={ref} style={{ width: size + 16, height: size + 16, display: 'block' }} aria-label={`Hearth is ${mood}`} />
 }

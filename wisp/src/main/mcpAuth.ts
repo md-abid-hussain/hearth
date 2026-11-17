@@ -23,7 +23,7 @@ const SIGN_IN_TIMEOUT_MS = 3 * 60_000
 export interface AuthOptions {
   /** For servers without dynamic client registration, such as Google's. */
   client?: OAuthClientInformationMixed
-  /** Replaces the scope the server advertises, so Wisp only asks for read access. */
+  /** Replaces the scope the server advertises, so Hearth only asks for read access. */
   scope?: string
   /** Extra query parameters for the authorization URL. */
   authParams?: Record<string, string>
@@ -61,7 +61,7 @@ export class StoredOAuthProvider implements OAuthClientProvider {
 
   get clientMetadata(): OAuthClientMetadata {
     return {
-      client_name: 'Wisp',
+      client_name: 'Hearth',
       redirect_uris: [REDIRECT_URL],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
@@ -162,7 +162,7 @@ function readSecret(file: string): Saved {
 }
 
 const PAGE = (message: string): string =>
-  `<!doctype html><meta charset="utf-8"><title>Wisp</title><body style="font-family:system-ui;padding:48px;background:#161616;color:#f3efe6"><h2>${message}</h2><p>You can close this tab and go back to Wisp.</p></body>`
+  `<!doctype html><meta charset="utf-8"><title>Hearth</title><body style="font-family:system-ui;padding:48px;background:#161616;color:#f3efe6"><h2>${message}</h2><p>You can close this tab and go back to Hearth.</p></body>`
 
 export class SignInCancelled extends Error {
   constructor() {

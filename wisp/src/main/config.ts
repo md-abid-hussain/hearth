@@ -22,7 +22,7 @@ const REASONING_LEVELS: readonly ReasoningEffort[] = [
   'max'
 ]
 
-export interface WispConfig {
+export interface HearthConfig {
   smartspectraKey: string
   assemblyKey: string
   llmProvider: LlmProviderName
@@ -46,9 +46,9 @@ function candidateRoots(): string[] {
   return [resolve(appPath, '..'), appPath, process.cwd(), resolve(process.cwd(), '..')]
 }
 
-let cached: WispConfig | null = null
+let cached: HearthConfig | null = null
 
-export function loadConfig(): WispConfig {
+export function loadConfig(): HearthConfig {
   if (cached) return cached
 
   const roots = candidateRoots()
@@ -62,7 +62,7 @@ export function loadConfig(): WispConfig {
   const llmProvider: LlmProviderName = provider === 'anthropic' ? 'anthropic' : 'openai'
   const projectRoot = roots.find((r) => existsSync(join(r, '.env'))) ?? roots[0]
   const mcpConfigPath =
-    [env.WISP_MCP_CONFIG, join(projectRoot, 'mcp.json'), join(app.getAppPath(), 'mcp.json')]
+    [env.HEARTH_MCP_CONFIG, join(projectRoot, 'mcp.json'), join(app.getAppPath(), 'mcp.json')]
       .filter((p): p is string => Boolean(p))
       .find((p) => existsSync(p)) ?? null
 
@@ -71,16 +71,16 @@ export function loadConfig(): WispConfig {
     assemblyKey: env.ASSEMBLYAI_API_KEY ?? '',
     llmProvider,
     llmModel:
-      env.WISP_LLM_MODEL ||
+      env.HEARTH_LLM_MODEL ||
       (llmProvider === 'openai' ? env.OPENAI_MODEL : env.ANTHROPIC_MODEL) ||
       DEFAULT_MODELS[llmProvider],
     reasoningEffort: parseEffort(env.OPENAI_MODEL_REASONING ?? env.LLM_REASONING),
     openaiKey: env.OPENAI_API_KEY ?? '',
     anthropicKey: env.ANTHROPIC_API_KEY ?? '',
     composioKey: env.COMPOSIO_API_KEY || env.COMPOSIO_PLATFORM_KEY || '',
-    ttsVoice: env.WISP_TTS_VOICE || 'aai-kyla',
+    ttsVoice: env.HEARTH_TTS_VOICE || 'aai-kyla',
     projectRoot,
-    dataDir: join(app.getPath('userData'), 'wisp-data'),
+    dataDir: join(app.getPath('userData'), 'hearth-data'),
     mcpConfigPath
   }
   return cached
@@ -91,6 +91,6 @@ function parseEffort(raw: string | undefined): ReasoningEffort | null {
   return REASONING_LEVELS.find((level) => level === value) ?? null
 }
 
-export function llmKeyPresent(cfg: WispConfig): boolean {
+export function llmKeyPresent(cfg: HearthConfig): boolean {
   return cfg.llmProvider === 'openai' ? Boolean(cfg.openaiKey) : Boolean(cfg.anthropicKey)
 }

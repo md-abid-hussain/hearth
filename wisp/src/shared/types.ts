@@ -1,4 +1,4 @@
-export type WispMood = 'sleeping' | 'idle' | 'listening' | 'thinking' | 'speaking'
+export type HearthMood = 'sleeping' | 'idle' | 'listening' | 'thinking' | 'speaking'
 
 export interface VitalsPoint {
   t: number
@@ -182,8 +182,8 @@ export interface Settings {
   consentAt: number | null
 }
 
-export interface WispState {
-  mood: WispMood
+export interface HearthState {
+  mood: HearthMood
   vitals: VitalsSnapshot
   insights: InsightEntry[]
   memory: MemoryState
@@ -204,7 +204,7 @@ export interface WispState {
 export type WindowRole = 'pill' | 'dashboard'
 
 export type MainToRenderer =
-  | { type: 'state'; state: WispState }
+  | { type: 'state'; state: HearthState }
   | { type: 'vitalsPoint'; point: VitalsPoint }
   | { type: 'ttsStart' }
   | { type: 'ttsAudio'; pcm: Uint8Array }

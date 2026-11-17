@@ -7,9 +7,9 @@ const WHO: Record<LogKind, { label: string; tone: '' | 'amber' | 'dim' }> = {
   session: { label: 'Session', tone: 'dim' },
   insight: { label: 'Presage', tone: '' },
   ptt: { label: 'You', tone: '' },
-  reply: { label: 'Wisp', tone: 'amber' },
+  reply: { label: 'Hearth', tone: 'amber' },
   tool: { label: 'Tool', tone: 'dim' },
-  nudge: { label: 'Wisp / nudge', tone: 'amber' },
+  nudge: { label: 'Hearth / nudge', tone: 'amber' },
   suppressed: { label: 'Observer / held back', tone: 'dim' },
   reminder: { label: 'Reminder', tone: 'amber' },
   mcp: { label: 'Connector', tone: 'dim' },
@@ -35,7 +35,7 @@ export function Timeline({ log }: { log: LogEntry[] }): React.JSX.Element {
     <div className="page-inner">
       <PageHeader
         eyebrow="Timeline"
-        title="Everything Wisp did, and didn't."
+        title="Everything Hearth did, and didn't."
         intro="The observer reviews your signals every three minutes. Each time it decides to stay quiet, the reason is written here."
       />
       <div className="card" style={{ overflow: 'hidden' }}>

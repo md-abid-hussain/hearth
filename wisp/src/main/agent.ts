@@ -11,7 +11,7 @@ import { vitals } from './vitals'
 
 const MAX_STEPS = 6
 
-const PERSONA = `You are Wisp, a calm companion on the user's desk. Every reply is spoken aloud.
+const PERSONA = `You are Hearth, a calm companion on the user's desk. Every reply is spoken aloud.
 
 Style: one to three short spoken sentences. No markdown, lists, emoji or links. Warm, light, never preachy; drop advice the user brushed off.
 
@@ -108,7 +108,7 @@ function builtinTools(): ToolSet {
       execute: async ({ fact }) => ({ pins: memory.pin(fact).length })
     }),
     quiet_mode: tool({
-      description: 'Turn quiet mode on or off. In quiet mode Wisp never speaks unprompted.',
+      description: 'Turn quiet mode on or off. In quiet mode Hearth never speaks unprompted.',
       inputSchema: z.object({ on: z.boolean() }),
       execute: async ({ on }) => ({ quietMode: hub.updateSettings({ quietMode: on }).quietMode })
     })

@@ -52,7 +52,7 @@ export class PttSession {
       inactivityTimeout: INACTIVITY_TIMEOUT_S,
       connectTimeout: CONNECT_TIMEOUT_MS,
       maxConnectionRetries: 2,
-      // What Wisp just said, so short answers like "yes" or "7pm" transcribe in context.
+      // What Hearth just said, so short answers like "yes" or "7pm" transcribe in context.
       ...(lastReply ? { agentContext: lastReply.slice(0, AGENT_CONTEXT_MAX) } : {})
     })
     this.transcriber.on('turn', (turn) => this.onTurn(turn))

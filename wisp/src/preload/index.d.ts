@@ -1,7 +1,7 @@
-import type { MainToRenderer, McpServerStatus, Settings, VitalsPoint, WispState } from '../shared/types'
+import type { MainToRenderer, McpServerStatus, Settings, VitalsPoint, HearthState } from '../shared/types'
 
-export interface WispApi {
-  getState(): Promise<WispState>
+export interface HearthApi {
+  getState(): Promise<HearthState>
   getHistory(): Promise<VitalsPoint[]>
   getSmartSpectraKey(): Promise<string>
 
@@ -46,6 +46,6 @@ export interface WispApi {
 
 declare global {
   interface Window {
-    wisp: WispApi
+    hearth: HearthApi
   }
 }

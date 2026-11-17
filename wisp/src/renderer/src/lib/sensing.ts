@@ -23,7 +23,7 @@ const CAMERA: MediaTrackConstraints = {
   frameRate: { ideal: 30 }
 }
 
-const CAMERA_KEY = 'wisp.cameraId'
+const CAMERA_KEY = 'hearth.cameraId'
 
 export interface CameraOption {
   id: string
@@ -68,7 +68,7 @@ async function openCamera(): Promise<MediaStream> {
     const name = (err as DOMException).name
     if (name === 'NotAllowedError' || name === 'SecurityError') {
       throw new SensingError(
-        'Camera access was blocked. Allow Wisp to use the camera in Windows privacy settings.',
+        'Camera access was blocked. Allow Hearth to use the camera in Windows privacy settings.',
         null,
         false
       )
@@ -190,10 +190,10 @@ class Sensing {
       requestedMetrics: [...breathingMetrics, ...cardioMetrics, ...faceMetrics],
       enableTelemetry: telemetry
     })
-    sdk.on('metrics', (buf) => window.wisp.pushMetrics(buf))
-    sdk.on('insight', (buf, requestId) => window.wisp.pushInsight(buf, requestId))
+    sdk.on('metrics', (buf) => window.hearth.pushMetrics(buf))
+    sdk.on('insight', (buf, requestId) => window.hearth.pushInsight(buf, requestId))
     sdk.on('validationStatus', (code, _ts, hint) =>
-      window.wisp.pushValidation(
+      window.hearth.pushValidation(
         code === ValidationCode.kOk ? null : hint || 'Adjust your position'
       )
     )
@@ -205,7 +205,7 @@ class Sensing {
       // Invalid-state errors are per-frame fallout of an earlier failure; processingStatus reports that once.
       if (code === SmartSpectraErrorCode.kInvalidState || this.sdk !== sdk) return
       this.lastError = toSensingError({ code, message, retryable })
-      window.wisp.reportSdkError(this.lastError.message, false)
+      window.hearth.reportSdkError(this.lastError.message, false)
     })
     return sdk
   }
@@ -213,12 +213,12 @@ class Sensing {
   /** One attempt. Per the SDK docs a retryable failure is the user's to retry, never automatic. */
   async start(telemetry: boolean): Promise<void> {
     if (this.running || this.sdk) return
-    const { settings } = await window.wisp.getState()
+    const { settings } = await window.hearth.getState()
     if (settings.consentAt == null) {
       reviewConsent()
       throw new SensingError('Accept the consent screen before the camera can start.', null, false)
     }
-    const apiKey = await window.wisp.getSmartSpectraKey()
+    const apiKey = await window.hearth.getSmartSpectraKey()
     if (!apiKey) throw new SensingError('SMARTSPECTRA_API_KEY is not set in .env.', null, false)
 
     this.lastError = null
@@ -231,7 +231,7 @@ class Sensing {
       sdk.useMediaStream(camera)
       await sdk.start()
       this.running = true
-      window.wisp.setSensing(true)
+      window.hearth.setSensing(true)
     } catch (err) {
       await this.teardown(sdk)
       throw toSensingError(err)
@@ -247,8 +247,8 @@ class Sensing {
     const reason = error?.message ?? 'SmartSpectra hit an error it could not recover from.'
     const retry =
       error?.retryable && !/start sensing/i.test(reason) ? ' Press Start sensing to try again.' : ''
-    window.wisp.setSensing(false)
-    window.wisp.reportSdkError(`Sensing stopped. ${reason}${retry}`, true)
+    window.hearth.setSensing(false)
+    window.hearth.reportSdkError(`Sensing stopped. ${reason}${retry}`, true)
   }
 
   private async teardown(sdk: SmartSpectraSDK): Promise<void> {
@@ -271,20 +271,20 @@ class Sensing {
   async stop(): Promise<void> {
     const sdk = this.sdk
     this.running = false
-    window.wisp.setSensing(false)
+    window.hearth.setSensing(false)
     if (sdk) await this.teardown(sdk)
   }
 
   async requestInsight(token: string, prompt: string): Promise<void> {
     if (!this.sdk || !this.running) {
-      window.wisp.failInsight(token)
+      window.hearth.failInsight(token)
       return
     }
     try {
       const requestId = await this.sdk.requestInsight(prompt)
-      window.wisp.bindInsight(token, requestId)
+      window.hearth.bindInsight(token, requestId)
     } catch {
-      window.wisp.failInsight(token)
+      window.hearth.failInsight(token)
     }
   }
 }

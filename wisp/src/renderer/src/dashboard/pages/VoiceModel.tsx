@@ -1,17 +1,17 @@
 import { SegmentedControl } from '@mantine/core'
-import type { HotkeyId, ReasoningEffort, Settings, ThemeChoice, WispState } from '@shared/types'
+import type { HotkeyId, ReasoningEffort, Settings, ThemeChoice, HearthState } from '@shared/types'
 import { PageHeader } from '../shared'
 
-export function VoiceModel({ state }: { state: WispState }): React.JSX.Element {
+export function VoiceModel({ state }: { state: HearthState }): React.JSX.Element {
   const { status, settings } = state
-  const update = (patch: Partial<Settings>): void => void window.wisp.updateSettings(patch)
+  const update = (patch: Partial<Settings>): void => void window.hearth.updateSettings(patch)
   const effort = settings.reasoningEffort ?? status.envReasoningEffort ?? 'medium'
 
   return (
     <div className="page-inner">
       <PageHeader
         eyebrow="Voice and model"
-        title="How Wisp thinks and sounds."
+        title="How Hearth thinks and sounds."
         intro="Settings that are not secrets live here. API keys stay in the .env file and never reach this window."
       />
       <div className="grid-2-even">
@@ -45,7 +45,7 @@ export function VoiceModel({ state }: { state: WispState }): React.JSX.Element {
         <div className="card panel">
           <div className="panel-head"><h3>Voice and look</h3></div>
           <div className="field">
-            <div><div className="name">Voice</div><div className="help">AssemblyAI text to speech, set WISP_TTS_VOICE</div></div>
+            <div><div className="name">Voice</div><div className="help">AssemblyAI text to speech, set HEARTH_TTS_VOICE</div></div>
             <span className="chip">{status.ttsVoice}</span>
           </div>
           <div className="field stack">
@@ -55,9 +55,9 @@ export function VoiceModel({ state }: { state: WispState }): React.JSX.Element {
               value={settings.hotkey}
               onChange={(value) => update({ hotkey: value as HotkeyId })}
               data={[
-                { value: 'ctrl-win', label: 'Ctrl + Win' },
+                { value: 'right-ctrl', label: 'Right Ctrl' },
                 { value: 'right-alt', label: 'Right Alt' },
-                { value: 'right-ctrl', label: 'Right Ctrl' }
+                { value: 'ctrl-win', label: 'Ctrl + Win' }
               ]}
             />
           </div>

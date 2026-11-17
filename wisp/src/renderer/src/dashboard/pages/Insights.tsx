@@ -11,7 +11,7 @@ export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.
       <PageHeader
         eyebrow="Insights"
         title="What Presage noticed."
-        intro="Presage's own LLM writes these from your measured numbers, never from video. The first arrives after a stable pulse, then about every minute. Wisp can also ask on demand."
+        intro="Presage's own LLM writes these from your measured numbers, never from video. The first arrives after a stable pulse, then about every minute. Hearth can also ask on demand."
       />
       {!first && (
         <p className="empty">No insights yet. Start sensing and give it fifteen seconds or so.</p>
@@ -23,7 +23,7 @@ export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.
           <div className="quote-foot">
             <span className="label">Latest, {clock(first.at)}</span>
             <span className={first.isError ? 'tag no' : 'chip'}>
-              {first.isError ? 'error' : first.onDemand ? 'asked by Wisp' : 'automatic'}
+              {first.isError ? 'error' : first.onDemand ? 'asked by Hearth' : 'automatic'}
             </span>
           </div>
         </div>
@@ -35,7 +35,7 @@ export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.
               <span className="t">{clock(i.at)}</span>
               <div>
                 <div className="who" style={i.isError ? { color: 'var(--red)' } : undefined}>
-                  {i.isError ? 'Presage, error' : i.onDemand ? 'Presage, asked by Wisp' : 'Presage'}
+                  {i.isError ? 'Presage, error' : i.onDemand ? 'Presage, asked by Hearth' : 'Presage'}
                 </div>
                 <InsightCard insight={i} className={i.isError ? 'body' : 'body voice'} />
               </div>

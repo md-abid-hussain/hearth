@@ -25,7 +25,7 @@ interface Candidate {
   reminderId?: string
 }
 
-const NUDGE_SYSTEM = `You are Wisp, a calm desk companion. Write ONE short spoken sentence (max 22 words) gently nudging the user.
+const NUDGE_SYSTEM = `You are Hearth, a calm desk companion. Write ONE short spoken sentence (max 22 words) gently nudging the user.
 Plain words, no numbers unless essential, no medical language, no diagnosis. Offer, do not command.`
 
 export type SpeakFn = (text: string) => Promise<void>
@@ -99,7 +99,7 @@ class Observer {
     return out
   }
 
-  /** Every reason Wisp should stay silent right now, empty when it may speak. */
+  /** Every reason Hearth should stay silent right now, empty when it may speak. */
   private blockers(c: Candidate): string[] {
     const now = Date.now()
     const v = hub.vitals
@@ -108,7 +108,7 @@ class Observer {
     if (s.quietMode) reasons.push('quiet mode is on')
     if (!s.nudgesEnabled && !c.urgent) reasons.push('nudges are turned off')
     if (this.pttActive) reasons.push('user is holding push-to-talk')
-    if (hub.mood === 'speaking' || hub.mood === 'thinking') reasons.push('Wisp is mid-reply')
+    if (hub.mood === 'speaking' || hub.mood === 'thinking') reasons.push('Hearth is mid-reply')
     if (v.talking) reasons.push('user appears to be talking')
     if (now - this.lastUserTurnAt < QUIET_AFTER_CHAT_MS) reasons.push('just chatted with the user')
     if (c.urgent) return reasons

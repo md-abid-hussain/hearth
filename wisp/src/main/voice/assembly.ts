@@ -29,7 +29,7 @@ const STREAMING_CODES: Record<number, string> = {
 const TTS_CODES: Record<string, string> = {
   unauthorized: KEY_REFUSED,
   rate_limited: 'AssemblyAI is rate limiting speech. Wait a few seconds and try again.',
-  voice_not_found: 'The voice in WISP_TTS_VOICE does not exist. Remove it to use the default.',
+  voice_not_found: 'The voice in HEARTH_TTS_VOICE does not exist. Remove it to use the default.',
   auth_unavailable: 'AssemblyAI could not check the API key just now. Try again.'
 }
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Alert, Button, SegmentedControl, TextInput } from '@mantine/core'
-import type { Exchange, VitalsPoint, WispState } from '@shared/types'
+import type { Exchange, VitalsPoint, HearthState } from '@shared/types'
 import { preview } from '../../lib/text'
 import {
   RULE_TITLES,
@@ -18,13 +18,13 @@ import {
 } from '../shared'
 
 interface Props {
-  state: WispState
+  state: HearthState
   history: VitalsPoint[]
   go: (page: string) => void
 }
 
 function useHeadline(
-  state: WispState,
+  state: HearthState,
   history: VitalsPoint[],
   now: number
 ): { first: string; mark: string; rest: string; body: string } {
@@ -97,13 +97,13 @@ function timingSummary(ex: Exchange): string {
   return parts.length ? parts.join(', ') : seconds(ex.latencyMs)
 }
 
-function LastExchange({ state }: { state: WispState }): React.JSX.Element {
+function LastExchange({ state }: { state: HearthState }): React.JSX.Element {
   const [typed, setTyped] = useState('')
   const ex = state.lastExchange
   const send = (): void => {
     const text = typed.trim()
     if (!text) return
-    window.wisp.sendTyped(text)
+    window.hearth.sendTyped(text)
     setTyped('')
   }
   return (
@@ -140,7 +140,7 @@ function LastExchange({ state }: { state: WispState }): React.JSX.Element {
           <div className="entry">
             <span className="t">{clock(ex.at + ex.latencyMs)}</span>
             <div>
-              <div className="who amber">Wisp</div>
+              <div className="who amber">Hearth</div>
               <div className="body voice">{ex.reply}</div>
               <div className="timing">{timingSummary(ex)}</div>
             </div>
@@ -148,7 +148,7 @@ function LastExchange({ state }: { state: WispState }): React.JSX.Element {
         </>
       ) : (
         <div className="entry solo">
-          <div className="who amber">Wisp</div>
+          <div className="who amber">Hearth</div>
           <div className="body voice">
             Hold {state.status.pttShortcut} from any app and ask me how you are doing. Let go and I
             will answer.
@@ -160,7 +160,7 @@ function LastExchange({ state }: { state: WispState }): React.JSX.Element {
           size="sm"
           variant="filled"
           style={{ flex: 1 }}
-          placeholder="Or type to Wisp and press Enter"
+          placeholder="Or type to Hearth and press Enter"
           value={typed}
           onChange={(e) => setTyped(e.currentTarget.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
@@ -230,7 +230,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
     <div className="page-inner">
       {missing.length > 0 && (
         <Alert color="yellow" variant="light" title="Some keys are missing in .env">
-          Add {missing.join(', ')} to the .env file in the project root, then restart Wisp.
+          Add {missing.join(', ')} to the .env file in the project root, then restart Hearth.
         </Alert>
       )}
 
@@ -296,7 +296,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
             label="Since your last break"
             value={sinceBreak == null ? '--' : String(sinceBreak)}
             unit="min"
-            note="Wisp suggests a break after 50"
+            note="Hearth suggests a break after 50"
           />
         </div>
         <div className="substats">
@@ -344,7 +344,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
               <h3>{insight.structured?.headline || preview(insight.text, 220)}</h3>
               <div className="quote-foot">
                 <span className="label">{clock(insight.at)}, from your numbers only</span>
-                <span className="chip">{insight.onDemand ? 'asked by Wisp' : 'automatic'}</span>
+                <span className="chip">{insight.onDemand ? 'asked by Hearth' : 'automatic'}</span>
               </div>
             </div>
           ) : (
@@ -359,7 +359,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
 
         <section className="section">
           <div className="section-head">
-            <h2>Wisp&rsquo;s judgement</h2>
+            <h2>Hearth&rsquo;s judgement</h2>
             <button className="link" onClick={() => go('timeline')}>
               Full timeline
             </button>
@@ -367,7 +367,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
           <div className="card panel" style={{ flex: 1 }}>
             {observer.length === 0 ? (
               <p className="empty">
-                Wisp checks in every three minutes once a session is five minutes old. Each time it
+                Hearth checks in every three minutes once a session is five minutes old. Each time it
                 speaks or holds back, the reason shows here.
               </p>
             ) : (

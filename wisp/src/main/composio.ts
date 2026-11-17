@@ -76,7 +76,7 @@ function describe(err: unknown): string {
  *
  * The session is read-only on Composio's side: tools tagged create, update or destructive are
  * hidden from search and refused when run, raw API calls and the code sandbox are off, and
- * sign-in only happens from the Connectors page. Wisp adds its own check on every tool the
+ * sign-in only happens from the Connectors page. Hearth adds its own check on every tool the
  * catalog executor is asked to run, and trims large results before the model sees them.
  */
 class ComposioApps {
@@ -95,7 +95,7 @@ class ComposioApps {
   async load(): Promise<void> {
     const key = loadConfig().composioKey
     const stored = readJson<Partial<Saved>>(FILE, {})
-    this.saved = { ...stored, userId: stored.userId || `wisp-${randomUUID()}` }
+    this.saved = { ...stored, userId: stored.userId || `hearth-${randomUUID()}` }
     if (!stored.userId) writeJson(FILE, this.saved)
     this.client = null
     this.session = null
@@ -268,7 +268,7 @@ class ComposioApps {
     }
   }
 
-  /** Wraps each session tool with Wisp's checks, logging and result trimming. */
+  /** Wraps each session tool with Hearth's checks, logging and result trimming. */
   private guard(tools: ToolSet): ToolSet {
     const guarded: ToolSet = {}
     for (const [name, original] of Object.entries(tools)) {
@@ -288,14 +288,14 @@ class ComposioApps {
   }
 
   private blockedReason(name: string, input: unknown): string | null {
-    if (this.toolkitOff(name)) return `${name} is turned off in Wisp`
+    if (this.toolkitOff(name)) return `${name} is turned off in Hearth`
     if (name !== MULTI_EXECUTE) return null
     const calls = (input as { tools?: { tool_slug?: unknown }[] } | null)?.tools ?? []
     for (const call of calls) {
       const slug = String(call.tool_slug ?? '')
-      if (this.toolkitOff(slug)) return `${slug} is turned off in Wisp`
+      if (this.toolkitOff(slug)) return `${slug} is turned off in Hearth`
       const verb = writeVerb(slug)
-      if (verb) return `Wisp only reads; ${slug} looks like it writes ("${verb}")`
+      if (verb) return `Hearth only reads; ${slug} looks like it writes ("${verb}")`
     }
     return null
   }

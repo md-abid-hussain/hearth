@@ -13,8 +13,11 @@ export const HOTKEYS: Record<HotkeyId, Combo> = {
   'right-ctrl': { label: 'Right Ctrl', groups: [[UiohookKey.CtrlRight]] }
 }
 
-/** Windows reserves this chord for input switching, so it cannot be a registered shortcut; the hook sees it instead. */
-export const HANDS_FREE_LABEL = 'Ctrl + Win + Space'
+export const DEFAULT_HOTKEY: HotkeyId = 'right-ctrl'
+
+/** Hands-free starts with the talk keys plus Space, whichever talk keys are chosen. */
+export const handsFreeLabel = (id: HotkeyId): string =>
+  `${(HOTKEYS[id] ?? HOTKEYS[DEFAULT_HOTKEY]).label} + Space`
 
 const MODIFIERS = new Set<number>([
   UiohookKey.Ctrl,
@@ -39,12 +42,12 @@ export interface HotkeyHandlers {
 }
 
 /**
- * Wispr Flow style talk keys on Windows: hold the combo to talk, release to send, or press
- * Ctrl + Win + Space for hands-free and the combo again to send. Electron's globalShortcut
- * cannot see key releases or modifier-only combos, so everything comes from a low-level hook.
+ * Push-to-talk keys on Windows: hold the combo to talk and release to send, or add Space for
+ * hands-free and press the combo again to send. Electron's globalShortcut cannot see key
+ * releases or modifier-only combos, so everything comes from a low-level hook.
  */
 class Hotkeys {
-  private combo: Combo = HOTKEYS['ctrl-win']
+  private combo: Combo = HOTKEYS[DEFAULT_HOTKEY]
   private comboKeys = new Set<number>()
   private down = new Set<number>()
   private state: 'idle' | 'holding' | 'handsFree' = 'idle'
@@ -68,7 +71,7 @@ class Hotkeys {
   }
 
   use(id: HotkeyId): void {
-    this.combo = HOTKEYS[id] ?? HOTKEYS['ctrl-win']
+    this.combo = HOTKEYS[id] ?? HOTKEYS[DEFAULT_HOTKEY]
     this.comboKeys = new Set(this.combo.groups.flat())
     this.reset()
   }
@@ -101,7 +104,7 @@ class Hotkeys {
     const inCombo = this.comboKeys.has(e.keycode)
 
     if (this.state === 'holding') {
-      if (e.keycode === UiohookKey.Space && this.ctrlWinHeld()) {
+      if (e.keycode === UiohookKey.Space && this.comboHeld()) {
         this.onHandsFree()
         return
       }
@@ -124,7 +127,7 @@ class Hotkeys {
       return
     }
 
-    if (e.keycode === UiohookKey.Space && this.ctrlWinHeld()) {
+    if (e.keycode === UiohookKey.Space && this.comboHeld()) {
       this.onHandsFree()
       return
     }
@@ -132,10 +135,6 @@ class Hotkeys {
       this.state = 'holding'
       this.handlers?.start(false)
     }
-  }
-
-  private ctrlWinHeld(): boolean {
-    return HOTKEYS['ctrl-win'].groups.every((group) => group.some((k) => this.down.has(k)))
   }
 
   private onUp(e: UiohookKeyboardEvent): void {

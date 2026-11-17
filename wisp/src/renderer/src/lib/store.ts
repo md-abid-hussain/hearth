@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from 'react'
-import type { MainToRenderer, VitalsPoint, WispState } from '@shared/types'
+import type { MainToRenderer, VitalsPoint, HearthState } from '@shared/types'
 import { player } from './player'
 import { sensing } from './sensing'
 
 const HISTORY_LIMIT = 1_800
 
-let state: WispState | null = null
+let state: HearthState | null = null
 let history: VitalsPoint[] = []
 const listeners = new Set<() => void>()
 const emit = (): void => listeners.forEach((l) => l())
@@ -51,9 +51,9 @@ export function onRemotePtt(listener: (on: boolean) => void): () => void {
 
 export async function connectStore(): Promise<void> {
   // The renderer is only useful inside Electron; a plain browser tab on the dev URL has no bridge.
-  if (!window.wisp) return
-  window.wisp.onEvent(handle)
-  const [initial, points] = await Promise.all([window.wisp.getState(), window.wisp.getHistory()])
+  if (!window.hearth) return
+  window.hearth.onEvent(handle)
+  const [initial, points] = await Promise.all([window.hearth.getState(), window.hearth.getHistory()])
   state = initial
   history = points
   emit()
@@ -64,7 +64,7 @@ const subscribe = (l: () => void): (() => void) => {
   return () => listeners.delete(l)
 }
 
-export function useWisp(): WispState | null {
+export function useHearth(): HearthState | null {
   return useSyncExternalStore(subscribe, () => state)
 }
 

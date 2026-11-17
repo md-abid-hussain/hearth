@@ -21,7 +21,7 @@ class Mic {
       let peak = 0
       for (let i = 0; i < pcm.length; i += 16) peak = Math.max(peak, Math.abs(pcm[i]))
       this.level = peak / 0x8000
-      if (this.sending) window.wisp.pttAudio(new Uint8Array(e.data))
+      if (this.sending) window.hearth.pttAudio(new Uint8Array(e.data))
     }
     this.source.connect(this.node)
   }

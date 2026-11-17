@@ -4,3 +4,9 @@ out
 .DS_Store
 .eslintcache
 *.log*
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+mcp.json

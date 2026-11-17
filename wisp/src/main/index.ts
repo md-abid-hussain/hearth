@@ -18,7 +18,7 @@ import {
   say,
   warmVoice
 } from './conversation'
-import { HANDS_FREE_LABEL, HOTKEYS, hotkeys } from './hotkey'
+import { DEFAULT_HOTKEY, HOTKEYS, handsFreeLabel, hotkeys } from './hotkey'
 import { hub } from './hub'
 import { insights } from './insights'
 import { mcp } from './mcp'
@@ -41,7 +41,7 @@ function watchEventLoop(): void {
     const p99 = delay.percentile(99) / 1e6
     if (p99 > LAG_WARN_MS)
       console.warn(
-        `[wisp] main event loop p99 ${p99.toFixed(0)} ms, max ${(delay.max / 1e6).toFixed(0)} ms`
+        `[hearth] main event loop p99 ${p99.toFixed(0)} ms, max ${(delay.max / 1e6).toFixed(0)} ms`
       )
     delay.reset()
   }, 5_000).unref()
@@ -74,7 +74,7 @@ function createDashboard(): BrowserWindow {
     minWidth: 1100,
     minHeight: 720,
     show: false,
-    title: 'Wisp',
+    title: 'Hearth',
     backgroundColor: hub.settings.theme === 'light' ? '#f6f3ec' : '#131313',
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -118,7 +118,7 @@ function createPill(): BrowserWindow {
     alwaysOnTop: true,
     hasShadow: false,
     show: false,
-    title: 'Wisp companion',
+    title: 'Hearth companion',
     webPreferences
   })
   win.setAlwaysOnTop(true, 'floating')
@@ -141,7 +141,7 @@ const consented = (): boolean => hub.settings.consentAt != null
 /** The camera, microphone and model stay off until the first-run consent is accepted. */
 function requireConsent(): boolean {
   if (consented()) return true
-  hub.notify('Accept the consent screen in the dashboard before Wisp can sense or listen.')
+  hub.notify('Accept the consent screen in the dashboard before Hearth can sense or listen.')
   showDashboard()
   return false
 }
@@ -170,72 +170,72 @@ function allowMediaOnlyForAppPages(): void {
 function registerIpc(): void {
   const cfg = loadConfig()
 
-  ipcMain.handle('wisp:getState', () => hub.snapshot())
-  ipcMain.handle('wisp:getHistory', () => vitals.history)
-  ipcMain.handle('wisp:getSmartSpectraKey', () => cfg.smartspectraKey)
+  ipcMain.handle('hearth:getState', () => hub.snapshot())
+  ipcMain.handle('hearth:getHistory', () => vitals.history)
+  ipcMain.handle('hearth:getSmartSpectraKey', () => cfg.smartspectraKey)
 
-  ipcMain.on('wisp:sensing', (_e, on: boolean) => {
+  ipcMain.on('hearth:sensing', (_e, on: boolean) => {
     if (!on) vitals.stop()
     else if (requireConsent()) vitals.start()
   })
-  ipcMain.on('wisp:metrics', (_e, buf: Uint8Array) => vitals.ingest(buf))
-  ipcMain.on('wisp:validation', (_e, hint: string | null) => vitals.setValidationHint(hint))
-  ipcMain.on('wisp:insight', (_e, buf: Uint8Array, requestId: number) =>
+  ipcMain.on('hearth:metrics', (_e, buf: Uint8Array) => vitals.ingest(buf))
+  ipcMain.on('hearth:validation', (_e, hint: string | null) => vitals.setValidationHint(hint))
+  ipcMain.on('hearth:insight', (_e, buf: Uint8Array, requestId: number) =>
     insights.ingest(buf, requestId)
   )
-  ipcMain.on('wisp:insightBound', (_e, token: string, requestId: number) =>
+  ipcMain.on('hearth:insightBound', (_e, token: string, requestId: number) =>
     insights.bindRequest(token, requestId)
   )
-  ipcMain.on('wisp:insightFailed', (_e, token: string) => insights.failRequest(token))
-  ipcMain.on('wisp:sdkError', (_e, message: string, fatal: boolean) =>
+  ipcMain.on('hearth:insightFailed', (_e, token: string) => insights.failRequest(token))
+  ipcMain.on('hearth:sdkError', (_e, message: string, fatal: boolean) =>
     fatal ? hub.notify(message) : hub.record('error', `SmartSpectra: ${message}`)
   )
 
-  ipcMain.on('wisp:pttStart', () => {
+  ipcMain.on('hearth:pttStart', () => {
     hotkeys.reset()
     if (requireConsent()) pttStart('hold')
   })
-  ipcMain.on('wisp:pttAudio', (_e, chunk: Uint8Array) => pttAudio(chunk))
-  ipcMain.on('wisp:pttStop', () => {
+  ipcMain.on('hearth:pttAudio', (_e, chunk: Uint8Array) => pttAudio(chunk))
+  ipcMain.on('hearth:pttStop', () => {
     hotkeys.reset()
     void pttStop()
   })
-  ipcMain.on('wisp:typed', (_e, text: string) => {
+  ipcMain.on('hearth:typed', (_e, text: string) => {
     if (requireConsent()) void handleUserText(text, 'typed')
   })
-  ipcMain.on('wisp:playbackIdle', () => playbackIdle())
-  ipcMain.on('wisp:openDashboard', () => showDashboard())
-  ipcMain.on('wisp:quit', () => app.quit())
+  ipcMain.on('hearth:playbackIdle', () => playbackIdle())
+  ipcMain.on('hearth:openDashboard', () => showDashboard())
+  ipcMain.on('hearth:quit', () => app.quit())
 
-  ipcMain.handle('wisp:updateSettings', (_e, patch: Partial<Settings>) => applySettings(patch))
-  ipcMain.handle('wisp:unpin', (_e, index: number) => memory.unpin(index))
-  ipcMain.handle('wisp:cancelReminder', (_e, id: string) => reminders.cancel(id))
-  ipcMain.handle('wisp:reloadMcp', async () => {
+  ipcMain.handle('hearth:updateSettings', (_e, patch: Partial<Settings>) => applySettings(patch))
+  ipcMain.handle('hearth:unpin', (_e, index: number) => memory.unpin(index))
+  ipcMain.handle('hearth:cancelReminder', (_e, id: string) => reminders.cancel(id))
+  ipcMain.handle('hearth:reloadMcp', async () => {
     await Promise.all([mcp.load(loadConfig().mcpConfigPath), composio.load()])
     return hub.connectors()
   })
   // Connector ids starting with "composio" belong to the Composio session; the rest are MCP servers.
-  ipcMain.handle('wisp:mcpSignIn', (_e, id: string) =>
+  ipcMain.handle('hearth:mcpSignIn', (_e, id: string) =>
     composio.owns(id) ? composio.signIn(id) : mcp.signIn(id)
   )
-  ipcMain.handle('wisp:mcpCancelSignIn', (_e, id: string) =>
+  ipcMain.handle('hearth:mcpCancelSignIn', (_e, id: string) =>
     composio.owns(id) ? composio.cancelSignIn(id) : mcp.cancelSignIn(id)
   )
-  ipcMain.handle('wisp:mcpSignOut', (_e, id: string) =>
+  ipcMain.handle('hearth:mcpSignOut', (_e, id: string) =>
     composio.owns(id) ? composio.signOut(id) : mcp.signOut(id)
   )
-  ipcMain.handle('wisp:mcpAddServer', (_e, name: string, url: string, apiKey?: unknown) =>
+  ipcMain.handle('hearth:mcpAddServer', (_e, name: string, url: string, apiKey?: unknown) =>
     mcp.addServer(name, url, typeof apiKey === 'string' ? apiKey : undefined)
   )
-  ipcMain.handle('wisp:mcpSetKey', (_e, id: string, key: unknown) =>
+  ipcMain.handle('hearth:mcpSetKey', (_e, id: string, key: unknown) =>
     mcp.setKey(id, typeof key === 'string' ? key : '')
   )
-  ipcMain.handle('wisp:mcpSetEnabled', (_e, id: string, enabled: unknown) =>
+  ipcMain.handle('hearth:mcpSetEnabled', (_e, id: string, enabled: unknown) =>
     composio.owns(id)
       ? composio.setEnabled(id, enabled === true)
       : mcp.setEnabled(id, enabled === true)
   )
-  ipcMain.handle('wisp:wipeData', async () => {
+  ipcMain.handle('hearth:wipeData', async () => {
     // Composio keeps the Google connections on its servers, so remove them before the local id goes.
     const composioProblem = await composio.forgetAll()
     wipeData()
@@ -244,7 +244,7 @@ function registerIpc(): void {
     hub.reminders = []
     hub.clearLog()
     hub.updateSettings({ consentAt: null })
-    hub.record('session', 'All local Wisp data was deleted')
+    hub.record('session', 'All local Hearth data was deleted')
     if (composioProblem) hub.record('error', composioProblem)
     void mcp.load(loadConfig().mcpConfigPath)
     void composio.load()
@@ -280,7 +280,11 @@ function applySettings(patch: Partial<Settings>): Settings {
   const settings = hub.updateSettings(patch)
   if (patch.hotkey) {
     hotkeys.use(patch.hotkey)
-    hub.status = { ...hub.status, pttShortcut: hotkeys.label }
+    hub.status = {
+      ...hub.status,
+      pttShortcut: hotkeys.label,
+      handsFreeShortcut: handsFreeLabel(patch.hotkey)
+    }
     hub.changed()
   }
   return settings
@@ -299,7 +303,7 @@ async function shutdown(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.wisp.companion')
+  electronApp.setAppUserModelId('com.hearth.companion')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   const cfg = loadConfig()
@@ -309,8 +313,8 @@ app.whenReady().then(async () => {
     llmModel: cfg.llmModel,
     envReasoningEffort: cfg.reasoningEffort,
     ttsVoice: cfg.ttsVoice,
-    pttShortcut: HOTKEYS[hub.settings.hotkey]?.label ?? HOTKEYS['ctrl-win'].label,
-    handsFreeShortcut: HANDS_FREE_LABEL,
+    pttShortcut: (HOTKEYS[hub.settings.hotkey] ?? HOTKEYS[DEFAULT_HOTKEY]).label,
+    handsFreeShortcut: handsFreeLabel(hub.settings.hotkey),
     llmReady: llmKeyPresent(cfg),
     assemblyReady: Boolean(cfg.assemblyKey),
     smartspectraReady: Boolean(cfg.smartspectraKey),

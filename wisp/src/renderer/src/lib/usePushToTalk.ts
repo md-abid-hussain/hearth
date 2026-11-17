@@ -25,7 +25,7 @@ export function usePushToTalk(): { holding: boolean; press: () => void; release:
   const press = useCallback(() => {
     if (orbActive.current) return
     orbActive.current = true
-    window.wisp.pttStart()
+    window.hearth.pttStart()
     openMic()
   }, [openMic])
 
@@ -33,7 +33,7 @@ export function usePushToTalk(): { holding: boolean; press: () => void; release:
     if (!orbActive.current) return
     orbActive.current = false
     closeMic()
-    window.wisp.pttStop()
+    window.hearth.pttStop()
   }, [closeMic])
 
   useEffect(

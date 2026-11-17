@@ -10,7 +10,7 @@ import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { dynamicTool, jsonSchema, type ToolSet } from 'ai'
 import { z } from 'zod'
 import type { McpAuthState, McpGroup, McpServerStatus, McpToolInfo } from '../shared/types'
-import { loadConfig, type WispConfig } from './config'
+import { loadConfig, type HearthConfig } from './config'
 import { hub } from './hub'
 import {
   SignInCancelled,
@@ -142,7 +142,7 @@ function networkCause(err: unknown): string {
 /**
  * fetch only rejects when no response arrived, typically a pooled connection the server
  * already closed. Those get one fresh attempt, and the final error names the real cause
- * instead of a bare "fetch failed". Every Wisp tool is read-only, so repeating is safe.
+ * instead of a bare "fetch failed". Every Hearth tool is read-only, so repeating is safe.
  */
 const networkFetch: FetchLike = async (url, init) => {
   try {
@@ -170,11 +170,11 @@ interface Preset {
   /** What to paste, for servers without OAuth dynamic client registration. Skips OAuth. */
   key?: string
   /** Auth options, or why the preset cannot be used with this .env. */
-  auth?(cfg: WispConfig): AuthOptions | string
+  auth?(cfg: HearthConfig): AuthOptions | string
 }
 
 /**
- * Official hosted MCP servers. Most register Wisp themselves; GitHub and Linkup have no dynamic
+ * Official hosted MCP servers. Most register Hearth themselves; GitHub and Linkup have no dynamic
  * client registration, so they take a pasted key.
  */
 const PRESETS: Preset[] = [
@@ -533,7 +533,7 @@ class McpManager {
     entry.tools = {}
 
     const client = new Client(
-      { name: 'wisp', version: '0.1.0' },
+      { name: 'hearth', version: '0.1.0' },
       {
         listChanged: {
           tools: {

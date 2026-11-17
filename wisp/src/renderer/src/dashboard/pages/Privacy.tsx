@@ -1,20 +1,20 @@
 import { Anchor, Button, Code, Switch, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
-import type { Settings, WispState } from '@shared/types'
+import type { Settings, HearthState } from '@shared/types'
 import { reviewConsent } from '../../lib/consent'
 import { PageHeader } from '../shared'
 
-export function Privacy({ state }: { state: WispState }): React.JSX.Element {
+export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
   const { settings, status } = state
-  const update = (patch: Partial<Settings>): void => void window.wisp.updateSettings(patch)
+  const update = (patch: Partial<Settings>): void => void window.hearth.updateSettings(patch)
 
   const confirmWipe = (): void => {
     modals.openConfirmModal({
-      title: 'Delete all Wisp data?',
+      title: 'Delete all Hearth data?',
       children: <Text size="sm">Conversation, memory, reminders, insights and the event log will be removed from this computer. You will be signed out of every connector, and Composio will delete your Google connections.</Text>,
       labels: { confirm: 'Delete everything', cancel: 'Keep' },
       confirmProps: { color: 'red' },
-      onConfirm: () => void window.wisp.wipeData()
+      onConfirm: () => void window.hearth.wipeData()
     })
   }
 
@@ -23,13 +23,13 @@ export function Privacy({ state }: { state: WispState }): React.JSX.Element {
       <PageHeader
         eyebrow="Privacy"
         title="Your data, plainly."
-        intro="Wisp is opt-in at every step. The camera runs only while sensing is on, and the microphone only while you talk."
+        intro="Hearth is opt-in at every step. The camera runs only while sensing is on, and the microphone only while you talk."
       />
       <div className="grid-2-even">
         <div className="card panel">
           <div className="panel-head"><h3>Controls</h3><span className="label">stored on this computer</span></div>
           <div className="field">
-            <div><div className="name">Quiet mode</div><div className="help">Wisp never speaks first, not even reminders</div></div>
+            <div><div className="name">Quiet mode</div><div className="help">Hearth never speaks first, not even reminders</div></div>
             <Switch checked={settings.quietMode} onChange={(e) => update({ quietMode: e.currentTarget.checked })} />
           </div>
           <div className="field">

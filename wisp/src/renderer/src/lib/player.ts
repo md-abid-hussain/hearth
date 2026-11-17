@@ -57,7 +57,7 @@ class Player {
     this.sources.clear()
     this.playhead = 0
     this.streamEnded = true
-    window.wisp.playbackIdle()
+    window.hearth.playbackIdle()
   }
 
   level(): number {
@@ -69,7 +69,7 @@ class Player {
   }
 
   private maybeIdle(): void {
-    if (this.streamEnded && this.sources.size === 0) window.wisp.playbackIdle()
+    if (this.streamEnded && this.sources.size === 0) window.hearth.playbackIdle()
   }
 }
 

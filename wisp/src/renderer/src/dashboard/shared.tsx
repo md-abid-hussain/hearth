@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Select } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
 import { notifications } from '@mantine/notifications'
-import type { LogEntry, VitalsPoint, WispState } from '@shared/types'
+import type { LogEntry, VitalsPoint, HearthState } from '@shared/types'
 import { chooseCamera, chosenCamera, listCameras, sensing, type CameraOption } from '../lib/sensing'
 
 export const fmt = (x: number | null | undefined, digits = 0): string =>
@@ -111,7 +111,7 @@ export function SensingButton({
   state,
   size = 'md'
 }: {
-  state: WispState
+  state: HearthState
   size?: 'sm' | 'md'
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
@@ -147,7 +147,7 @@ export function SensingButton({
 const DEFAULT_CAMERA = 'default'
 
 /** Lists cameras as Windows exposes them; switching while sensing restarts on the new one. */
-export function CameraPicker({ state }: { state: WispState }): React.JSX.Element {
+export function CameraPicker({ state }: { state: HearthState }): React.JSX.Element {
   const [cameras, setCameras] = useState<CameraOption[]>([])
   const [chosen, setChosen] = useState(chosenCamera() ?? DEFAULT_CAMERA)
   const [busy, setBusy] = useState(false)

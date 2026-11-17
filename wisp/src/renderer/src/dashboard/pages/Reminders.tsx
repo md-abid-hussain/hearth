@@ -9,8 +9,8 @@ export function Reminders({ reminders, log }: { reminders: Reminder[]; log: LogE
     <div className="page-inner">
       <PageHeader
         eyebrow="Reminders"
-        title="Things you asked Wisp to say."
-        intro='Ask out loud, like "remind me to stretch in 20 minutes". Reminders wait until you are not talking, then Wisp says them once.'
+        title="Things you asked Hearth to say."
+        intro='Ask out loud, like "remind me to stretch in 20 minutes". Reminders wait until you are not talking, then Hearth says them once.'
       />
       <div className="grid-2-even">
         <div className="card pop panel">
@@ -21,7 +21,7 @@ export function Reminders({ reminders, log }: { reminders: Reminder[]; log: LogE
               <i />
               <span style={{ flex: 1 }}>{r.text}</span>
               <span className="label">{clock(r.dueAt)}</span>
-              <Button size="compact-xs" variant="subtle" color="gray" onClick={() => window.wisp.cancelReminder(r.id)}>cancel</Button>
+              <Button size="compact-xs" variant="subtle" color="gray" onClick={() => window.hearth.cancelReminder(r.id)}>cancel</Button>
             </div>
           ))}
         </div>

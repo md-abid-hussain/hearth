@@ -4,10 +4,10 @@ export const theme = createTheme({
   fontFamily: "'Bricolage Grotesque Variable', system-ui, sans-serif",
   fontFamilyMonospace: "'JetBrains Mono', ui-monospace, monospace",
   headings: { fontFamily: "'Bricolage Grotesque Variable', system-ui, sans-serif", fontWeight: '800' },
-  primaryColor: 'wispBlue',
+  primaryColor: 'hearthBlue',
   defaultRadius: 'md',
   colors: {
-    wispBlue: ['#eef3ff', '#dce6ff', '#b8ccff', '#8fb4ff', '#6f9bf5', '#4f7fe6', '#2453c9', '#1d44a6', '#173783', '#112960'],
+    hearthBlue: ['#eef3ff', '#dce6ff', '#b8ccff', '#8fb4ff', '#6f9bf5', '#4f7fe6', '#2453c9', '#1d44a6', '#173783', '#112960'],
     amber: ['#fff6e8', '#ffe9c7', '#fcd394', '#f7bd60', '#f0a43a', '#e08f1f', '#bb7412', '#935a0d', '#6c4209', '#462a05']
   },
   components: {
@@ -18,7 +18,7 @@ export const theme = createTheme({
   }
 })
 
-/** Lets Mantine components inherit the Wisp surface and text tokens. */
+/** Lets Mantine components inherit the Hearth surface and text tokens. */
 export const cssResolver: CSSVariablesResolver = () => ({
   variables: {},
   dark: {
