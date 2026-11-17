@@ -84,7 +84,7 @@ npm run build:unpack # unpacked build for a quick local test
 | ------------ | ---------------------------------------------------------------------------------- |
 | Hold to talk | **Right Ctrl** (or Right Alt or Ctrl + Win, chosen in Voice and model)             |
 | Hands-free   | **Right Ctrl + Space** to start, the talk keys again to send, **Esc** to cancel    |
-| Mouse        | hold the orb in the pill                                                           |
+| Mouse        | click Hearth's face to talk, click again to send; drag the face to move it      |
 
 Hands-free always uses the chosen talk keys plus Space.
 

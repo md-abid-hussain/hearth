@@ -66,7 +66,7 @@ class Hotkeys {
       this.hookRunning = true
       return null
     } catch (err) {
-      return `Talk keys are unavailable because the keyboard hook failed to start (${(err as Error).message}). Hold the orb to talk.`
+      return `Talk keys are unavailable because the keyboard hook failed to start (${(err as Error).message}). Click Hearth's face to talk instead.`
     }
   }
 
