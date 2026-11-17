@@ -7,6 +7,9 @@ import { bindSmartSpectraIpc } from '@smartspectra/node-sdk/main'
 import { uIOhook } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
 import iconIco from '../../resources/icon.ico?asset'
+import shakeClip1 from '../../resources/voice/shake-1.wav?asset'
+import shakeClip2 from '../../resources/voice/shake-2.wav?asset'
+import shakeClip3 from '../../resources/voice/shake-3.wav?asset'
 import type { Settings, WindowRole } from '../shared/types'
 import { away } from './away'
 import { composio } from './composio'
@@ -34,7 +37,7 @@ import { reminders } from './reminders'
 import { initStore, wipeData } from './store'
 import { vitals } from './vitals'
 import { closeAllSessions } from './voice/stt'
-import { closeSpeech } from './voice/tts'
+import { closeSpeech, playClip } from './voice/tts'
 
 const SHUTDOWN_TIMEOUT_MS = 3_000
 /** Hearth falls asleep after this long without being talked to or speaking. */
@@ -162,15 +165,23 @@ const DRAG_FRAME_MS = 16
 const DRAG_MAX_MS = 60_000
 let pillDrag: { timer: NodeJS.Timeout; startedAt: number } | null = null
 
-/** Shaking the widget: this fast, with this many changes of direction, within the window. */
-const SHAKE_WINDOW_MS = 700
-const SHAKE_SPEED = 1_800
+/**
+ * Shaking the widget: this fast on average, with this many changes of direction, within the
+ * window. Tuned on simulated motion: a gentle wiggle (±60 px at 2.5 Hz) counts; a fling, a
+ * normal drag, a slow wobble or one back-and-forth reposition does not.
+ */
+const SHAKE_WINDOW_MS = 800
+const SHAKE_SPEED = 550
 const SHAKE_TURNS = 3
 const SHAKE_COOLDOWN_MS = 20_000
+/**
+ * What Hearth says when shaken: recorded once in its own voice (resources/voice), so a shake
+ * plays instantly, offline, with no text-to-speech request.
+ */
 const SHAKE_LINES = [
-  'Whoa! Slow down, buddy.',
-  "Easy, easy. I'm getting dizzy!",
-  "Hey, gently! I'm right here."
+  { text: 'Whoa! Slow down, buddy.', file: shakeClip1 },
+  { text: "Easy, easy. I'm getting dizzy!", file: shakeClip2 },
+  { text: "Hey, gently! I'm right here.", file: shakeClip3 }
 ]
 let lastShakeAt = 0
 
@@ -188,7 +199,7 @@ function isShake(samples: { t: number; x: number; y: number }[]): boolean {
     const dy = samples[i].y - samples[i - 1].y
     distance += Math.hypot(dx, dy)
     const main = Math.abs(dx) >= Math.abs(dy) ? dx : dy
-    if (Math.abs(main) < 4) continue
+    if (Math.abs(main) < 3) continue
     const dir = Math.sign(main)
     if (lastDir && dir !== lastDir) turns++
     lastDir = dir
@@ -203,8 +214,10 @@ function onShake(): void {
   if (now - lastShakeAt < SHAKE_COOLDOWN_MS) return
   lastShakeAt = now
   hub.send({ type: 'react', kind: 'dizzy' })
+  hub.record('session', 'Shaken while being dragged: dizzy for a moment')
   if (hub.settings.quietMode || (hub.mood !== 'idle' && hub.mood !== 'sleeping')) return
-  void say(SHAKE_LINES[Math.floor(Math.random() * SHAKE_LINES.length)])
+  const line = SHAKE_LINES[Math.floor(Math.random() * SHAKE_LINES.length)]
+  playClip(line.file, line.text)
 }
 
 /**

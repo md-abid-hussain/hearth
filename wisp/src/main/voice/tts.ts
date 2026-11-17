@@ -1,4 +1,5 @@
 import type { TextToSpeechSession } from 'assemblyai'
+import { readFileSync } from 'fs'
 import { loadConfig } from '../config'
 import { hub } from '../hub'
 import { QUIET_CLOSE_CODES, assembly, describeVoiceError } from './assembly'
@@ -219,6 +220,39 @@ export async function speak(text: string): Promise<void> {
  * told to stop playback even after all audio has arrived, because synthesis runs well ahead of
  * playback and FlushDone lands long before the last words are heard.
  */
+/** Chunk size for a recorded clip: 0.2 s of 24 kHz 16-bit audio. */
+const CLIP_CHUNK = 9_600
+
+/** The raw PCM of a recorded WAV (24 kHz, mono, 16-bit, as Hearth's own voice is). */
+function wavPcm(file: string): Buffer {
+  const wav = readFileSync(file)
+  const data = wav.indexOf('data', 12)
+  if (data < 0 || wav.readUInt32LE(24) !== TTS_SAMPLE_RATE)
+    throw new Error(`${file} is not a 24 kHz PCM WAV`)
+  return wav.subarray(data + 8, data + 8 + wav.readUInt32LE(data + 4))
+}
+
+/**
+ * Plays a recorded clip of Hearth's voice, bundled with the app, through the same path as live
+ * speech (the face talks, the caption shows `text`), with no network request.
+ */
+export function playClip(file: string, text: string): void {
+  cancelSpeech()
+  let pcm: Buffer
+  try {
+    pcm = wavPcm(file)
+  } catch (err) {
+    hub.record('error', `Could not play a recorded line: ${(err as Error).message}`)
+    return
+  }
+  hub.lastReply = text
+  hub.setMood('speaking')
+  hub.send({ type: 'ttsStart' })
+  for (let i = 0; i < pcm.length; i += CLIP_CHUNK)
+    hub.send({ type: 'ttsAudio', pcm: pcm.subarray(i, i + CLIP_CHUNK) })
+  hub.send({ type: 'ttsEnd' })
+}
+
 export function cancelSpeech(): void {
   generation++
   stopCurrent?.()
