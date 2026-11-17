@@ -59,6 +59,8 @@ class Hub {
   private pushTimer: NodeJS.Timeout | null = null
 
   mood: HearthMood = 'sleeping'
+  /** Last time Hearth listened, thought, spoke or went idle after doing so; sleep counts from here. */
+  lastActiveAt = Date.now()
   vitals: VitalsSnapshot = emptyVitals()
   insights: InsightEntry[] = []
   memory: MemoryState = { summary: '', pins: [], turns: [], compactions: 0 }
@@ -163,9 +165,15 @@ class Hub {
 
   setMood(mood: HearthMood): void {
     if (this.mood === mood) return
+    if (mood !== 'sleeping') this.lastActiveAt = Date.now()
     this.mood = mood
     if (mood !== 'thinking') this.activity = null
     this.changed()
+  }
+
+  /** Nobody has talked with Hearth for a while: it closes its eyes until the next interaction. */
+  sleepIfIdle(afterMs: number): void {
+    if (this.mood === 'idle' && Date.now() - this.lastActiveAt >= afterMs) this.setMood('sleeping')
   }
 
   setActivity(activity: string | null): void {

@@ -29,7 +29,7 @@ function headline(state: HearthState): { text: string; sub: string } {
     case 'speaking':
       return { text: 'Hearth', sub: 'speaking' }
     case 'sleeping':
-      return { text: 'Hearth', sub: 'asleep' }
+      return { text: 'Hearth', sub: `asleep · click me or hold ${shortcut}` }
     default:
       if (state.settings.quietMode) return { text: 'Hearth', sub: 'quiet mode, ask any time' }
       if (state.vitals.sensing)

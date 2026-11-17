@@ -1,3 +1,4 @@
+import { Notification } from 'electron'
 import { hub } from './hub'
 import { complete } from './llm'
 import { reminders } from './reminders'
@@ -115,15 +116,37 @@ class Observer {
 
     if (v.sessionStartedAt && now - v.sessionStartedAt < WARMUP_MS) reasons.push('still warming up')
     if (now - this.lastNudgeAt < MIN_GAP_MS) reasons.push('spoke less than 15 minutes ago')
-    if (now - (this.lastByRule.get(c.rule) ?? 0) < SAME_RULE_COOLDOWN_MS) reasons.push('same nudge given recently')
+    if (now - (this.lastByRule.get(c.rule) ?? 0) < SAME_RULE_COOLDOWN_MS)
+      reasons.push('same nudge given recently')
     this.recentNudges = this.recentNudges.filter((t) => now - t < 60 * 60_000)
     if (this.recentNudges.length >= MAX_PER_HOUR) reasons.push('hourly nudge budget used')
     return reasons
   }
 
+  /**
+   * Quiet mode never speaks, so a due reminder becomes a Windows notification instead, and is
+   * logged like a spoken one so the Reminders page lists it.
+   */
+  private notifyDueReminders(now: number): void {
+    for (const r of reminders.due(now)) {
+      reminders.complete(r.id)
+      if (Notification.isSupported()) {
+        const note = new Notification({ title: 'Hearth reminder', body: r.text })
+        note.on('click', () => {
+          const win = hub.window('dashboard')
+          win?.show()
+          win?.focus()
+        })
+        note.show()
+      }
+      hub.record('reminder', r.text, { rule: 'reminder', via: 'notification' })
+    }
+  }
+
   private async tick(speakFn: SpeakFn): Promise<void> {
     if (this.busy) return
     const now = Date.now()
+    if (hub.settings.quietMode) this.notifyDueReminders(now)
     const due = reminders.due(now).length > 0
     if (!due && now - this.lastReviewAt < REVIEW_EVERY_MS) return
     this.lastReviewAt = now
@@ -133,7 +156,10 @@ class Observer {
     const pick = candidates.find((c) => c.urgent) ?? candidates[0]
     const blockers = this.blockers(pick)
     if (blockers.length) {
-      hub.record('suppressed', `Held back "${pick.rule}": ${blockers.join(', ')}`, { rule: pick.rule, reasons: blockers })
+      hub.record('suppressed', `Held back "${pick.rule}": ${blockers.join(', ')}`, {
+        rule: pick.rule,
+        reasons: blockers
+      })
       return
     }
 
@@ -149,7 +175,10 @@ class Observer {
       this.lastByRule.set(pick.rule, this.lastNudgeAt)
       if (!pick.urgent) this.recentNudges.push(this.lastNudgeAt)
       if (pick.reminderId) reminders.complete(pick.reminderId)
-      hub.record(pick.rule === 'reminder' ? 'reminder' : 'nudge', line, { rule: pick.rule })
+      hub.record(pick.rule === 'reminder' ? 'reminder' : 'nudge', line, {
+        rule: pick.rule,
+        ...(pick.rule === 'reminder' ? { via: 'spoken' } : {})
+      })
       hub.lastReply = line
       await speakFn(line)
     } finally {

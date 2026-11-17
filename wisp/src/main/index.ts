@@ -33,6 +33,8 @@ import { closeAllSessions } from './voice/stt'
 import { closeSpeech } from './voice/tts'
 
 const SHUTDOWN_TIMEOUT_MS = 3_000
+/** Hearth falls asleep after this long without being talked to or speaking. */
+const SLEEP_AFTER_MS = 5 * 60_000
 const LAG_WARN_MS = 100
 
 /** Development aid: reports when the main process is blocked long enough to freeze the windows. */
@@ -470,6 +472,8 @@ app.whenReady().then(async () => {
   // The talk-key hook also sees every mouse release, so a widget drag always ends.
   uIOhook.on('mouseup', () => stopPillDrag())
   hub.setMood('idle')
+  // Asleep after a few quiet minutes; talking, a click on the face or Hearth speaking wakes it.
+  setInterval(() => hub.sleepIfIdle(SLEEP_AFTER_MS), 30_000).unref()
   observer.start(say)
   void mcp.load(cfg.mcpConfigPath)
   void composio.load()
