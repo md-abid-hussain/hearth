@@ -1,140 +1,55 @@
-# Hearth
+<p align="center">
+  <img src="docs/images/banner.png" alt="Hearth: reads your pulse and breath, looks after you kindly" width="760">
+</p>
 
-Hearth is a small desk companion for Windows. A glowing orb sits in a pill at the bottom of your screen. It breathes with you and listens only when you hold the talk keys. It answers out loud, using your live wellness signals from the webcam, Presage's own insights about them, your reminders, and any read-only apps you have connected.
+Hearth is a small companion that lives on your Windows desktop. It reads your pulse, breathing and blinks from the webcam with [Presage SmartSpectra](https://smartspectra.presagetech.com), talks with you by voice, and speaks up only when it matters: a break after long sitting, a slower breath when your pulse climbs, a reminder you asked for.
 
-Built for the DEV.to Presage SmartSpectra challenge. Hearth is a wellness companion, not a medical device.
+Built for the DEV.to Presage SmartSpectra challenge. A wellness companion, not a medical device.
 
-## Features
+![The Hearth dashboard](docs/images/today.png)
 
-- **Live signals from the webcam.** The SmartSpectra SDK measures pulse, breathing rate, HRV (RMSSD), blinks, talking and presence on the device. Hearth only uses a reading once the SDK marks it stable. The camera button on the Hearth widget opens a live preview with a face guide and a light check, so you can see how you are framed before you start sensing there; it tucks itself away once sensing is on. A camera badge on Hearth's face shows whenever the camera is in use, and SmartSpectra's guidance, such as "not enough light", appears on hover. When no face has been in view for 10 seconds, sensing pauses itself, so SmartSpectra isn't processing an empty chair. It starts again at your first key press or mouse move, picking up the same session, and an absence of 3 minutes or more counts as a break.
-- **Presage Insights.** Presage's vitals model writes plain-language insights about the session. Hearth can also ask it a question when you want to know how you're doing.
-- **Push-to-talk voice.** Hold the talk keys, speak, and let go. AssemblyAI streams the transcript with its voice-agent model (`assemblyai-stt-3-7-realtime-agent`) in `manual` mode, which ends a turn only when you release, so the final transcript arrives about 0.2 s later. The model answers, and AssemblyAI voices each sentence as soon as it is written. Pressing the talk keys while Hearth speaks stops it at once.
-- **A considerate observer.** Hearth suggests a break after long sitting, and a slower breath when your pulse rises above your own session baseline or your breathing runs quick. It also speaks reminders when they come due. It stays silent for the first 5 minutes of a session, waits at least 15 minutes between nudges, allows 3 an hour at most, and never speaks first in quiet mode. The Timeline records every time it held back, and why.
-- **Memory and reminders.** Hearth keeps a rolling summary of your conversations and pins facts you ask it to remember. It can set spoken reminders and cancel them. Reminders survive a restart; one that came due more than an hour before Hearth started again is logged as missed instead of being said late.
-- **Check-ins.** Say "keep an eye on my eye strain every 10 minutes" and Hearth tells you how it looks now, then sets a reminder for itself. Each time it comes due, Hearth reads the signal again: blink rate for the eyes, breathing, pulse, or all of them together with sitting time. While the reading looks fine, it stays silent and checks again later. When something is off, it says so, or sends a notification in quiet mode. When the camera loses you, the check-in stops. Up to 3 run at once, each ends after 2 hours by default, and they don't survive a restart. The Reminders page logs every check.
-- **Read-only connectors.** MCP servers such as Notion, Linear, Atlassian, Todoist, GitHub, Sentry, Vercel and Linkup, plus your own. A gate exposes only tools that cannot write. Gmail, Google Calendar and Google Drive, and Composio's wider app catalog, come through a read-only Composio session.
-- **A face with moods.** At rest the widget is just Hearth's face, and it expands into the full bar on hover or while it is busy. Idle, it breathes in time with you and now and then blinks, glances, hops or tilts; listening, its eyes widen and a ring follows your voice; thinking, it turns violet and looks up while dots circle; speaking, it squints happily and its mouth follows the audio; sleeping, its eyes close. Shake the widget while dragging it and it gets dizzy, with > < eyes and a quick "Whoa! Slow down, buddy." Around the widget, clicks pass through to the apps underneath.
-- **Dashboard.** Pages for Today, Signals, Insights, Timeline, Memory, Reminders, Connectors, Voice and model, and Privacy.
+## What it does
 
-## How SmartSpectra and Presage Insights are used
+- **Reads live signals, on your computer.** Pulse, breathing, HRV and blinks come from the SmartSpectra SDK. Camera frames never leave the device.
+- **Talks by voice.** Hold Right Ctrl, ask, let go. Hearth answers out loud.
+- **Knows when to stay quiet.** Breaks, breathing nudges and reminders, with a warm-up, cooldowns and an hourly limit.
+- **Checks in for you.** Say "keep an eye on my eye strain every 10 minutes". Hearth re-reads the signal and only speaks when something is off.
+- **Reads your apps, never writes.** Calendar, Gmail, Notion, Linear and more, through read-only connectors.
+- **Asks first.** Nothing turns on the camera or microphone until you agree.
 
-- The dashboard window captures the camera at 640x480 and runs a `SmartSpectraSDK` session from `@smartspectra/node-sdk/renderer`. It requests the breathing and cardio metrics, blink and talking detection, and facial expressions only if you switch them on in Privacy (off by default). Nothing else from the face bundle is requested. The main process does the processing through `bindSmartSpectraIpc` (`src/renderer/src/lib/sensing.ts`).
-- Metric packets go to the main process (`src/main/vitals.ts`). There they become the live snapshot, 5-minute averages, session baselines and the history for the charts. The orb's breathing animation follows your measured breathing rate.
-- Presage Insights arrive as protobuf `Insight` buffers. The Node SDK ships no decoder for them, so Hearth decodes them with `protobufjs` using the schema from the SmartSpectra docs (`src/main/insights.ts`). Each insight is saved locally. When an LLM key is set, the configured model also turns the insight into structured fields: a headline, metrics, observations and suggestions.
-- The agent (`src/main/agent.ts`) has these tools for the signals:
-  - `get_vitals` reads the live signals.
-  - `recent_insights` reads the latest automatic insights.
-  - `ask_presage_insight` sends your question to Presage through `sdk.requestInsight` and waits up to 30 seconds for the answer.
+## Quick start
 
-## Architecture
-
-```
-main (Node)                                  renderer (React 19 + Mantine 9)
-  index.ts      windows, IPC, consent gate     pill/Pill.tsx         orb, captions, hold-to-talk
-  hub.ts        state, settings, event log     dashboard/Dashboard   pages listed above
-  vitals.ts     SmartSpectra metrics           lib/sensing.ts        camera + SmartSpectra session
-  insights.ts   Presage Insight decoding       lib/mic.ts, player.ts microphone and reply audio
-  conversation.ts, agent.ts, llm.ts            components/Consent    first-run consent
-  observer.ts   when Hearth may speak first
-  memory.ts, reminders.ts, mcp.ts, mcpAuth.ts
-  composio.ts   Google apps and Composio's catalog
-  voice/stt.ts, voice/tts.ts   AssemblyAI
-  hotkey.ts     global talk keys (uiohook-napi)
-```
-
-Hearth has two windows. The **pill** is frameless, transparent and always on top, and it plays reply audio. The **dashboard** owns the SmartSpectra camera session. Both talk to the main process through `window.hearth`, which is defined in `src/preload`. The main process holds all state and pushes snapshots to both windows. The language model runs through the AI SDK with OpenAI or Anthropic.
-
-## Setup
-
-Requirements: Windows 10 or 11, Node 22 LTS, and a webcam.
+You need Windows 10 or 11, Node 22 and a webcam.
 
 ```bash
 git clone https://github.com/md-abid-hussain/hearth.git
 cd hearth
 npm install
+npm run dev
 ```
 
-Copy `.env.example` to `.env` in the same folder, next to `package.json`, and fill in your keys:
+Before `npm run dev`, copy `.env.example` to `.env` and add three keys: `SMARTSPECTRA_API_KEY` from [Presage](https://physiology.presagetech.com), `ASSEMBLYAI_API_KEY` and `OPENAI_API_KEY`. Hearth also starts without them and shows what is missing.
 
-| Variable                                                   | Needed for                                                                                 |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `SMARTSPECTRA_API_KEY`                                     | camera vitals and Presage Insights                                                         |
-| `ASSEMBLYAI_API_KEY`                                       | push-to-talk speech-to-text and Hearth's voice                                             |
-| `LLM_PROVIDER`                                             | `openai` (default) or `anthropic`                                                          |
-| `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_MODEL_REASONING` | the model when the provider is `openai`; reasoning is `none` to `max`, and lower is faster |
-| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`                     | only when `LLM_PROVIDER=anthropic`                                                         |
-| `COMPOSIO_API_KEY`                                         | optional, Gmail, Calendar and Drive through Composio; see Connectors below                 |
-| `HEARTH_TTS_VOICE`, `HEARTH_MCP_CONFIG`                    | optional overrides for the voice and the path to `mcp.json`                                |
+Then click **Start sensing**, hold **Right Ctrl** and ask "how am I doing?"
 
-Hearth starts without any of these keys, and the dashboard shows which ones are missing.
+## Screenshots
 
-## Run and build
+| Read-only apps | Settings |
+| --- | --- |
+| ![Apps: sign in to read-only connectors](docs/images/apps.png) | ![Settings: talk keys and theme](docs/images/settings.png) |
 
-```bash
-npm run dev          # development with hot reload
-npm run typecheck    # node + web TypeScript checks
-npm run lint
-npm run build:win    # typecheck, build, then package with electron-builder
-npm run build:unpack # unpacked build for a quick local test
-```
+<p align="center">
+  <img src="docs/images/consent.png" alt="The consent screen shown before the camera or microphone can start" width="420"><br>
+  <em>The consent screen, shown before the camera or microphone can start.</em>
+</p>
 
-`build:mac` and `build:linux` are also defined, but Hearth is developed and tested on Windows.
+## Learn more
 
-## Talk keys
-
-| Action       | Keys                                                                               |
-| ------------ | ---------------------------------------------------------------------------------- |
-| Hold to talk | **Right Ctrl** (or Right Alt or Ctrl + Win, chosen in Voice and model)             |
-| Hands-free   | **Right Ctrl + Space** to start, the talk keys again to send, **Esc** to cancel    |
-| Mouse        | click Hearth's face to talk, click again to send; drag the face to move it      |
-
-Hands-free always uses the chosen talk keys plus Space.
-
-The microphone opens only for those moments. Presses shorter than 250 ms are ignored.
-
-## Connectors
-
-- **OAuth sign-in.** On the Connectors page, click Sign in for a hosted server such as Notion, Linear, Atlassian, Todoist, Sentry or Vercel. Your browser opens the provider's sign-in page. Hearth registers itself and stores the tokens encrypted with Electron `safeStorage` (DPAPI on Windows).
-- **API-key servers.** GitHub, Linkup and custom servers without OAuth take a pasted key, which is stored encrypted the same way. Use a read-only token for GitHub.
-- **Read-only gate.** Every tool is denied unless it looks read-only. Hearth blocks a tool when the server marks it destructive or not read-only, or when its name contains a write verb such as send, create, update or delete. The Connectors page shows each tool with the reason it was allowed or blocked. In `mcp.json`, `allowTools` can allow a tool explicitly and `requireReadOnlyHint` can make the gate stricter.
-- **Google (Gmail, Calendar, Drive) through Composio.** Hearth uses the official Composio SDK (`@composio/core` with the `@composio/vercel` AI SDK provider, in `src/main/composio.ts`). Composio supplies the Google OAuth app and keeps the tokens, so you don't need a Google Cloud client:
-  1. In the [Composio dashboard](https://dashboard.composio.dev), choose **Platform**, open your project, then **Settings > API Keys > Create API Key**. Give it **Session management: Read and write**, **Session tool execution: Write only** and **Connected accounts: Read and write**, and nothing else. The For You key (`ck_...`) does not work here.
-  2. Put the key (`ak_...`) in `COMPOSIO_API_KEY` and restart Hearth.
-  3. On the Connectors page, click **Sign in** next to Gmail, Google Calendar or Google Drive and finish in your browser. **Sign out** deletes the connection on Composio.
-- **How the Composio session stays read-only.** Hearth opens one session with tools tagged create, update or destructive turned off, so Composio hides them from search and refuses them if called. Raw API calls, the remote code sandbox and in-chat sign-in are off too. `GMAIL_FETCH_EMAILS`, `GOOGLECALENDAR_EVENTS_LIST` and `GOOGLEDRIVE_FIND_FILE` are loaded directly so everyday questions skip the search step. For anything else, the model uses Composio's search and executor, and Hearth checks every tool name the executor is asked to run against the same write-verb list as the MCP gate. Results are cut to 8,000 characters.
-- **Composio Instant tools.** If you turn on **Instant Toolkits** in your Composio project settings, Composio's search can also run paid tools, such as web search or weather, on Composio's own accounts. They are charged to your Composio balance, and Hearth records each charge in the Timeline. They are off until you turn them on.
-- **Google's sign-in screen asks for more than Hearth uses.** Composio's Google app requests full Gmail (`https://mail.google.com/`), Calendar and Drive access, plus basic profile and contacts. Hearth can only use read tools, as described above.
-- **Your own servers.** Add any HTTP MCP server from the Connectors page. You can also list stdio or HTTP servers in `mcp.json`, which Hearth looks for in the project root or at `HEARTH_MCP_CONFIG`.
-
-## Consent and Data Handling
-
-Hearth shows a consent screen the first time you open it, before the camera or microphone can start. Until you choose **I agree**, three things stay off: sensing, push-to-talk and typed chat. The pill's orb opens the dashboard instead. The check runs in the dashboard, in the pill and in the main process. Without consent, the main process also refuses camera and microphone permission. You can open the screen again from **Privacy > Review consent** and withdraw consent there.
-
-What the consent screen says, and what the code does:
-
-- **Video stays on this device.** The SmartSpectra SDK processes camera frames locally. Frames are never stored or sent.
-- **Derived numbers go to Presage.** When sensing starts, the SDK checks the API key with Presage. While it runs, the SDK sends your pulse, HRV and breathing values to Presage about once a minute (after warm-up), and Presage's language model writes a wellness insight from them. When you ask Hearth how you are doing, your question goes along too. Session and request IDs are included. Video and facial images are never sent ([SmartSpectra LLM Insights](https://smartspectra.presagetech.com/docs/llm-insights)).
-- **Facial expressions are off by default.** If you switch them on in Privacy, the SDK estimates expressions on this computer. Hearth keeps only the most likely one in the live signals and never sends it to the language model.
-- **Your voice goes to AssemblyAI** only while you hold the talk keys or the orb, or in hands-free mode until you send. AssemblyAI also turns Hearth's replies into speech.
-- **Your words go to the language model.** What you say or type goes to the provider in `LLM_PROVIDER`, along with a short summary of your signals, your memory and your reminders. Nudge lines use the same provider, and each Presage insight is sent to it once to be laid out as headline, metrics and suggestions.
-- **Connectors are read-only.** Hearth sees only the services you sign into, and it can only use their read tools.
-- **Google apps go through Composio.** If you sign in to Gmail, Calendar or Drive, Composio stores that Google sign-in on its servers and relays the data Hearth reads. If Instant Toolkits are on in your Composio project, Composio's paid web tools use your Composio credits.
-- **Everything else stays local.** Settings, memory, reminders, insights, the last exchange and the event log are saved in `%APPDATA%\hearth\hearth-data`. Connector tokens and keys are saved there too, encrypted.
-- **Deletion.** **Privacy > Delete all local data** removes that folder, including your consent. That clears memory, reminders, insights and logs, and signs you out of every connector. It also asks Composio to delete this install's Google connections and its session.
-- **SDK telemetry** is off by default (the SDK's own default is on). If you switch it on in Privacy, the SDK sends measurement-session summaries and device readiness reports: device model, OS version, frame rates, warning counts and error codes. They are tied to the API key, so they are not anonymous, and Presage sets no fixed retention period for them. Telemetry never includes video frames or vital-sign values ([Telemetry and Privacy](https://smartspectra.presagetech.com/docs/telemetry-and-privacy)).
-- **Retention.** Data stays until you delete it. There are no servers or accounts beyond the providers above, Composio included.
-
-**Sources for the SmartSpectra statements:**
-- Presage's [docs index](https://smartspectra.presagetech.com/llms.txt): every metric is computed on the device, and the backend is contacted only to check the API key and subscription.
-- The [LLM Insights page](https://smartspectra.presagetech.com/docs/llm-insights.md): only the derived numbers and the prompt go to Presage, never raw video or facial images.
-- The [Telemetry and privacy page](https://smartspectra.presagetech.com/docs/telemetry-and-privacy): telemetry carries no video frames and no vital-sign values.
-
-Presage's general [privacy policy](https://api.physiology.presagetech.com/privacypolicy) is broader than these technical docs. It describes collecting biometric information and vital signs from use of its SDK, for research. Read it before you register for an API key.
-
-## Wellness disclaimer
-
-Hearth's signals are wellness estimates from a webcam. They are not medical readings. Hearth does not diagnose, treat or give medical advice. If you are worried about your health, talk to a professional.
+- [Setup](docs/setup.md): every key, the commands, the talk keys
+- [How it works](docs/how-it-works.md): SmartSpectra and Presage Insights in the code, when Hearth speaks, the architecture
+- [Apps and connectors](docs/connectors.md): MCP servers, Composio and the read-only gate
+- [Privacy](docs/privacy.md): what stays on your computer and what goes where
 
 ## License
 
-There is no license file yet, so all rights are reserved by the author.
+No license file yet, so all rights are reserved by the author.
