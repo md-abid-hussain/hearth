@@ -3,6 +3,7 @@ import { join } from 'path'
 import { monitorEventLoopDelay } from 'perf_hooks'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { bindSmartSpectraIpc } from '@smartspectra/node-sdk/main'
+import { uIOhook } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
 import type { Settings, WindowRole } from '../shared/types'
 import { composio } from './composio'
@@ -120,6 +121,55 @@ function clampPill(x: number, y: number): { x: number; y: number } {
       Math.min(Math.max(y, a.y + 90 - PILL_SIZE.height), a.y + a.height - PILL_SIZE.height + 6)
     )
   }
+}
+
+const DRAG_FRAME_MS = 16
+/** A drag whose mouse-up was missed stops on its own after this long. */
+const DRAG_MAX_MS = 60_000
+let pillDrag: { timer: NodeJS.Timeout; startedAt: number } | null = null
+
+/**
+ * Moves the pill window with the cursor until the drag stops. Bounds are set with the fixed
+ * size each frame: repeated setPosition calls can grow a transparent window on scaled Windows
+ * displays, which would push the widget off screen.
+ */
+function startPillDrag(pill: BrowserWindow): void {
+  stopPillDrag(false)
+  const cursor = screen.getCursorScreenPoint()
+  const [wx, wy] = pill.getPosition()
+  const offset = { x: cursor.x - wx, y: cursor.y - wy }
+  const startedAt = Date.now()
+  const timer = setInterval(() => {
+    if (pill.isDestroyed() || Date.now() - startedAt > DRAG_MAX_MS) return stopPillDrag()
+    const p = screen.getCursorScreenPoint()
+    const next = clampPill(p.x - offset.x, p.y - offset.y)
+    const [cx, cy] = pill.getPosition()
+    if (next.x !== cx || next.y !== cy) pill.setBounds({ ...next, ...PILL_SIZE })
+  }, DRAG_FRAME_MS)
+  pillDrag = { timer, startedAt }
+}
+
+function stopPillDrag(save = true): void {
+  if (!pillDrag) return
+  clearInterval(pillDrag.timer)
+  pillDrag = null
+  const pill = hub.window('pill')
+  if (!pill || !save) return
+  const [x, y] = pill.getPosition()
+  pill.setBounds({ x, y, ...PILL_SIZE })
+  hub.updateSettings({ pillPosition: { x, y } })
+}
+
+/** Puts the widget back at the bottom center of the primary screen. */
+function resetPill(): void {
+  stopPillDrag(false)
+  const { workArea } = screen.getPrimaryDisplay()
+  hub.updateSettings({ pillPosition: null })
+  hub.window('pill')?.setBounds({
+    x: Math.round(workArea.x + (workArea.width - PILL_SIZE.width) / 2),
+    y: workArea.y + workArea.height - PILL_SIZE.height - 12,
+    ...PILL_SIZE
+  })
 }
 
 function createPill(): BrowserWindow {
@@ -244,22 +294,17 @@ function registerIpc(): void {
   })
   ipcMain.on('hearth:playbackIdle', () => playbackIdle())
   ipcMain.on('hearth:openDashboard', () => showDashboard())
-  // The pill renderer hit-tests forwarded mouse moves and asks for clicks only over its widget.
-  // Dragging Hearth's face moves the whole widget; the spot is remembered for next time.
-  let dragOrigin: number[] | null = null
-  ipcMain.on('hearth:pillDrag', (e, phase: unknown, dx: unknown, dy: unknown) => {
+  // Dragging the widget: the renderer only says when a drag starts and ends. The window follows
+  // the real cursor from here, because the renderer's own screen coordinates lag while its
+  // window moves and would make it run away.
+  ipcMain.on('hearth:pillDrag', (e, phase: unknown) => {
     const pill = hub.window('pill')
     if (!pill || e.sender !== pill.webContents) return
-    if (phase === 'start') dragOrigin = pill.getPosition()
-    else if (phase === 'move' && dragOrigin && typeof dx === 'number' && typeof dy === 'number') {
-      const next = clampPill(dragOrigin[0] + dx, dragOrigin[1] + dy)
-      pill.setPosition(next.x, next.y)
-    } else if (phase === 'end') {
-      dragOrigin = null
-      const [x, y] = pill.getPosition()
-      hub.updateSettings({ pillPosition: { x, y } })
-    }
+    if (phase === 'start') startPillDrag(pill)
+    else stopPillDrag()
   })
+  ipcMain.on('hearth:resetPill', () => resetPill())
+  // The pill renderer hit-tests forwarded mouse moves and asks for clicks only over its widget.
   ipcMain.on('hearth:pillInteractive', (e, on: unknown) => {
     const pill = hub.window('pill')
     if (pill && e.sender === pill.webContents)
@@ -390,6 +435,8 @@ app.whenReady().then(async () => {
   createDashboard()
   createPill()
   startTalkKeys()
+  // The talk-key hook also sees every mouse release, so a widget drag always ends.
+  uIOhook.on('mouseup', () => stopPillDrag())
   hub.setMood('idle')
   observer.start(say)
   void mcp.load(cfg.mcpConfigPath)

@@ -1083,6 +1083,13 @@ table.plain td code {
   border-color: var(--line-strong);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
+/* The bar itself is a drag handle; its buttons and the face keep their own cursors. */
+.hearth-bar.expanded {
+  cursor: grab;
+}
+.hearth-bar.expanded:active {
+  cursor: grabbing;
+}
 .hearth-bar.expanded.sensing {
   border-color: rgba(63, 178, 127, 0.5);
 }

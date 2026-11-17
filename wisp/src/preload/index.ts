@@ -24,8 +24,8 @@ const api: HearthApi = {
   playbackIdle: () => ipcRenderer.send('hearth:playbackIdle'),
   openDashboard: () => ipcRenderer.send('hearth:openDashboard'),
   setPillInteractive: (on: boolean) => ipcRenderer.send('hearth:pillInteractive', on),
-  dragPill: (phase: 'start' | 'move' | 'end', dx = 0, dy = 0) =>
-    ipcRenderer.send('hearth:pillDrag', phase, dx, dy),
+  dragPill: (phase: 'start' | 'end') => ipcRenderer.send('hearth:pillDrag', phase),
+  resetPill: () => ipcRenderer.send('hearth:resetPill'),
   quit: () => ipcRenderer.send('hearth:quit'),
 
   updateSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('hearth:updateSettings', patch),

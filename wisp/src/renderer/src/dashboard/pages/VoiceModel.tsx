@@ -1,4 +1,4 @@
-import { SegmentedControl } from '@mantine/core'
+import { Button, SegmentedControl } from '@mantine/core'
 import type { HotkeyId, ReasoningEffort, Settings, ThemeChoice, HearthState } from '@shared/types'
 import { PageHeader } from '../shared'
 
@@ -64,6 +64,15 @@ export function VoiceModel({ state }: { state: HearthState }): React.JSX.Element
           <div className="field">
             <div><div className="name">Hands-free</div><div className="help">Press once to keep listening, press {status.pttShortcut} to send or Esc to cancel</div></div>
             <span className="chip">{status.handsFreeShortcut}</span>
+          </div>
+          <div className="field">
+            <div>
+              <div className="name">Widget position</div>
+              <div className="help">Drag Hearth to move it. Lost it off screen? Put it back here.</div>
+            </div>
+            <Button size="xs" variant="default" onClick={() => window.hearth.resetPill()}>
+              Move to the bottom
+            </Button>
           </div>
           <div className="field">
             <div><div className="name">Theme</div><div className="help">applies to the pill and dashboard</div></div>

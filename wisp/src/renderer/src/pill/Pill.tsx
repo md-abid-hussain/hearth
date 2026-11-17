@@ -86,7 +86,7 @@ export function Pill(): React.JSX.Element | null {
   const [cameraOpen, setCameraOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const closeCamera = useCallback(() => setCameraOpen(false), [])
-  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  const drag = useRef<{ x: number; y: number; moved: boolean; onFace: boolean } | null>(null)
 
   const mood = state?.mood
   const reply = state?.lastReply
@@ -110,32 +110,34 @@ export function Pill(): React.JSX.Element | null {
     : { text: 'Hearth', sub: 'review consent in the dashboard' }
   const click = consented ? ptt.toggle : () => window.hearth.openDashboard()
 
-  // Press and drag moves the widget; a press that stays put is a click that toggles talking.
-  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>): void => {
+  /**
+   * Press anywhere on the widget and drag to move it; once a drag starts, the main process moves
+   * the window with the real cursor. A press on the face that stays put is a click that toggles
+   * talking. The buttons and the menu keep their own clicks.
+   */
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
-    drag.current = { x: e.screenX, y: e.screenY, moved: false }
+    const target = e.target as HTMLElement
+    const onFace = Boolean(target.closest('.face-hit'))
+    if (!onFace && target.closest('button, a, [role="menu"], [role="menuitem"]')) return
+    drag.current = { x: e.clientX, y: e.clientY, moved: false, onFace }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
-  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>): void => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
     const d = drag.current
-    if (!d) return
-    const dx = e.screenX - d.x
-    const dy = e.screenY - d.y
-    if (!d.moved) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
-      d.moved = true
-      window.hearth.dragPill('start')
-    }
-    window.hearth.dragPill('move', dx, dy)
+    if (!d || d.moved) return
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_THRESHOLD_PX) return
+    d.moved = true
+    window.hearth.dragPill('start')
   }
-  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>): void => {
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
     const d = drag.current
     drag.current = null
     if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId)
     if (!d) return
     if (d.moved) window.hearth.dragPill('end')
-    else click()
+    else if (d.onFace) click()
   }
   const problem = ptt.error ?? state.notice
   const hint = sensingOn ? state.vitals.validationHint : null
@@ -164,6 +166,10 @@ export function Pill(): React.JSX.Element | null {
           sensingOn ? 'sensing' : ''
         ].join(' ')}
         data-hit
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         <Tooltip
           label={
@@ -176,14 +182,7 @@ export function Pill(): React.JSX.Element | null {
           openDelay={700}
           disabled={!expanded}
         >
-          <button
-            className="face-hit"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            aria-label={consented ? 'Talk to Hearth' : 'Review consent'}
-          >
+          <button className="face-hit" aria-label={consented ? 'Talk to Hearth' : 'Review consent'}>
             <span className="face-wrap">
               <Orb
                 mood={state.mood}
@@ -262,6 +261,9 @@ export function Pill(): React.JSX.Element | null {
                 </Menu.Item>
               )}
               <Menu.Item onClick={() => window.hearth.openDashboard()}>Open dashboard</Menu.Item>
+              <Menu.Item onClick={() => window.hearth.resetPill()}>
+                Move back to the bottom
+              </Menu.Item>
               <Menu.Divider />
               <Menu.Item color="red" onClick={() => window.hearth.quit()}>
                 Quit Hearth

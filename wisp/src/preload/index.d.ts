@@ -24,8 +24,10 @@ export interface HearthApi {
   openDashboard(): void
   /** The pill window passes clicks through except where this says the pointer is over the widget. */
   setPillInteractive(on: boolean): void
-  /** Moves the widget by the pointer's offset from where the drag started, in screen pixels. */
-  dragPill(phase: 'start' | 'move' | 'end', dx?: number, dy?: number): void
+  /** Between start and end the widget's window follows the cursor. */
+  dragPill(phase: 'start' | 'end'): void
+  /** Puts the widget back at the bottom center of the main screen. */
+  resetPill(): void
   quit(): void
 
   updateSettings(patch: Partial<Settings>): Promise<Settings>
