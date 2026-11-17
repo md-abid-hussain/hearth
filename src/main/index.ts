@@ -1,4 +1,14 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  safeStorage,
+  screen,
+  session,
+  shell,
+  systemPreferences
+} from 'electron'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { monitorEventLoopDelay } from 'perf_hooks'
@@ -106,10 +116,11 @@ function createDashboard(): BrowserWindow {
     backgroundColor: hub.settings.theme === 'light' ? '#f6f3ec' : '#131313',
     autoHideMenuBar: true,
     icon: process.platform === 'win32' ? iconIco : icon,
-    // Hearth draws its own header; Windows keeps its minimize, maximize and close buttons
-    // (with snap layouts), colored to match the theme.
+    // Hearth draws its own header. Windows and Linux keep their minimize, maximize and close
+    // buttons, colored to match the theme; macOS keeps its traffic lights, centered in the header.
     titleBarStyle: 'hidden',
     titleBarOverlay: titleBarColors(hub.settings.theme === 'light' ? 'light' : 'dark'),
+    trafficLightPosition: { x: 14, y: 13 },
     webPreferences
   })
 
@@ -315,6 +326,7 @@ function createPill(): BrowserWindow {
   win.on('closed', () => clearInterval(topTimer))
   hub.attach('pill', win)
   win.setIgnoreMouseEvents(true, { forward: true })
+  if (process.platform === 'linux') passPointerOnLinux(win)
   win.on('ready-to-show', () => win.showInactive())
   loadRole(win, 'pill')
   return win
@@ -429,7 +441,7 @@ function registerIpc(): void {
   // The dashboard reports its resolved light or dark scheme ('auto' follows Windows).
   ipcMain.on('hearth:titlebarScheme', (e, scheme: unknown) => {
     const win = hub.window('dashboard')
-    if (win && e.sender === win.webContents && process.platform === 'win32')
+    if (win && e.sender === win.webContents && process.platform !== 'darwin')
       win.setTitleBarOverlay(titleBarColors(scheme === 'light' ? 'light' : 'dark'))
   })
   // Shows .env in Explorer, or .env.example when it has not been created yet.
@@ -492,6 +504,15 @@ function registerIpc(): void {
 }
 
 function startTalkKeys(): void {
+  // macOS shows a global key hook nothing until Hearth is allowed under Accessibility. Asking
+  // opens System Settings at that page; clicking the face works in the meantime.
+  if (process.platform === 'darwin' && !systemPreferences.isTrustedAccessibilityClient(true)) {
+    hub.record(
+      'error',
+      "To use the talk key from other apps, allow Hearth under System Settings > Privacy & Security > Accessibility, then restart it. Clicking Hearth's face works meanwhile."
+    )
+    return
+  }
   const problem = hotkeys.start(hub.settings.hotkey, {
     start: (handsFree) => {
       if (!requireConsent()) {
@@ -516,8 +537,38 @@ function startTalkKeys(): void {
   if (problem) hub.record('error', problem)
 }
 
+/**
+ * macOS asks once, in its own dialog, before an app may use the camera or microphone. Hearth asks
+ * right after consent so the dialog does not interrupt the first sensing or talking.
+ */
+function askMacMediaAccess(): void {
+  if (process.platform !== 'darwin') return
+  for (const media of ['camera', 'microphone'] as const)
+    if (systemPreferences.getMediaAccessStatus(media) === 'not-determined')
+      void systemPreferences.askForMediaAccess(media)
+}
+
+/**
+ * Linux does not forward mouse moves to a click-through window, so the widget would never learn
+ * the pointer is over it. While the cursor is over its window, pass the position along instead.
+ */
+function passPointerOnLinux(win: BrowserWindow): void {
+  let wasInside = false
+  const timer = setInterval(() => {
+    if (win.isDestroyed() || !win.isVisible()) return
+    const p = screen.getCursorScreenPoint()
+    const b = win.getBounds()
+    const inside = p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height
+    if (inside || wasInside)
+      win.webContents.send('hearth:pointer', inside ? { x: p.x - b.x, y: p.y - b.y } : null)
+    wasInside = inside
+  }, 50)
+  win.on('closed', () => clearInterval(timer))
+}
+
 function applySettings(patch: Partial<Settings>): Settings {
   const settings = hub.updateSettings(patch)
+  if (patch.consentAt) askMacMediaAccess()
   if (patch.hotkey) {
     hotkeys.use(patch.hotkey)
     hub.status = {
@@ -576,6 +627,13 @@ app.whenReady().then(async () => {
     requestSensing
   })
   if (isDemo()) hub.record('session', 'Demo mode: short timers, separate data folder')
+  if (consented()) askMacMediaAccess()
+  // Without GNOME Keyring or KWallet, Electron falls back to a fixed key on Linux.
+  if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text')
+    hub.record(
+      'error',
+      'No system keyring was found, so app sign-ins are saved without proper encryption. Install GNOME Keyring or KWallet to fix this.'
+    )
   createDashboard()
   createPill()
   startTalkKeys()

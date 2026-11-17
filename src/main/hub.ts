@@ -16,6 +16,7 @@ import type {
   HearthMood,
   HearthState
 } from '../shared/types'
+import { defaultHotkey } from '../shared/keys'
 import { tapSpeech } from './demoAudio'
 import { appendJsonl, newId, readJson, readJsonl, writeJson } from './store'
 
@@ -78,7 +79,7 @@ class Hub {
     nudgesEnabled: true,
     telemetry: false,
     theme: 'dark',
-    hotkey: 'right-ctrl',
+    hotkey: defaultHotkey(process.platform),
     reasoningEffort: null,
     consentAt: null,
     measureBlinks: true,

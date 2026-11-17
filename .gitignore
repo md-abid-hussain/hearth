@@ -1,6 +1,7 @@
 node_modules/
 out/
 dist/
+smoke-shots/
 release/
 .eslintcache
 *.log*

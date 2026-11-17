@@ -7,6 +7,8 @@ import type {
 } from '../shared/types'
 
 export interface HearthApi {
+  /** The operating system: 'win32', 'darwin' or 'linux'. */
+  platform: string
   getState(): Promise<HearthState>
   getHistory(): Promise<VitalsPoint[]>
   getSmartSpectraKey(): Promise<string>
@@ -36,7 +38,7 @@ export interface HearthApi {
   resetPill(): void
   /** Opens Explorer at the .env file (or .env.example) Hearth reads its keys from. */
   openEnvFolder(): void
-  /** Recolors the Windows window buttons in the dashboard header to the current theme. */
+  /** Recolors the window buttons in the dashboard header (Windows and Linux) to the current theme. */
   setTitlebarScheme(scheme: 'light' | 'dark'): void
   quit(): void
 
@@ -61,6 +63,11 @@ export interface HearthApi {
   wipeData(): Promise<void>
 
   onEvent(listener: (msg: MainToRenderer) => void): () => void
+  /**
+   * Linux only: where the cursor is over the widget's window, or null once it leaves. Linux does
+   * not forward mouse moves to a click-through window, so the main process passes them instead.
+   */
+  onPointer(listener: (point: { x: number; y: number } | null) => void): () => void
 }
 
 declare global {

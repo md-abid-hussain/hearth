@@ -1,0 +1,60 @@
+# Builds Hearth on Windows, macOS (Apple Silicon) and Linux, starts it, checks that both windows
+# render, and packages it. The screenshots from each system are kept as an artifact of the run.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-14, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux libraries for Electron and the talk-key hook
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libxtst6 libxt6 libxkbcommon-x11-0 libgbm1 libasound2
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npx electron-vite build
+
+      - name: Start Hearth and check both windows
+        if: runner.os != 'Linux'
+        run: node scripts/smoke.mjs
+
+      - name: Start Hearth and check both windows (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/smoke.mjs
+
+      - name: Package
+        run: npx electron-builder --dir --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.os }}
+          path: smoke-shots/
+          if-no-files-found: ignore

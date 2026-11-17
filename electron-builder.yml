@@ -9,7 +9,7 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - '!{.cursor,demo,design}/**'
+  - '!{.cursor,.github,demo,design,docs,scripts,smoke-shots}/**'
   - '!PRESAGE-HACKATHON-GUIDE.md'
 asarUnpack:
   - resources/**
@@ -24,29 +24,36 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+# SmartSpectra ships macOS for Apple Silicon only, so the Mac build is arm64.
 mac:
+  target:
+    - target: dmg
+      arch: arm64
+  category: public.app-category.healthcare-fitness
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extraResources:
     - from: node_modules/@smartspectra/node-sdk-darwin-${arch}/
       to: smartspectra/
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    NSCameraUsageDescription: Hearth reads your pulse and breathing from the camera, on this Mac.
+    NSMicrophoneUsageDescription: Hearth listens only while you hold the talk key.
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
+# SmartSpectra's Linux runtime needs glibc 2.35 or newer (Ubuntu 22.04 and later).
 linux:
+  executableName: hearth
   extraResources:
     - from: node_modules/@smartspectra/node-sdk-linux-${arch}/
       to: smartspectra/
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: Hearth <https://github.com/md-abid-hussain/hearth>
   category: Utility
+  synopsis: A desk companion that reads your pulse and breathing from the webcam
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false

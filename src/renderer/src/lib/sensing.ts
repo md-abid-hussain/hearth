@@ -45,12 +45,18 @@ const CAMERA: MediaTrackConstraints = {
 
 const CAMERA_KEY = 'hearth.cameraId'
 
+/** Where each system lets the user allow camera access again. */
+const CAMERA_SETTINGS: Record<string, string> = {
+  win32: 'Windows privacy settings',
+  darwin: 'System Settings > Privacy & Security > Camera'
+}
+
 export interface CameraOption {
   id: string
   label: string
 }
 
-/** Cameras Windows exposes, including a phone shared through Phone Link. */
+/** Cameras the system exposes, including a phone shared through Phone Link on Windows. */
 export async function listCameras(): Promise<CameraOption[]> {
   const devices = await navigator.mediaDevices.enumerateDevices()
   return devices
@@ -89,7 +95,7 @@ export async function openCamera(): Promise<MediaStream> {
     const name = (err as DOMException).name
     if (name === 'NotAllowedError' || name === 'SecurityError') {
       throw new SensingError(
-        'Camera access was blocked. Allow Hearth to use the camera in Windows privacy settings.',
+        `Camera access was blocked. Allow Hearth to use the camera in ${CAMERA_SETTINGS[window.hearth.platform] ?? 'your system settings'}.`,
         null,
         false
       )

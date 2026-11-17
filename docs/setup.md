@@ -4,7 +4,7 @@
 
 ## Install
 
-You need Windows 10 or 11, Node 22 LTS and a webcam.
+You need Node 22 LTS and a webcam. Hearth is tested on Windows 10 and 11; macOS and Linux are experimental (see [below](#macos-and-linux)).
 
 ```bash
 git clone https://github.com/md-abid-hussain/hearth.git
@@ -32,7 +32,10 @@ Copy `.env.example` to `.env` next to `package.json` and fill it in. Hearth star
 npm run dev          # run with hot reload
 npm run typecheck
 npm run lint
-npm run build:win    # build a Windows installer
+npm run smoke        # after a build: start Hearth, check both windows render, then quit
+npm run build:win    # Windows installer
+npm run build:mac    # macOS disk image (Apple Silicon)
+npm run build:linux  # AppImage and .deb
 npm run build:unpack # unpacked build for a quick test
 ```
 
@@ -40,9 +43,25 @@ npm run build:unpack # unpacked build for a quick test
 
 | To | Do this |
 | --- | --- |
-| Talk | Hold **Right Ctrl**, speak, let go. Right Alt or Ctrl + Win also work; choose in Settings. |
-| Talk hands-free | **Right Ctrl + Space** to start, the talk key again to send, **Esc** to cancel |
+| Talk | Hold **Right Ctrl** (**Right Option** on a Mac), speak, let go. Other keys are in Settings. |
+| Talk hands-free | The talk key **+ Space** to start, the talk key again to send, **Esc** to cancel |
 | Use the mouse | Click Hearth's face to talk, click again to send. Drag the face to move it. |
 | Type | Use the box on the Today page |
 
 The microphone opens only while you talk. Presses shorter than 250 ms are ignored.
+
+## macOS and Linux
+
+These are experimental. On every push, [CI](../.github/workflows/ci.yml) builds Hearth on macOS (Apple Silicon) and Ubuntu, starts it, checks that both windows render and packages it. Nobody has tried sensing on them with a real camera yet.
+
+**macOS**
+- Apple Silicon only: SmartSpectra has no Intel build.
+- Hearth asks for the camera and microphone after you agree to the consent screen.
+- For the talk key to work in other apps, allow Hearth under **System Settings > Privacy & Security > Accessibility**, then restart it. Clicking the face works without this.
+- A build you make yourself is unsigned, so the first launch needs right-click > Open.
+
+**Linux**
+- Ubuntu 22.04 or newer, or any distribution with glibc 2.35 or later.
+- The talk key from other apps needs an X11 session. On Wayland, click Hearth's face to talk instead.
+- App sign-ins are encrypted with your keyring, so you need GNOME Keyring or KWallet running.
+- The widget needs a desktop with a compositor for its transparent window, which most have.

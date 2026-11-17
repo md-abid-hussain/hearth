@@ -53,7 +53,7 @@ export function Connectors({
       <PageHeader
         eyebrow="Apps"
         title="Read-only, by design."
-        intro="Sign in to the apps Hearth may read when you ask. Sign-ins stay on this computer, encrypted by Windows, and Hearth can only read: every tool passes a read-only check first."
+        intro="Sign in to the apps Hearth may read when you ask. Sign-ins stay on this computer, encrypted by your system, and Hearth can only read: every tool passes a read-only check first."
       />
 
       <div className="grid-2-even">

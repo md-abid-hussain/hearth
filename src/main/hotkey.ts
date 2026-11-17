@@ -1,4 +1,5 @@
 import { UiohookKey, uIOhook, type UiohookKeyboardEvent } from 'uiohook-napi'
+import { defaultHotkey, hotkeyLabel } from '../shared/keys'
 import type { HotkeyId } from '../shared/types'
 
 interface Combo {
@@ -9,17 +10,23 @@ interface Combo {
 
 export const HOTKEYS: Record<HotkeyId, Combo> = {
   'ctrl-win': {
-    label: 'Ctrl + Win',
+    label: hotkeyLabel('ctrl-win', process.platform),
     groups: [
       [UiohookKey.Ctrl, UiohookKey.CtrlRight],
       [UiohookKey.Meta, UiohookKey.MetaRight]
     ]
   },
-  'right-alt': { label: 'Right Alt', groups: [[UiohookKey.AltRight]] },
-  'right-ctrl': { label: 'Right Ctrl', groups: [[UiohookKey.CtrlRight]] }
+  'right-alt': {
+    label: hotkeyLabel('right-alt', process.platform),
+    groups: [[UiohookKey.AltRight]]
+  },
+  'right-ctrl': {
+    label: hotkeyLabel('right-ctrl', process.platform),
+    groups: [[UiohookKey.CtrlRight]]
+  }
 }
 
-export const DEFAULT_HOTKEY: HotkeyId = 'right-ctrl'
+export const DEFAULT_HOTKEY: HotkeyId = defaultHotkey(process.platform)
 
 /** Hands-free starts with the talk keys plus Space, whichever talk keys are chosen. */
 export const handsFreeLabel = (id: HotkeyId): string =>
@@ -48,7 +55,7 @@ export interface HotkeyHandlers {
 }
 
 /**
- * Push-to-talk keys on Windows: hold the combo to talk and release to send, or add Space for
+ * Push-to-talk keys: hold the combo to talk and release to send, or add Space for
  * hands-free and press the combo again to send. Electron's globalShortcut cannot see key
  * releases or modifier-only combos, so everything comes from a low-level hook.
  */

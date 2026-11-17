@@ -4,6 +4,7 @@ import type { MainToRenderer, Settings } from '../shared/types'
 import type { HearthApi } from './index.d'
 
 const api: HearthApi = {
+  platform: process.platform,
   getState: () => ipcRenderer.invoke('hearth:getState'),
   getHistory: () => ipcRenderer.invoke('hearth:getHistory'),
   getSmartSpectraKey: () => ipcRenderer.invoke('hearth:getSmartSpectraKey'),
@@ -53,6 +54,12 @@ const api: HearthApi = {
     const handler = (_e: Electron.IpcRendererEvent, msg: MainToRenderer): void => listener(msg)
     ipcRenderer.on('hearth:event', handler)
     return () => ipcRenderer.removeListener('hearth:event', handler)
+  },
+  onPointer: (listener: (point: { x: number; y: number } | null) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, point: { x: number; y: number } | null): void =>
+      listener(point)
+    ipcRenderer.on('hearth:pointer', handler)
+    return () => ipcRenderer.removeListener('hearth:pointer', handler)
   }
 }
 

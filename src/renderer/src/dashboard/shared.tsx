@@ -45,7 +45,7 @@ export function SensingButton({
 
 const DEFAULT_CAMERA = 'default'
 
-/** Lists cameras as Windows exposes them; switching while sensing restarts on the new one. */
+/** Lists the cameras the system exposes; switching while sensing restarts on the new one. */
 export function CameraPicker({ state }: { state: HearthState }): React.JSX.Element {
   const [cameras, setCameras] = useState<CameraOption[]>([])
   const [chosen, setChosen] = useState(chosenCamera() ?? DEFAULT_CAMERA)
@@ -89,7 +89,7 @@ export function CameraPicker({ state }: { state: HearthState }): React.JSX.Eleme
       value={chosen}
       onChange={(value) => void change(value)}
       data={[
-        { value: DEFAULT_CAMERA, label: 'Windows default' },
+        { value: DEFAULT_CAMERA, label: 'System default' },
         ...cameras.map((c) => ({ value: c.id, label: c.label }))
       ]}
       allowDeselect={false}

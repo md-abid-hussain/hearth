@@ -1,6 +1,9 @@
 import { Button, SegmentedControl } from '@mantine/core'
+import { hotkeyLabel } from '@shared/keys'
 import type { HotkeyId, ReasoningEffort, Settings, ThemeChoice, HearthState } from '@shared/types'
 import { PageHeader } from '../shared'
+
+const TALK_KEYS: HotkeyId[] = ['right-ctrl', 'right-alt', 'ctrl-win']
 
 /** Everyday settings up front; the model and voice details sit under Advanced. */
 export function VoiceModel({ state }: { state: HearthState }): React.JSX.Element {
@@ -32,11 +35,10 @@ export function VoiceModel({ state }: { state: HearthState }): React.JSX.Element
               size="xs"
               value={settings.hotkey}
               onChange={(value) => update({ hotkey: value as HotkeyId })}
-              data={[
-                { value: 'right-ctrl', label: 'Right Ctrl' },
-                { value: 'right-alt', label: 'Right Alt' },
-                { value: 'ctrl-win', label: 'Ctrl + Win' }
-              ]}
+              data={TALK_KEYS.map((id) => ({
+                value: id,
+                label: hotkeyLabel(id, window.hearth.platform)
+              }))}
             />
           </div>
           <div className="field">

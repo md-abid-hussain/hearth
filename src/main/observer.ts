@@ -61,7 +61,7 @@ async function phrase(c: Candidate): Promise<string> {
   }
 }
 
-/** A Windows notification that opens the dashboard when clicked. */
+/** A desktop notification that opens the dashboard when clicked. */
 function showNotification(title: string, body: string): void {
   if (!Notification.isSupported()) return
   const note = new Notification({ title, body })
@@ -207,7 +207,7 @@ class Observer {
   }
 
   /**
-   * Quiet mode never speaks, so a due reminder becomes a Windows notification instead, and is
+   * Quiet mode never speaks, so a due reminder becomes a desktop notification instead, and is
    * logged like a spoken one so the Reminders page lists it.
    */
   private notifyDueReminders(now: number): void {

@@ -10,7 +10,7 @@ Hearth can read your apps when you ask, for example "what's my next meeting?" or
 - **Servers that use a key** (GitHub, Linkup, your own): paste the key on the Apps page. For GitHub, use a read-only token.
 - **Your own servers:** add any HTTP MCP server on the Apps page, or list stdio and HTTP servers in `mcp.json` in the project folder. See `mcp.example.json`.
 
-Tokens and keys are stored encrypted with Electron `safeStorage`, which uses Windows DPAPI.
+Tokens and keys are stored encrypted with Electron `safeStorage`, which uses DPAPI on Windows, the Keychain on macOS and your keyring on Linux.
 
 ## The read-only gate
 

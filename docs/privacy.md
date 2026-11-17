@@ -16,7 +16,7 @@ The consent check runs in all three of Hearth's parts: the dashboard, the widget
 - **Your voice goes to AssemblyAI**, only while you hold the talk key or are in hands-free mode. AssemblyAI also voices Hearth's replies.
 - **Your words go to the language model.** It receives what you say or type, plus a short summary of your signals, memory and reminders.
 - **Apps are read-only.** Hearth sees only the services you sign into. If you sign in to Google apps, Composio holds that sign-in and relays what Hearth reads.
-- **Everything else stays local.** Settings, memory, reminders, insights and the log are kept in `%APPDATA%\hearth\hearth-data`. Keys and tokens are kept there too, encrypted.
+- **Everything else stays local.** Settings, memory, reminders, insights and the log are kept in Hearth's data folder: `%APPDATA%\hearth\hearth-data` on Windows, `~/Library/Application Support/hearth/hearth-data` on macOS, `~/.config/hearth/hearth-data` on Linux. Keys and tokens are kept there too, encrypted.
 - **Delete it any time.** **Privacy > Delete all local data** removes that folder and signs you out of every app.
 - **SmartSpectra telemetry is off by default.** If you turn it on, the SDK sends session summaries and device diagnostics linked to the API key. They never include video or vital signs.
 

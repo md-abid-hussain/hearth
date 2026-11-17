@@ -22,6 +22,8 @@ import { cssResolver, theme } from './theme'
 
 const role = window.location.hash.replace('#', '') === 'pill' ? 'pill' : 'dashboard'
 if (role === 'pill') document.body.classList.add('pill-body')
+// Lets the styles leave room for each system's window buttons, e.g. macOS's on the left.
+document.documentElement.classList.add(`platform-${window.hearth.platform}`)
 
 void connectStore()
 

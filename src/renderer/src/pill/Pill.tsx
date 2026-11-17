@@ -42,7 +42,8 @@ function headline(state: HearthState): { text: string; sub: string } {
 
 /**
  * Tells the main process whether the pointer is over the widget. The window is transparent and
- * click-through; mouse moves are still forwarded, so this can hit-test them.
+ * click-through; on Windows and macOS mouse moves are still forwarded, so this can hit-test them.
+ * Linux forwards nothing, so there the main process passes the cursor position instead.
  */
 function useHover(): boolean {
   const [hovered, setHovered] = useState(false)
@@ -65,16 +66,17 @@ function useHover(): boolean {
         }, COLLAPSE_DELAY_MS)
       }
     }
-    const onMove = (e: MouseEvent): void => {
-      const el = document.elementFromPoint(e.clientX, e.clientY)
-      set(Boolean(el?.closest('[data-hit]')))
-    }
+    const hitAt = (x: number, y: number): boolean =>
+      Boolean(document.elementFromPoint(x, y)?.closest('[data-hit]'))
+    const onMove = (e: MouseEvent): void => set(hitAt(e.clientX, e.clientY))
     const onLeave = (): void => set(false)
     window.addEventListener('mousemove', onMove)
     document.documentElement.addEventListener('mouseleave', onLeave)
+    const offPointer = window.hearth.onPointer((p) => set(p ? hitAt(p.x, p.y) : false))
     return () => {
       window.removeEventListener('mousemove', onMove)
       document.documentElement.removeEventListener('mouseleave', onLeave)
+      offPointer()
       if (collapse) clearTimeout(collapse)
     }
   }, [])

@@ -19,7 +19,7 @@ Built for the DEV.to Presage SmartSpectra challenge. A wellness companion, not a
 
 ## Quick start
 
-You need Windows 10 or 11, Node 22 and a webcam.
+You need Node 22 and a webcam. Hearth is built and tested on Windows 10 and 11. macOS on Apple Silicon and Linux (Ubuntu 22.04 or newer) are experimental: CI builds and starts them on every push, but they have not been tried with a camera yet. See [platform notes](docs/setup.md#macos-and-linux).
 
 ```bash
 git clone https://github.com/md-abid-hussain/hearth.git
@@ -30,7 +30,7 @@ npm run dev
 
 Before `npm run dev`, copy `.env.example` to `.env` and add three keys: `SMARTSPECTRA_API_KEY` from [Presage](https://physiology.presagetech.com), `ASSEMBLYAI_API_KEY` and `OPENAI_API_KEY`. Hearth also starts without them and shows what is missing.
 
-Then click **Start sensing**, hold **Right Ctrl** and ask "how am I doing?"
+Then click **Start sensing**, hold **Right Ctrl** (**Right Option** on a Mac) and ask "how am I doing?"
 
 ## Screenshots
 

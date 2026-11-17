@@ -1,0 +1,6 @@
+# LF line endings in every checkout, Windows included, so Prettier and ESLint agree everywhere.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.wav binary
