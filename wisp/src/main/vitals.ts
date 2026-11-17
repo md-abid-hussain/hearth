@@ -1,5 +1,6 @@
 import { decodeMetrics } from '@smartspectra/node-sdk/messages'
 import type { VitalsPoint } from '../shared/types'
+import { away } from './away'
 import { emptyVitals, hub } from './hub'
 
 const POINT_INTERVAL_MS = 2_000
@@ -51,23 +52,36 @@ class VitalsTracker {
   private awaySince: number | null = null
   private blinkTimes: number[] = []
   private lastBlinkState = false
+  /** When blink packets started arriving; the per-minute count means little before a full minute. */
+  private blinkSince: number | null = null
   private presenceTimer: NodeJS.Timeout | null = null
-  private updated = { pulse: 0, breathing: 0, hrv: 0 }
+  private updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0 }
 
-  start(): void {
+  /**
+   * `awayFrom` is when the user left, for a session that paused itself while they were away:
+   * it carries on with the same history and baseline, and only a long absence counts as a break.
+   */
+  start(awayFrom: number | null = null): void {
     const now = Date.now()
+    const prev = hub.vitals
+    const resume = awayFrom != null && prev.sessionStartedAt != null
+    const tookBreak = awayFrom == null || !resume || now - awayFrom >= BREAK_AWAY_MS
     hub.vitals = {
       ...emptyVitals(),
       sensing: true,
-      sessionStartedAt: now,
-      sittingSince: now,
+      sessionStartedAt: resume ? prev.sessionStartedAt : now,
+      sittingSince: tookBreak ? now : prev.sittingSince,
       updatedAt: now
     }
-    this.history = []
+    if (!resume) this.history = []
     this.awaySince = null
-    this.updated = { pulse: 0, breathing: 0, hrv: 0 }
+    this.updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0 }
     this.lastTalkingAt = 0
-    hub.record('session', 'Sensing started')
+    this.blinkTimes = []
+    this.lastBlinkState = false
+    this.blinkSince = null
+    if (!resume) hub.record('session', 'Sensing started')
+    else if (tookBreak) hub.record('session', 'Welcome back: break detected, sitting timer reset')
     if (!this.presenceTimer) this.presenceTimer = setInterval(() => this.checkPresence(), 5_000)
   }
 
@@ -131,6 +145,8 @@ class VitalsTracker {
       this.lastBlinkState = blinking
       this.blinkTimes = this.blinkTimes.filter((t) => now - t < 60_000)
       v.blinksPerMinute = this.blinkTimes.length
+      this.blinkSince ??= now
+      if (now - this.blinkSince >= 60_000) this.updated.blinks = now
     }
 
     if (this.awaySince && now - this.awaySince >= BREAK_AWAY_MS) {
@@ -145,13 +161,16 @@ class VitalsTracker {
 
     if (now - this.lastPointAt >= POINT_INTERVAL_MS) {
       this.lastPointAt = now
-      const fresh = (key: 'pulse' | 'breathing' | 'hrv', value: number | null): number | null =>
-        now - this.updated[key] < STALE_MS ? value : null
+      const fresh = (
+        key: 'pulse' | 'breathing' | 'hrv' | 'blinks',
+        value: number | null
+      ): number | null => (now - this.updated[key] < STALE_MS ? value : null)
       const point: VitalsPoint = {
         t: now,
         pulse: fresh('pulse', v.pulse),
         breathing: fresh('breathing', v.breathing),
-        hrv: fresh('hrv', v.hrvRmssd)
+        hrv: fresh('hrv', v.hrvRmssd),
+        blinks: fresh('blinks', v.blinksPerMinute)
       }
       this.history.push(point)
       const cutoff = now - HISTORY_MS
@@ -168,11 +187,17 @@ class VitalsTracker {
       this.awaySince = this.lastMetricsAt
       hub.vitals = { ...hub.vitals, present: false, talking: false }
       hub.changed()
+      // Metrics stopped without a no-face status: count down to the away pause all the same.
+      away.presenceLost()
     }
   }
 
   /** Mean of a metric over the trailing window, ignoring gaps. */
-  average(key: 'pulse' | 'breathing' | 'hrv', windowMs: number, endOffsetMs = 0): number | null {
+  average(
+    key: 'pulse' | 'breathing' | 'hrv' | 'blinks',
+    windowMs: number,
+    endOffsetMs = 0
+  ): number | null {
     const end = Date.now() - endOffsetMs
     const values = this.history
       .filter((p) => p.t <= end && p.t > end - windowMs)
@@ -210,6 +235,7 @@ class VitalsTracker {
       breathingConfidencePct: round(v.breathingConfidence),
       hrvRmssdMs: round(v.hrvRmssd),
       blinksPerMinute: v.blinksPerMinute,
+      blinksAvg5min: round(this.average('blinks', 5 * 60_000)),
       talking: v.talking,
       pulseAvg5min: round(this.average('pulse', 5 * 60_000)),
       pulseAvgPrev5min: round(this.average('pulse', 5 * 60_000, 5 * 60_000)),

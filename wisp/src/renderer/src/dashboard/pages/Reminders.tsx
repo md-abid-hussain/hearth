@@ -3,6 +3,16 @@ import { Button } from '@mantine/core'
 import type { LogEntry, Reminder } from '@shared/types'
 import { PageHeader, clock } from '../shared'
 
+/** How a reminder or check-in ended up, as logged by the observer. */
+const VIA: Record<string, string> = {
+  spoken: 'spoken',
+  notification: 'notification',
+  fine: 'all fine',
+  stopped: 'stopped',
+  finished: 'done',
+  missed: 'missed'
+}
+
 export function Reminders({
   reminders,
   log
@@ -13,8 +23,10 @@ export function Reminders({
   const fired = useMemo(
     () =>
       log
-        .filter((e) => e.kind === 'reminder' && e.data?.rule === 'reminder')
-        .slice(-8)
+        .filter(
+          (e) => e.kind === 'reminder' && (e.data?.rule === 'reminder' || e.data?.rule === 'check')
+        )
+        .slice(-12)
         .reverse(),
     [log]
   )
@@ -22,8 +34,8 @@ export function Reminders({
     <div className="page-inner">
       <PageHeader
         eyebrow="Reminders"
-        title="Things you asked Hearth to say."
-        intro='Ask out loud, like "remind me to stretch in 20 minutes". When one is due, Hearth says it once you are not talking. In quiet mode it sends a Windows notification instead.'
+        title="Things you asked Hearth to say or watch."
+        intro='Ask out loud, like "remind me to stretch in 20 minutes" or "keep an eye on my eye strain every 10 minutes". A check-in reads your signals each time, stays quiet while they look fine, and stops when the camera loses you. Hearth speaks once you are not talking; in quiet mode it sends a Windows notification instead.'
       />
       <div className="grid-2-even">
         <div className="card pop panel">
@@ -39,7 +51,14 @@ export function Reminders({
           {reminders.map((r) => (
             <div key={r.id} className="check skip" style={{ alignItems: 'center' }}>
               <i />
-              <span style={{ flex: 1 }}>{r.text}</span>
+              <span style={{ flex: 1 }}>
+                {r.text}
+                {r.check && (
+                  <span className="label" style={{ display: 'block' }}>
+                    every {r.check.everyMin} min · {r.check.runsLeft} checks left
+                  </span>
+                )}
+              </span>
               <span className="label">{clock(r.dueAt)}</span>
               <Button
                 size="compact-xs"
@@ -67,9 +86,7 @@ export function Reminders({
               <span style={{ flex: 1 }} className="voice">
                 {e.message}
               </span>
-              <span className="chip">
-                {e.data?.via === 'notification' ? 'notification' : 'spoken'}
-              </span>
+              <span className="chip">{VIA[String(e.data?.via)] ?? 'spoken'}</span>
               <span className="label">{clock(e.at)}</span>
             </div>
           ))}

@@ -1,5 +1,6 @@
 import { isStepCount, streamText, tool, type ModelMessage, type ToolSet } from 'ai'
 import { z } from 'zod'
+import { readCheck } from './checks'
 import { composio } from './composio'
 import { hub } from './hub'
 import { insights } from './insights'
@@ -19,6 +20,7 @@ Tools:
 - get_vitals: live camera wellness signals (pulse, breathing, HRV, blinks, talking, time since a break).
 - ask_presage_insight: Presage's own read on their physiology, for "how am I doing" questions.
 - set_reminder when asked to be reminded; remember when they share a lasting fact or preference.
+- watch_signal when asked to keep an eye on, track or check on their eyes, breathing, pulse or stress over time. Say briefly how it looks now and when you'll check again. cancel_reminder stops a check-in.
 - Tools named "app__tool" read the apps listed under Linked apps. They are read-only; if asked to send, edit or delete, say you can't and offer what you can read.
 - GMAIL_*, GOOGLECALENDAR_* and GOOGLEDRIVE_* read the user's Google accounts through Composio; call them directly. Ask for few results and only the fields you need.
 - For any other app or a web lookup, COMPOSIO_SEARCH_TOOLS finds a read tool and COMPOSIO_MULTI_EXECUTE_TOOL runs it. Some of those cost credits, so use them only when the user asks for that. If a tool says the account is not connected, ask the user to sign in on the Connectors page.
@@ -32,10 +34,12 @@ Rules:
 function contextBlock(): string {
   const pins = hub.memory.pins.map((p, i) => `${i + 1}. ${p}`).join('\n') || '(none)'
   const due = hub.reminders
-    .map(
-      (r) =>
-        `- "${r.text}" in ${Math.max(0, Math.round((r.dueAt - Date.now()) / 60_000))} min (id ${r.id})`
-    )
+    .map((r) => {
+      const inMin = Math.max(0, Math.round((r.dueAt - Date.now()) / 60_000))
+      return r.check
+        ? `- check-in: ${r.text} every ${r.check.everyMin} min, next in ${inMin} min, ${r.check.runsLeft} checks left (id ${r.id})`
+        : `- "${r.text}" in ${inMin} min (id ${r.id})`
+    })
     .join('\n')
   const recentInsight = insights.recent(1)[0]
   const linked = hub
@@ -99,8 +103,43 @@ function builtinTools(): ToolSet {
         return { id: r.id, dueAt: new Date(r.dueAt).toLocaleTimeString() }
       }
     }),
+    watch_signal: tool({
+      description:
+        'Keep an eye on a camera signal over time. Reads it now, then re-checks every few minutes: silent while it looks fine, speaks up when it does not, and stops by itself when the camera loses the user. For "keep an eye on my eye strain", "watch my breathing", "check on me every 10 minutes".',
+      inputSchema: z.object({
+        focus: z
+          .enum(['eyes', 'breathing', 'pulse', 'overall'])
+          .describe(
+            'eyes = eye strain from blink rate; breathing; pulse = stress or heart rate; overall = all of them plus sitting time'
+          ),
+        everyMinutes: z.number().int().min(1).max(60).default(10),
+        forMinutes: z
+          .number()
+          .int()
+          .min(5)
+          .max(240)
+          .default(120)
+          .describe('How long to keep watching')
+      }),
+      execute: async ({ focus, everyMinutes, forMinutes }) => {
+        const now = readCheck(focus, everyMinutes)
+        if (now.status === 'no_signal') return { watching: false, reason: now.facts }
+        const added = reminders.addCheck(focus, everyMinutes, forMinutes)
+        if ('error' in added) return { watching: false, reason: added.error }
+        const { reminder, replaced } = added
+        return {
+          watching: true,
+          id: reminder.id,
+          replacedEarlierCheck: replaced,
+          rightNow: now.status === 'warming' ? 'not enough data yet' : now.facts,
+          looksOff: now.status === 'concern',
+          nextCheck: new Date(reminder.dueAt).toLocaleTimeString(),
+          checks: reminder.check!.runsLeft
+        }
+      }
+    }),
     cancel_reminder: tool({
-      description: 'Cancel a pending reminder by id.',
+      description: 'Cancel a pending reminder or check-in by id.',
       inputSchema: z.object({ id: z.string() }),
       execute: async ({ id }) => ({ cancelled: reminders.cancel(id) })
     }),
@@ -122,6 +161,7 @@ const ACTIVITY: Record<string, string> = {
   ask_presage_insight: 'asking Presage',
   recent_insights: 'reading recent insights',
   set_reminder: 'setting a reminder',
+  watch_signal: 'setting up a check-in',
   cancel_reminder: 'cancelling a reminder',
   remember: 'remembering that',
   quiet_mode: 'changing quiet mode'

@@ -1,4 +1,5 @@
 import { Notification } from 'electron'
+import { FOCUS_FALLBACK, FOCUS_LABEL, readCheck } from './checks'
 import { hub } from './hub'
 import { complete } from './llm'
 import { reminders } from './reminders'
@@ -16,7 +17,7 @@ const SIT_LIMIT_MIN = 50
 const PULSE_RISE_BPM = 15
 const FAST_BREATHING_PER_MIN = 20
 
-type RuleId = 'sit_break' | 'pulse_up' | 'fast_breathing' | 'reminder'
+type RuleId = 'sit_break' | 'pulse_up' | 'fast_breathing' | 'reminder' | 'check'
 
 interface Candidate {
   rule: RuleId
@@ -30,6 +31,27 @@ const NUDGE_SYSTEM = `You are Hearth, a calm desk companion. Write ONE short spo
 Plain words, no numbers unless essential, no medical language, no diagnosis. Offer, do not command.`
 
 export type SpeakFn = (text: string) => Promise<void>
+
+/** One spoken sentence for a candidate; the template line when the language model is unavailable. */
+async function phrase(c: Candidate): Promise<string> {
+  try {
+    return (await complete(NUDGE_SYSTEM, c.facts)) || c.fallback
+  } catch {
+    return c.fallback
+  }
+}
+
+/** A Windows notification that opens the dashboard when clicked. */
+function showNotification(title: string, body: string): void {
+  if (!Notification.isSupported()) return
+  const note = new Notification({ title, body })
+  note.on('click', () => {
+    const win = hub.window('dashboard')
+    win?.show()
+    win?.focus()
+  })
+  note.show()
+}
 
 class Observer {
   private timer: NodeJS.Timeout | null = null
@@ -49,6 +71,46 @@ class Observer {
   stop(): void {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
+  }
+
+  /**
+   * Runs the check-ins that are due. Fine readings reschedule silently, a lost signal ends the
+   * check-in, and anything off comes back as an urgent candidate to say (or to notify in quiet
+   * mode). A check-in that cannot be said yet stays due and is read again on the next tick.
+   */
+  private dueCheckAlerts(now: number): Candidate[] {
+    const alerts: Candidate[] = []
+    for (const r of reminders.dueChecks(now)) {
+      const check = r.check!
+      const label = FOCUS_LABEL[check.focus]
+      const result = readCheck(check.focus, check.everyMin)
+      if (result.status === 'warming' && reminders.waitCheck(r.id)) continue
+      if (result.status === 'no_signal' || result.status === 'warming') {
+        reminders.complete(r.id)
+        const why = result.status === 'warming' ? 'the signal never settled' : result.facts
+        hub.record('reminder', `Stopped watching ${label}: ${why}`, {
+          rule: 'check',
+          via: 'stopped'
+        })
+        continue
+      }
+      if (result.status === 'ok') {
+        reminders.advanceCheck(r.id)
+        hub.record('reminder', `Checked ${label}: fine. ${result.facts}`, {
+          rule: 'check',
+          via: 'fine'
+        })
+        continue
+      }
+      alerts.push({
+        rule: 'check',
+        urgent: true,
+        reminderId: r.id,
+        facts: `The user asked you to keep an eye on ${label}, and it looks off right now: ${result.facts} Mention what you noticed and offer one small thing to do about it.`,
+        fallback: FOCUS_FALLBACK[check.focus]
+      })
+    }
+    return alerts
   }
 
   private candidates(): Candidate[] {
@@ -130,28 +192,43 @@ class Observer {
   private notifyDueReminders(now: number): void {
     for (const r of reminders.due(now)) {
       reminders.complete(r.id)
-      if (Notification.isSupported()) {
-        const note = new Notification({ title: 'Hearth reminder', body: r.text })
-        note.on('click', () => {
-          const win = hub.window('dashboard')
-          win?.show()
-          win?.focus()
-        })
-        note.show()
-      }
+      showNotification('Hearth reminder', r.text)
       hub.record('reminder', r.text, { rule: 'reminder', via: 'notification' })
+    }
+  }
+
+  private async notifyCheckAlerts(alerts: Candidate[]): Promise<void> {
+    for (const alert of alerts) {
+      const line = await phrase(alert)
+      reminders.advanceCheck(alert.reminderId!)
+      showNotification('Hearth check-in', line)
+      hub.record('reminder', line, { rule: 'check', via: 'notification' })
     }
   }
 
   private async tick(speakFn: SpeakFn): Promise<void> {
     if (this.busy) return
+    this.busy = true
+    try {
+      await this.review(speakFn)
+    } finally {
+      this.busy = false
+    }
+  }
+
+  private async review(speakFn: SpeakFn): Promise<void> {
     const now = Date.now()
-    if (hub.settings.quietMode) this.notifyDueReminders(now)
-    const due = reminders.due(now).length > 0
+    let alerts = this.dueCheckAlerts(now)
+    if (hub.settings.quietMode) {
+      this.notifyDueReminders(now)
+      await this.notifyCheckAlerts(alerts)
+      alerts = []
+    }
+    const due = reminders.due(now).length > 0 || alerts.length > 0
     if (!due && now - this.lastReviewAt < REVIEW_EVERY_MS) return
     this.lastReviewAt = now
 
-    const candidates = this.candidates()
+    const candidates = [...alerts, ...this.candidates()]
     if (!candidates.length) return
     const pick = candidates.find((c) => c.urgent) ?? candidates[0]
     const blockers = this.blockers(pick)
@@ -163,27 +240,19 @@ class Observer {
       return
     }
 
-    this.busy = true
-    try {
-      let line = pick.fallback
-      try {
-        line = (await complete(NUDGE_SYSTEM, pick.facts)) || pick.fallback
-      } catch {
-        // Template line is fine when the LLM is unavailable.
-      }
-      this.lastNudgeAt = Date.now()
-      this.lastByRule.set(pick.rule, this.lastNudgeAt)
-      if (!pick.urgent) this.recentNudges.push(this.lastNudgeAt)
-      if (pick.reminderId) reminders.complete(pick.reminderId)
-      hub.record(pick.rule === 'reminder' ? 'reminder' : 'nudge', line, {
-        rule: pick.rule,
-        ...(pick.rule === 'reminder' ? { via: 'spoken' } : {})
-      })
-      hub.lastReply = line
-      await speakFn(line)
-    } finally {
-      this.busy = false
-    }
+    const line = await phrase(pick)
+    this.lastNudgeAt = Date.now()
+    this.lastByRule.set(pick.rule, this.lastNudgeAt)
+    if (!pick.urgent) this.recentNudges.push(this.lastNudgeAt)
+    if (pick.reminderId && pick.rule === 'check') reminders.advanceCheck(pick.reminderId)
+    else if (pick.reminderId) reminders.complete(pick.reminderId)
+    const spokenReminder = pick.rule === 'reminder' || pick.rule === 'check'
+    hub.record(spokenReminder ? 'reminder' : 'nudge', line, {
+      rule: pick.rule,
+      ...(spokenReminder ? { via: 'spoken' } : {})
+    })
+    hub.lastReply = line
+    await speakFn(line)
   }
 }
 

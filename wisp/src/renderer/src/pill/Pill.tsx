@@ -31,6 +31,8 @@ function headline(state: HearthState): { text: string; sub: string } {
     case 'sleeping':
       return { text: 'Hearth', sub: `asleep · click me or hold ${shortcut}` }
     default:
+      if (state.vitals.pausedAway)
+        return { text: 'Hearth', sub: 'camera paused while you were away' }
       if (state.settings.quietMode) return { text: 'Hearth', sub: 'quiet mode, ask any time' }
       if (state.vitals.sensing)
         return { text: 'Hearth', sub: `sensing · click me or hold ${shortcut}` }

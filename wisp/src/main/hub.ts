@@ -51,6 +51,7 @@ export const emptyVitals = (): VitalsSnapshot => ({
   blinksPerMinute: null,
   expression: null,
   validationHint: null,
+  pausedAway: false,
   updatedAt: 0
 })
 

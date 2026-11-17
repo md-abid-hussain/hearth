@@ -5,6 +5,8 @@ export interface VitalsPoint {
   pulse: number | null
   breathing: number | null
   hrv: number | null
+  /** Blinks in the minute before t; null until a full minute has been measured. */
+  blinks?: number | null
 }
 
 export interface VitalsSnapshot {
@@ -25,6 +27,8 @@ export interface VitalsSnapshot {
    */
   expression: { label: string; confidence: number } | null
   validationHint: string | null
+  /** Sensing paused itself because the user left; it resumes on their next key press or mouse move. */
+  pausedAway: boolean
   updatedAt: number
 }
 
@@ -68,11 +72,27 @@ export interface MemoryState {
   compactions: number
 }
 
+export type CheckFocus = 'eyes' | 'breathing' | 'pulse' | 'overall'
+
+/**
+ * A reminder Hearth sets for itself: when due it re-reads the signals, stays silent and
+ * reschedules while they look fine, speaks up when they don't, and ends when the camera
+ * loses the user.
+ */
+export interface CheckIn {
+  focus: CheckFocus
+  everyMin: number
+  runsLeft: number
+  /** Times it was pushed back a minute because the signal was still settling. */
+  waits: number
+}
+
 export interface Reminder {
   id: string
   text: string
   dueAt: number
   createdAt: number
+  check?: CheckIn
 }
 
 export type LogKind =

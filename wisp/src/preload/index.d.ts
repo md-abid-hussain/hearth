@@ -9,7 +9,7 @@ export interface HearthApi {
   /** Asks the dashboard window, which owns the camera session, to start or stop sensing. */
   requestSensing(on: boolean): void
   pushMetrics(buf: Uint8Array): void
-  pushValidation(hint: string | null): void
+  pushValidation(hint: string | null, faceSeen?: boolean): void
   pushInsight(buf: Uint8Array, requestId: number): void
   bindInsight(token: string, requestId: number): void
   failInsight(token: string): void

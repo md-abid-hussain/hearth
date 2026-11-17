@@ -8,6 +8,7 @@ import { uIOhook } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
 import iconIco from '../../resources/icon.ico?asset'
 import type { Settings, WindowRole } from '../shared/types'
+import { away } from './away'
 import { composio } from './composio'
 import { llmKeyPresent, loadConfig } from './config'
 import {
@@ -275,6 +276,18 @@ function allowMediaOnlyForAppPages(): void {
   })
 }
 
+/** Starts or stops sensing in the dashboard window, where the camera session lives. */
+function requestSensing(on: boolean): void {
+  if (on && !requireConsent()) return
+  if (on && !loadConfig().smartspectraKey) {
+    hub.notify('Add SMARTSPECTRA_API_KEY to .env to start sensing.')
+    return
+  }
+  const send = (): void => hub.send({ type: 'sensingCommand', on })
+  if (hub.window('dashboard')) send()
+  else createDashboard().webContents.once('did-finish-load', () => setTimeout(send, 500))
+}
+
 function registerIpc(): void {
   const cfg = loadConfig()
 
@@ -283,22 +296,18 @@ function registerIpc(): void {
   ipcMain.handle('hearth:getSmartSpectraKey', () => cfg.smartspectraKey)
 
   ipcMain.on('hearth:sensing', (_e, on: boolean) => {
-    if (!on) vitals.stop()
-    else if (requireConsent()) vitals.start()
+    if (!on) {
+      vitals.stop()
+      away.stopped()
+    } else if (requireConsent()) vitals.start(away.started())
   })
   // From the pill: the camera session lives in the dashboard window, even while it is hidden.
-  ipcMain.on('hearth:requestSensing', (_e, on: unknown) => {
-    if (on === true && !requireConsent()) return
-    if (on === true && !loadConfig().smartspectraKey) {
-      hub.notify('Add SMARTSPECTRA_API_KEY to .env to start sensing.')
-      return
-    }
-    const send = (): void => hub.send({ type: 'sensingCommand', on: on === true })
-    if (hub.window('dashboard')) send()
-    else createDashboard().webContents.once('did-finish-load', () => setTimeout(send, 500))
-  })
+  ipcMain.on('hearth:requestSensing', (_e, on: unknown) => requestSensing(on === true))
   ipcMain.on('hearth:metrics', (_e, buf: Uint8Array) => vitals.ingest(buf))
-  ipcMain.on('hearth:validation', (_e, hint: string | null) => vitals.setValidationHint(hint))
+  ipcMain.on('hearth:validation', (_e, hint: string | null, faceSeen?: boolean) => {
+    vitals.setValidationHint(hint)
+    if (typeof faceSeen === 'boolean') away.faceSeen(faceSeen)
+  })
   ipcMain.on('hearth:insight', (_e, buf: Uint8Array, requestId: number) =>
     insights.ingest(buf, requestId)
   )
@@ -482,6 +491,9 @@ app.whenReady().then(async () => {
   startTalkKeys()
   // The talk-key hook also sees every mouse release, so a widget drag always ends.
   uIOhook.on('mouseup', () => stopPillDrag())
+  // Sensing paused while the user was away starts again at their first key press or mouse move.
+  away.init(requestSensing)
+  uIOhook.on('input', () => away.input())
   hub.setMood('idle')
   // Asleep after a few quiet minutes; talking, a click on the face or Hearth speaking wakes it.
   setInterval(() => hub.sleepIfIdle(SLEEP_AFTER_MS), 30_000).unref()

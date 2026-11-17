@@ -11,7 +11,8 @@ const api: HearthApi = {
   setSensing: (on: boolean) => ipcRenderer.send('hearth:sensing', on),
   requestSensing: (on: boolean) => ipcRenderer.send('hearth:requestSensing', on),
   pushMetrics: (buf: Uint8Array) => ipcRenderer.send('hearth:metrics', buf),
-  pushValidation: (hint: string | null) => ipcRenderer.send('hearth:validation', hint),
+  pushValidation: (hint: string | null, faceSeen?: boolean) =>
+    ipcRenderer.send('hearth:validation', hint, faceSeen),
   pushInsight: (buf: Uint8Array, requestId: number) => ipcRenderer.send('hearth:insight', buf, requestId),
   bindInsight: (token: string, requestId: number) => ipcRenderer.send('hearth:insightBound', token, requestId),
   failInsight: (token: string) => ipcRenderer.send('hearth:insightFailed', token),

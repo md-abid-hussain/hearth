@@ -220,7 +220,8 @@ class Sensing {
     sdk.on('insight', (buf, requestId) => window.hearth.pushInsight(buf, requestId))
     sdk.on('validationStatus', (code, _ts, hint) =>
       window.hearth.pushValidation(
-        code === ValidationCode.kOk ? null : hint || 'Adjust your position'
+        code === ValidationCode.kOk ? null : hint || 'Adjust your position',
+        code !== ValidationCode.kNoFaceFound
       )
     )
     sdk.on('processingStatus', (status) => {
