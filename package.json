@@ -20,7 +20,8 @@
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "icons": "electron scripts/build-icons.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "test:linux": "node scripts/test-linux.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.105",

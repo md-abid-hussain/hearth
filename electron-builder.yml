@@ -9,7 +9,7 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - '!{.cursor,.github,demo,design,docs,scripts,smoke-shots}/**'
+  - '!{.cursor,.github,demo,design,docker,docs,scripts,smoke-shots}/**'
   - '!PRESAGE-HACKATHON-GUIDE.md'
 asarUnpack:
   - resources/**

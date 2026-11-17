@@ -1,0 +1,17 @@
+# Keys and local data never go into the image.
+.env
+.env.*
+!.env.example
+mcp.json
+
+# Installed and built inside the container instead.
+node_modules
+out
+dist
+smoke-shots
+
+# Not part of the app.
+.git
+.worktrees
+demo
+design
