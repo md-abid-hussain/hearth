@@ -5,26 +5,52 @@ import { HowItWorks } from './scenes/HowItWorks'
 import { MeetHearth } from './scenes/MeetHearth'
 import { Opening } from './scenes/Opening'
 import { Problem } from './scenes/Problem'
+import {
+  AppsScene,
+  AskScene,
+  CheckInScene,
+  ConsentScene,
+  DragScene,
+  PRODUCT_SECONDS,
+  ReminderScene,
+  SignalsScene
+} from './scenes/Product'
 import { FPS, HEIGHT, WIDTH, color, fonts, s } from './theme'
 import { Backdrop } from './ui'
 
-/** The scenes that need no footage, in video order, with their lengths in seconds. */
-export const GENERATED: { id: string; seconds: number; component: React.ComponentType }[] = [
+interface Scene {
+  id: string
+  seconds: number
+  component: React.ComponentType
+}
+
+/**
+ * The whole demo in order. Scenes from Product.tsx recreate Hearth's screens until the real
+ * recordings replace them; Signals must be a real recording before submitting.
+ */
+export const DEMO: Scene[] = [
   { id: 'Opening', seconds: 13.5, component: Opening },
   { id: 'Problem', seconds: 16.5, component: Problem },
   { id: 'MeetHearth', seconds: 16.5, component: MeetHearth },
+  { id: 'Drag', seconds: PRODUCT_SECONDS.DragScene, component: DragScene },
+  { id: 'Consent', seconds: PRODUCT_SECONDS.ConsentScene, component: ConsentScene },
   { id: 'HowItWorks', seconds: 21.5, component: HowItWorks },
+  { id: 'Signals', seconds: PRODUCT_SECONDS.SignalsScene, component: SignalsScene },
+  { id: 'Ask', seconds: PRODUCT_SECONDS.AskScene, component: AskScene },
+  { id: 'CheckIn', seconds: PRODUCT_SECONDS.CheckInScene, component: CheckInScene },
+  { id: 'Reminders', seconds: PRODUCT_SECONDS.ReminderScene, component: ReminderScene },
+  { id: 'Apps', seconds: PRODUCT_SECONDS.AppsScene, component: AppsScene },
   { id: 'Privacy', seconds: 12.5, component: Privacy },
   { id: 'Outro', seconds: 7, component: Outro }
 ]
 
-const total = GENERATED.reduce((sum, g) => sum + g.seconds, 0)
+const total = DEMO.reduce((sum, g) => sum + g.seconds, 0)
 
-/** Every generated scene back to back, for previewing before the footage exists. */
-function Generated(): React.JSX.Element {
+/** Every scene back to back. */
+function Demo(): React.JSX.Element {
   return (
     <Series>
-      {GENERATED.map(({ id, seconds, component: Scene }) => (
+      {DEMO.map(({ id, seconds, component: Scene }) => (
         <Series.Sequence key={id} durationInFrames={s(seconds)}>
           <Scene />
         </Series.Sequence>
@@ -62,8 +88,8 @@ function Cover({ big }: { big: boolean }): React.JSX.Element {
 export function Root(): React.JSX.Element {
   return (
     <>
-      <Composition id="Generated" component={Generated} durationInFrames={s(total)} fps={FPS} width={WIDTH} height={HEIGHT} />
-      {GENERATED.map(({ id, seconds, component }) => (
+      <Composition id="Demo" component={Demo} durationInFrames={s(total)} fps={FPS} width={WIDTH} height={HEIGHT} />
+      {DEMO.map(({ id, seconds, component }) => (
         <Composition key={id} id={id} component={component} durationInFrames={s(seconds)} fps={FPS} width={WIDTH} height={HEIGHT} />
       ))}
       <Still id="Cover" component={() => <Cover big={false} />} width={1000} height={420} />

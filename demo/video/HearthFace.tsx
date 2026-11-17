@@ -17,6 +17,8 @@ export interface Cue {
   mood?: Mood
   gesture?: Gesture
   smile?: boolean
+  /** Dizzy after being shaken: > < eyes, flushed cheeks, a double wobble. */
+  dizzy?: boolean
 }
 
 const MOOD_COLORS: Record<Mood, { face: string; halo: string }> = {
@@ -111,9 +113,12 @@ export function HearthFace({ cues, size, level = speechLevel, breathing = 12, of
   const eyeAmount = gesture ? rise(t - gesture.at) - rise(t - gesture.at - GESTURE_SECONDS[gesture.value]) : 0
 
   const smileCue = latest(cues, t, (c) => c.smile)
+  const dizzyCue = latest(cues, t, (c) => c.dizzy)
+  const dizzy = dizzyCue?.value === true && mood !== 'sleeping'
   const smiling = mood === 'speaking' || (mood === 'idle' && smileCue?.value === true)
   const blinking = inGesture && gesture?.value === 'blink' && mood !== 'sleeping'
-  const eyes = mood === 'sleeping' ? 'closed' : smiling ? 'happy' : blinking ? 'blink' : 'open'
+  const eyes =
+    mood === 'sleeping' ? 'closed' : dizzy ? 'dizzy' : smiling ? 'happy' : blinking ? 'blink' : 'open'
 
   const lvl = mood === 'speaking' || mood === 'listening' ? level(t) : 0
   const swell = mood === 'idle' || mood === 'sleeping' ? Math.sin(t * Math.PI * 2 * (breathing / 60)) : 0
@@ -157,6 +162,8 @@ export function HearthFace({ cues, size, level = speechLevel, breathing = 12, of
   if (inGesture && gesture?.value === 'wiggle')
     floatRot = keyframes(gp, [[0, 0], [0.2, -7], [0.45, 6], [0.7, -3], [1, 0]])
   if (mood === 'thinking') floatY += keyframes((t % 1.3) / 1.3, [[0, 0], [0.5, -4], [1, 0]])
+  if (dizzy && dizzyCue && t - dizzyCue.at < 1.2)
+    floatRot = keyframes(((t - dizzyCue.at) % 0.6) / 0.6, [[0, 0], [0.2, -7], [0.45, 6], [0.7, -3], [1, 0]])
 
   // Halo: pumps with the voice while listening or speaking, dashed and spinning while thinking.
   let haloOpacity = 0
@@ -236,8 +243,8 @@ export function HearthFace({ cues, size, level = speechLevel, breathing = 12, of
             filter={`url(#soft-${id})`}
           />
           <circle cx="50" cy="50" r="39.3" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" />
-          {smiling && (
-            <g fill="#ff7a59" opacity="0.35">
+          {(smiling || dizzy) && (
+            <g fill="#ff7a59" opacity={dizzy ? 0.6 : 0.35}>
               <ellipse cx="29" cy="61" rx="6" ry="3.6" />
               <ellipse cx="71" cy="61" rx="6" ry="3.6" />
             </g>
@@ -253,6 +260,12 @@ export function HearthFace({ cues, size, level = speechLevel, breathing = 12, of
               <g fill={INK}>
                 <rect x="33" y="45" width="9" height="2.6" rx="1.3" />
                 <rect x="58" y="45" width="9" height="2.6" rx="1.3" />
+              </g>
+            )}
+            {eyes === 'dizzy' && (
+              <g fill="none" stroke={INK} strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M33 40 L41 46 L33 52" />
+                <path d="M67 40 L59 46 L67 52" />
               </g>
             )}
             {(eyes === 'happy' || eyes === 'closed') && (

@@ -120,24 +120,39 @@ export function Mono({ children, size = 26, tone = color.muted, style }: { child
 
 /**
  * A voice line from public/voice starting `at` seconds in: the narration (ElevenLabs, Carolyn,
- * mp3) or Hearth's own voice (AssemblyAI, wav).
+ * mp3) or Hearth's own voice (AssemblyAI, wav). `from`/`to` play just part of the file, so a
+ * narration sentence can pause while Hearth speaks.
  */
 export function Narration({
   file,
   at,
   ext = 'mp3',
-  volume = 1
+  volume = 1,
+  from,
+  to
 }: {
   file: string
   at: number
   ext?: 'mp3' | 'wav'
   volume?: number
+  from?: number
+  to?: number
 }): React.JSX.Element {
   return (
     <Sequence from={s(at)} layout="none">
-      <Audio src={staticFile(`voice/${file}.${ext}`)} volume={volume} />
+      <Audio
+        src={staticFile(`voice/${file}.${ext}`)}
+        volume={volume}
+        trimBefore={from != null ? s(from) : undefined}
+        durationInFrames={to != null ? s(to - (from ?? 0)) : undefined}
+      />
     </Sequence>
   )
+}
+
+/** One of Hearth's own lines, a little louder to sit level with the narration. */
+export function HearthSays({ file, at }: { file: string; at: number }): React.JSX.Element {
+  return <Narration file={file} ext="wav" at={at} volume={1.3} />
 }
 
 /** 0..1 progress of a spring that starts at `at` seconds. */
