@@ -194,9 +194,9 @@ A few things I learned along the way:
 
 ## Agent Session
 
-{% agent_session AGENT_SESSION_URL %}
+AGENT_SESSION_EMBED
 
-A curated slice of the Claude Code session that built the second half of Hearth: wiring check-ins, the away pause, the shake reaction and the demo tooling. Keys and personal details are removed.
+The whole build as one session. Part 1 is the Cursor chat that scaffolded Hearth: the idea, the Electron app, SmartSpectra, voice and the first connectors. Part 2 is the Claude Code session that added check-ins, the away pause, the shake reaction and the demo tooling. DEV doesn't read Cursor's format yet, so that half is converted, and Cursor's export doesn't keep tool results. Keys and personal details are removed, and long tool outputs are trimmed.
 
 ---
 
@@ -212,9 +212,11 @@ Fill in:
 - YOUTUBE_URL: upload the final video (Public or Unlisted).
 - REPO_OWNER/REPO_NAME: the public GitHub repo (twice).
 - Demo timestamps: check them against the final video.
-- AGENT_SESSION_URL: run `node tools/agent-session.mjs clean` in demo/, upload the cleaned
-  session at https://dev.to/agent_sessions/new, set it to Public, and paste the embed. Check the
-  exact embed tag the uploader gives you. Or delete the section; it is optional.
+- AGENT_SESSION_EMBED: run `node tools/agent-session.mjs merge` in demo/ right before uploading
+  (it joins Cursor's half and Claude Code's half, removes keys, and stays under 10 MB). Upload
+  agent-session/hearth-build.jsonl at https://dev.to/agent_sessions/new, curate it, Save & Upload,
+  then Make Public. Paste exactly what the session page gives you to embed or share; DEV hasn't
+  documented an embed tag, so don't guess one. Or delete the section; it is optional.
 - "The demo video" paragraph: say which scenes are recreations if any remain.
 
 Media to capture (all from your recording session in RECORDING.md, unless noted):
