@@ -30,6 +30,8 @@ export interface HearthApi {
   resetPill(): void
   /** Opens Explorer at the .env file (or .env.example) Hearth reads its keys from. */
   openEnvFolder(): void
+  /** Recolors the Windows window buttons in the dashboard header to the current theme. */
+  setTitlebarScheme(scheme: 'light' | 'dark'): void
   quit(): void
 
   updateSettings(patch: Partial<Settings>): Promise<Settings>

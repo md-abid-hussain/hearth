@@ -516,10 +516,54 @@ p {
 }
 
 /* dashboard shell */
+/* The dashboard: Hearth's title bar on top, sidebar and page below. */
+.app-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.titlebar {
+  flex: none;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 16px;
+  /* Room for the Windows buttons drawn over the right end (Window Controls Overlay). */
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)) + 12px);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.titlebar-name {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.titlebar-sub {
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.titlebar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-xs);
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--chip);
+}
+.titlebar-space {
+  flex: 1;
+}
 .shell {
   display: grid;
   grid-template-columns: 232px 1fr;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
 }
 .nav {
   border-right: 1px solid var(--line);

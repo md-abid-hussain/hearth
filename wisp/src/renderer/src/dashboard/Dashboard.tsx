@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Button, Center, Loader } from '@mantine/core'
+import { useEffect, useState } from 'react'
+import { Button, Center, Loader, useComputedColorScheme } from '@mantine/core'
 import type { HearthState } from '@shared/types'
 import { Consent } from '../components/Consent'
+import { Orb } from '../components/Orb'
 import { useHistory, useHearth } from '../lib/store'
 import { Connectors } from './pages/Connectors'
 import { Insights } from './pages/Insights'
@@ -70,14 +71,55 @@ function StatusFooter({ state }: { state: HearthState }): React.JSX.Element {
   )
 }
 
+const MOOD_LABEL: Partial<Record<HearthState['mood'], string>> = {
+  listening: 'listening',
+  thinking: 'thinking',
+  speaking: 'speaking',
+  sleeping: 'asleep'
+}
+
+/**
+ * Hearth's own title bar: the live face, the name and what it is doing. It is the window's drag
+ * handle; Windows draws its minimize, maximize and close buttons over the right end.
+ */
+function TitleBar({ state }: { state: HearthState | null }): React.JSX.Element {
+  const scheme = useComputedColorScheme('dark')
+  useEffect(() => window.hearth?.setTitlebarScheme(scheme), [scheme])
+  const mood = state?.mood ?? 'idle'
+  const doing = state?.activity ?? MOOD_LABEL[mood]
+  return (
+    <header className="titlebar">
+      <Orb mood={mood} breathing={state?.vitals.breathing ?? null} size={22} />
+      <span className="titlebar-name">Hearth</span>
+      {doing && <span className="titlebar-sub">{doing}</span>}
+      <span className="titlebar-space" />
+      {state?.vitals.sensing && (
+        <span className="titlebar-chip">
+          <span className="sq" /> camera on
+        </span>
+      )}
+      {state?.settings.quietMode && <span className="titlebar-chip">quiet mode</span>}
+    </header>
+  )
+}
+
 export function Dashboard(): React.JSX.Element {
   const state = useHearth()
+  return (
+    <div className="app-frame">
+      <TitleBar state={state} />
+      <DashboardBody state={state} />
+    </div>
+  )
+}
+
+function DashboardBody({ state }: { state: HearthState | null }): React.JSX.Element {
   const history = useHistory()
   const [page, setPage] = useState('today')
 
   if (!state) {
     return (
-      <Center h="100vh">
+      <Center style={{ flex: 1 }}>
         <Loader color="var(--amber)" />
       </Center>
     )
@@ -110,10 +152,6 @@ export function Dashboard(): React.JSX.Element {
   return (
     <div className="shell">
       <nav className="nav">
-        <div className="brand">
-          <span className="brand-dot" />
-          Hearth
-        </div>
         {NAV.map((g) => (
           <div key={g.group} className="nav-section">
             <div className="label nav-group">{g.group}</div>

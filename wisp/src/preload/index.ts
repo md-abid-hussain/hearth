@@ -27,6 +27,7 @@ const api: HearthApi = {
   dragPill: (phase: 'start' | 'end') => ipcRenderer.send('hearth:pillDrag', phase),
   resetPill: () => ipcRenderer.send('hearth:resetPill'),
   openEnvFolder: () => ipcRenderer.send('hearth:openEnvFolder'),
+  setTitlebarScheme: (scheme: 'light' | 'dark') => ipcRenderer.send('hearth:titlebarScheme', scheme),
   quit: () => ipcRenderer.send('hearth:quit'),
 
   updateSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('hearth:updateSettings', patch),

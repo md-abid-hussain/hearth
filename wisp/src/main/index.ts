@@ -73,6 +73,18 @@ const webPreferences = {
   backgroundThrottling: false
 }
 
+/** Matches the dashboard header (--surface and --text in each theme). */
+const TITLEBAR_HEIGHT = 40
+function titleBarColors(scheme: 'light' | 'dark'): {
+  color: string
+  symbolColor: string
+  height: number
+} {
+  return scheme === 'light'
+    ? { color: '#ffffff', symbolColor: '#161616', height: TITLEBAR_HEIGHT }
+    : { color: '#1a1a1a', symbolColor: '#f3efe6', height: TITLEBAR_HEIGHT }
+}
+
 function createDashboard(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1360,
@@ -83,7 +95,11 @@ function createDashboard(): BrowserWindow {
     title: 'Hearth',
     backgroundColor: hub.settings.theme === 'light' ? '#f6f3ec' : '#131313',
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
+    // Hearth draws its own header; Windows keeps its minimize, maximize and close buttons
+    // (with snap layouts), colored to match the theme.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: titleBarColors(hub.settings.theme === 'light' ? 'light' : 'dark'),
     webPreferences
   })
 
@@ -196,6 +212,7 @@ function createPill(): BrowserWindow {
     hasShadow: false,
     show: false,
     title: 'Hearth companion',
+    icon,
     webPreferences
   })
   win.setAlwaysOnTop(true, 'floating')
@@ -305,6 +322,12 @@ function registerIpc(): void {
     else stopPillDrag()
   })
   ipcMain.on('hearth:resetPill', () => resetPill())
+  // The dashboard reports its resolved light or dark scheme ('auto' follows Windows).
+  ipcMain.on('hearth:titlebarScheme', (e, scheme: unknown) => {
+    const win = hub.window('dashboard')
+    if (win && e.sender === win.webContents && process.platform === 'win32')
+      win.setTitleBarOverlay(titleBarColors(scheme === 'light' ? 'light' : 'dark'))
+  })
   // Shows .env in Explorer, or .env.example when it has not been created yet.
   ipcMain.on('hearth:openEnvFolder', () => {
     const root = loadConfig().projectRoot
