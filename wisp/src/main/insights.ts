@@ -10,6 +10,9 @@ import { appendJsonl, newId, readJsonl } from './store'
 const FILE = 'insights.jsonl'
 /** Presage reports transport failures after about 30 seconds, so wait a little longer than that. */
 const ON_DEMAND_TIMEOUT_MS = 40_000
+/** Older insights without a structured view get one, newest first, shortly after startup. */
+const BACKLOG_COUNT = 5
+const BACKLOG_DELAY_MS = 8_000
 /** SmartSpectra caps insight prompts at 2048 bytes; leave room for multi-byte characters. */
 const PROMPT_MAX_BYTES = 1_800
 
@@ -82,6 +85,14 @@ class Insights {
       .map((entry) =>
         structured.has(entry.id) ? { ...entry, structured: structured.get(entry.id) } : entry
       )
+    // Insights saved before structuring existed, or while no LLM key was set, show as raw
+    // markdown; lay out the most recent few once the app has settled.
+    setTimeout(() => void this.structureBacklog(), BACKLOG_DELAY_MS)
+  }
+
+  private async structureBacklog(): Promise<void> {
+    const pending = hub.insights.filter((i) => !i.structured && !i.isError).slice(-BACKLOG_COUNT)
+    for (const entry of pending.reverse()) await this.structure(entry.id, entry.text)
   }
 
   ingest(buf: Uint8Array, requestId: number): void {

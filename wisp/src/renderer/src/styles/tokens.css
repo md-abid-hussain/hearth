@@ -1071,3 +1071,25 @@ table.plain td code {
   font-size: var(--t-sm);
   color: var(--muted);
 }
+
+/* Metric chips under the latest insight on Today. */
+.glance-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--s-3);
+}
+.glance-metrics .chip strong {
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* Face signal switches under the camera on the Signals page. */
+.face-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}

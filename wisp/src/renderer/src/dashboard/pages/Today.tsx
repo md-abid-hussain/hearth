@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Alert, Button, SegmentedControl, TextInput } from '@mantine/core'
-import type { Exchange, VitalsPoint, HearthState } from '@shared/types'
-import { preview } from '../../lib/text'
+import type { Exchange, InsightEntry, VitalsPoint, HearthState } from '@shared/types'
+import { summarizeInsight } from '../../lib/text'
 import {
   RULE_TITLES,
   SensingButton,
@@ -200,6 +200,36 @@ function Stat({
   )
 }
 
+/**
+ * The latest insight at a glance: the structured headline and metrics when the LLM has laid it
+ * out, otherwise a summary read straight from Presage's markdown. Never the raw table.
+ */
+function InsightGlance({ insight }: { insight: InsightEntry }): React.JSX.Element {
+  const view = useMemo(() => {
+    const parsed = summarizeInsight(insight.text)
+    const s = insight.structured
+    if (!s?.headline) return parsed
+    return {
+      headline: s.headline,
+      metrics: s.metrics.map((m) => ({ name: m.name, value: m.value, note: m.note ?? '' }))
+    }
+  }, [insight])
+  return (
+    <>
+      <h3>{view.headline}</h3>
+      {view.metrics.length > 0 && (
+        <div className="glance-metrics">
+          {view.metrics.slice(0, 3).map((m) => (
+            <span className="chip" key={m.name} title={m.note || undefined}>
+              {m.name} <strong>{m.value}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 export function Today({ state, history, go }: Props): React.JSX.Element {
   const now = useNow()
   const [range, setRange] = useState('1h')
@@ -341,7 +371,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
           {insight ? (
             <div className="card quote" style={{ flex: 1 }}>
               <div className="mark">&ldquo;</div>
-              <h3>{insight.structured?.headline || preview(insight.text, 220)}</h3>
+              <InsightGlance insight={insight} />
               <div className="quote-foot">
                 <span className="label">{clock(insight.at)}, {insight.onDemand ? 'from your numbers and question' : 'from your numbers'}</span>
                 <span className="chip">{insight.onDemand ? 'asked by Hearth' : 'automatic'}</span>

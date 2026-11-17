@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Alert, SegmentedControl } from '@mantine/core'
+import { Alert, SegmentedControl, Switch } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
-import type { VitalsPoint, HearthState } from '@shared/types'
+import type { HearthState, Settings, VitalsPoint } from '@shared/types'
 import {
   CameraPicker,
   TIME_AXIS,
@@ -24,6 +24,8 @@ export function Signals({
   const [range, setRange] = useState('1h')
   const points = useWindowed(history, range)
   const v = state.vitals
+  const { measureBlinks, measureExpressions } = state.settings
+  const update = (patch: Partial<Settings>): void => void window.hearth.updateSettings(patch)
   const hrv = points.filter((p) => p.hrv != null).map((p) => ({ t: p.t, HRV: p.hrv }))
 
   return (
@@ -61,6 +63,28 @@ export function Signals({
               <CameraPicker state={state} />
             </div>
           </div>
+          <div className="face-signals">
+            <span className="label">Face signals</span>
+            <Switch
+              size="xs"
+              label="Blinks and talking"
+              description="Blink rate, and pausing breathing readings while you speak"
+              checked={measureBlinks}
+              onChange={(e) => update({ measureBlinks: e.currentTarget.checked })}
+            />
+            <Switch
+              size="xs"
+              label="Facial expressions"
+              description="Estimates stay on this computer and never go to the language model"
+              checked={measureExpressions}
+              onChange={(e) => update({ measureExpressions: e.currentTarget.checked })}
+            />
+            {v.sensing && (
+              <span className="faint" style={{ fontSize: 12 }}>
+                Changes apply the next time sensing starts.
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="card panel">
@@ -97,9 +121,13 @@ export function Signals({
               <span className="idx">04</span>
               <div>
                 <div className="title">Blinks</div>
-                <div className="sub">last 60 seconds</div>
+                <div className="sub">
+                  {measureBlinks ? 'last 60 seconds' : 'turned off in face signals'}
+                </div>
               </div>
-              <span className="chip">{fmt(v.blinksPerMinute)} /min</span>
+              <span className="chip">
+                {measureBlinks ? `${fmt(v.blinksPerMinute)} /min` : 'off'}
+              </span>
             </div>
             <div className="row">
               <span className="idx">05</span>
@@ -107,8 +135,24 @@ export function Signals({
                 <div className="title">Talking</div>
                 <div className="sub">Hearth stays quiet while you talk</div>
               </div>
-              <span className={v.talking ? 'chip amber' : 'chip'}>{v.talking ? 'yes' : 'no'}</span>
+              <span className={v.talking ? 'chip amber' : 'chip'}>
+                {measureBlinks ? (v.talking ? 'yes' : 'no') : 'off'}
+              </span>
             </div>
+            {measureExpressions && (
+              <div className="row">
+                <span className="idx">06</span>
+                <div>
+                  <div className="title">Expression</div>
+                  <div className="sub">an estimate from the SDK, not a feeling</div>
+                </div>
+                <span className="chip">
+                  {v.expression
+                    ? `${v.expression.label} ${Math.round(v.expression.confidence * (v.expression.confidence <= 1 ? 100 : 1))}%`
+                    : '--'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
