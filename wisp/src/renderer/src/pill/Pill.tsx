@@ -6,6 +6,7 @@ import { Orb } from '../components/Orb'
 import { useHearth } from '../lib/store'
 import { usePushToTalk } from '../lib/usePushToTalk'
 import { CameraPanel } from './CameraPanel'
+import { VoiceMeter } from './VoiceMeter'
 
 const CAPTION_LINGER_MS = 7_000
 /** Leaving the widget collapses it after this pause, so a slip of the pointer does not. */
@@ -85,6 +86,7 @@ export function Pill(): React.JSX.Element | null {
   const [caption, setCaption] = useState<string | null>(null)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [micSilent, setMicSilent] = useState(false)
   const closeCamera = useCallback(() => setCameraOpen(false), [])
   const drag = useRef<{ x: number; y: number; moved: boolean; onFace: boolean } | null>(null)
 
@@ -105,9 +107,13 @@ export function Pill(): React.JSX.Element | null {
   if (!state) return null
   const consented = state.settings.consentAt != null
   const sensingOn = state.vitals.sensing
-  const { text, sub } = consented
+  const listening = state.mood === 'listening'
+  const heading = consented
     ? headline(state)
     : { text: 'Hearth', sub: 'review consent in the dashboard' }
+  // The meter says whether anything reaches the mic; a silent mic gets a hint instead.
+  const text = heading.text
+  const sub = listening && micSilent ? "can't hear you, check your microphone" : heading.sub
   const click = consented ? ptt.toggle : () => window.hearth.openDashboard()
 
   /**
@@ -203,8 +209,10 @@ export function Pill(): React.JSX.Element | null {
 
         <div className="bar-info" aria-hidden={!expanded}>
           <div className="bar-text">{text}</div>
-          {sub && <div className="bar-sub">{sub}</div>}
+          {sub && <div className={listening && micSilent ? 'bar-sub warn' : 'bar-sub'}>{sub}</div>}
         </div>
+
+        {listening && <VoiceMeter onSilentChange={setMicSilent} />}
 
         <div className="bar-actions" aria-hidden={!expanded}>
           <Tooltip

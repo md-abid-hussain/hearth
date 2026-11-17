@@ -1309,10 +1309,11 @@ table.plain td code {
     opacity 300ms ease,
     stroke 420ms ease;
 }
+/* Faint at rest, so a voice visibly pumps it. */
 .mood-listening .face-halo,
 .mood-speaking .face-halo {
-  opacity: calc(0.3 + var(--level) * 0.7);
-  transform: scale(calc(0.94 + var(--level) * 0.14));
+  opacity: calc(0.12 + var(--level) * 0.88);
+  transform: scale(calc(0.9 + var(--level) * 0.22));
 }
 .mood-thinking .face-halo {
   opacity: 0.85;
@@ -1584,4 +1585,29 @@ table.plain td code {
 .setup-foot code {
   font-family: var(--font-mono);
   font-size: var(--t-xs);
+}
+
+/* Live microphone waveform while Hearth listens: flat in silence, moving with the voice. */
+.voice-meter {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 2px;
+}
+.voice-meter i {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: #45c08a;
+  transform: scaleY(0.08);
+  transform-origin: center;
+  transition:
+    transform 70ms linear,
+    opacity 160ms ease;
+}
+.bar-sub.warn {
+  color: var(--amber);
 }
