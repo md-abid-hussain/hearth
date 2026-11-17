@@ -22,7 +22,7 @@ Target length: about **3:12**.
 | 9 | 2:18–2:39 | Gentle by design | Footage | The water reminder held back while you talk (the Timeline row), then spoken. Quiet mode's Windows notification. The break nudge. | "It waits until you're not talking, keeps nudges rare, and in quiet mode it never speaks. It sends a notification instead." |
 | 10 | 2:39–2:48 | Your apps | Footage | You ask about email, and Hearth answers. Subject lines are blurred if needed. | "It can read your mail, calendar and notes too. Read-only, and only when you ask." |
 | 11 | 2:48–3:00 | Privacy | Generated, plus footage | Five promises appear one by one: video stays on this laptop; only numbers go to Presage; telemetry is off by default; one button deletes everything; a wellness companion, not a medical device. Then a glimpse of the real Privacy page. | "Video never leaves your laptop. Only the numbers go to Presage for insights. It's a wellness companion, not a medical device, and one button deletes everything." |
-| 12 | 3:00–3:06 | Outro | Generated | Hearth hops and smiles. The wordmark, "Built with Presage SmartSpectra", `#presagechallenge` and the repo link. Small print: "Narration voice: ElevenLabs. Timers shortened for this demo." | "Hearth. A little warmth on your desk." |
+| 12 | 3:00–3:06 | Outro | Generated | Hearth hops and smiles. The wordmark, "Built with Presage SmartSpectra", `#presagechallenge` and the repo link. | "Hearth. A little warmth on your desk." |
 
 ## Runtime
 

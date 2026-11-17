@@ -6,6 +6,9 @@ The order below flows best, but it doesn't need to be exact. Pause for a couple 
 
 ## Before you start (5 minutes)
 
+0. **Seed your calendar and inbox** in the Google account you'll link, ideally a spare one. Hearth reads these out loud, so keep them harmless:
+   - Two calendar events for today, for example "Design review" at 3:00 PM and "Gym" at 6:30 PM.
+   - Two or three emails sent to yourself from another account, for example "Your flight check-in is open", "Invoice #1042 is due Friday" and "Lunch moved to 1 PM".
 1. **Clear the screen.** Close or minimize anything personal: chat apps, email, and this Claude window. Put up something you're happy to show behind Hearth, such as your code editor full screen. Turn off notifications for other apps, but keep Windows notifications on, since Hearth sends one.
 2. **Set up yourself.** Put the tablet camera somewhere steady, with light on your face from the front, and put your earphones in.
 3. **Start Hearth in demo mode.** Close any running Hearth first. Then, in the `wisp` folder:
@@ -51,19 +54,21 @@ The order below flows best, but it doesn't need to be exact. Pause for a couple 
 
 **Reminders**
 16. Say "Remind me to drink some water in one minute." When it's due, read something out loud for about 20 seconds, so Hearth holds back. Then stop and wait until it reminds you.
-17. Say "Turn on quiet mode." Then say "Remind me to stretch in one minute." Wait for the Windows notification and click it. Then say "Turn off quiet mode."
+17. Open the **Reminders** page. The water reminder is listed under Delivered, marked "spoken".
+18. Say "Turn on quiet mode." Then say "Remind me to stretch in one minute." Wait for the Windows notification and click it. It opens the Reminders page, where the stretch reminder is marked "notification". Then say "Turn off quiet mode."
 
 **Working**
-18. Work normally, typing in your editor, for a few minutes until Hearth suggests a break.
-19. Optional: say "Keep an eye on my eye strain every two minutes" and read something on screen for a few minutes.
+19. Work normally, typing in your editor, for a few minutes until Hearth suggests a break.
+20. Optional: say "Keep an eye on my eye strain every two minutes" and read something on screen for a few minutes.
 
 **Apps**
-20. On the **Apps** page, sign in to Gmail if it isn't linked in demo mode yet. I'll cut the Google screens out.
-21. Ask "Anything important in my email today?"
+21. On the **Apps** page, sign in to Gmail and Google Calendar if they aren't linked in demo mode yet. I'll cut the Google screens out.
+22. Ask "What's on my calendar today?"
+23. Ask "Anything important in my email today?"
 
 **Wrap up**
-22. Scroll slowly through the **Timeline** page, then the **Privacy** page. Don't click Delete.
-23. Press **Enter** in the recorder window to stop recording.
+24. Scroll slowly through the **Signals** page with its charts filled in, then **Timeline**, then **Privacy**. Don't click Delete.
+25. Press **Enter** in the recorder window to stop recording.
 
 Demo mode runs Hearth's timers in minutes, so it may speak up on its own at any point. Just react naturally.
 

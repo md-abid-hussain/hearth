@@ -81,11 +81,6 @@ export function Outro({ repo = '' }: { repo?: string }): React.JSX.Element {
           </Appear>
         )}
       </AbsoluteFill>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 44, textAlign: 'center' }}>
-        <Appear at={2.4}>
-          <Mono size={22} tone={color.faint}>Narration voice: ElevenLabs · Timers shortened for this demo</Mono>
-        </Appear>
-      </div>
     </AbsoluteFill>
   )
 }
