@@ -13,10 +13,13 @@ const api: HearthApi = {
   pushMetrics: (buf: Uint8Array) => ipcRenderer.send('hearth:metrics', buf),
   pushValidation: (hint: string | null, faceSeen?: boolean) =>
     ipcRenderer.send('hearth:validation', hint, faceSeen),
-  pushInsight: (buf: Uint8Array, requestId: number) => ipcRenderer.send('hearth:insight', buf, requestId),
-  bindInsight: (token: string, requestId: number) => ipcRenderer.send('hearth:insightBound', token, requestId),
+  pushInsight: (buf: Uint8Array, requestId: number) =>
+    ipcRenderer.send('hearth:insight', buf, requestId),
+  bindInsight: (token: string, requestId: number) =>
+    ipcRenderer.send('hearth:insightBound', token, requestId),
   failInsight: (token: string) => ipcRenderer.send('hearth:insightFailed', token),
-  reportSdkError: (message: string, fatal: boolean) => ipcRenderer.send('hearth:sdkError', message, fatal),
+  reportSdkError: (message: string, fatal: boolean) =>
+    ipcRenderer.send('hearth:sdkError', message, fatal),
 
   pttStart: (mode?: 'hold' | 'handsFree') => ipcRenderer.send('hearth:pttStart', mode),
   pttAudio: (chunk: Uint8Array) => ipcRenderer.send('hearth:pttAudio', chunk),
@@ -28,7 +31,8 @@ const api: HearthApi = {
   dragPill: (phase: 'start' | 'end') => ipcRenderer.send('hearth:pillDrag', phase),
   resetPill: () => ipcRenderer.send('hearth:resetPill'),
   openEnvFolder: () => ipcRenderer.send('hearth:openEnvFolder'),
-  setTitlebarScheme: (scheme: 'light' | 'dark') => ipcRenderer.send('hearth:titlebarScheme', scheme),
+  setTitlebarScheme: (scheme: 'light' | 'dark') =>
+    ipcRenderer.send('hearth:titlebarScheme', scheme),
   quit: () => ipcRenderer.send('hearth:quit'),
 
   updateSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('hearth:updateSettings', patch),

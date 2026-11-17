@@ -10,7 +10,12 @@ class Mic {
   private async ensure(): Promise<void> {
     if (this.ctx) return
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
     })
     this.ctx = new AudioContext()
     await this.ctx.audioWorklet.addModule('./pcm-worklet.js')

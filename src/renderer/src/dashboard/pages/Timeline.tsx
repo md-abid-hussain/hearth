@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { SegmentedControl } from '@mantine/core'
 import type { LogEntry, LogKind } from '@shared/types'
-import { PageHeader, clock } from '../shared'
+import { clock } from '../helpers'
+import { PageHeader } from '../shared'
 
 const WHO: Record<LogKind, { label: string; tone: '' | 'amber' | 'dim' }> = {
   session: { label: 'Session', tone: 'dim' },
@@ -28,7 +29,10 @@ export function Timeline({ log }: { log: LogEntry[] }): React.JSX.Element {
   const [filter, setFilter] = useState('all')
   const items = useMemo(() => {
     const kinds = FILTERS[filter]
-    return log.filter((e) => !kinds || kinds.includes(e.kind)).slice(-200).reverse()
+    return log
+      .filter((e) => !kinds || kinds.includes(e.kind))
+      .slice(-200)
+      .reverse()
   }, [log, filter])
 
   return (
@@ -53,15 +57,27 @@ export function Timeline({ log }: { log: LogEntry[] }): React.JSX.Element {
             ]}
           />
         </div>
-        {items.length === 0 && <div className="entry"><span className="t">--:--</span><div className="body empty">Nothing here yet.</div></div>}
+        {items.length === 0 && (
+          <div className="entry">
+            <span className="t">--:--</span>
+            <div className="body empty">Nothing here yet.</div>
+          </div>
+        )}
         {items.map((e) => {
           const who = WHO[e.kind]
           return (
             <div className="entry" key={e.id}>
               <span className="t">{clock(e.at)}</span>
               <div>
-                <div className={`who ${who.tone}`} style={e.kind === 'error' ? { color: 'var(--red)' } : undefined}>{who.label}</div>
-                <div className={e.kind === 'reply' || e.kind === 'nudge' ? 'body voice' : 'body'}>{e.message}</div>
+                <div
+                  className={`who ${who.tone}`}
+                  style={e.kind === 'error' ? { color: 'var(--red)' } : undefined}
+                >
+                  {who.label}
+                </div>
+                <div className={e.kind === 'reply' || e.kind === 'nudge' ? 'body voice' : 'body'}>
+                  {e.message}
+                </div>
               </div>
             </div>
           )

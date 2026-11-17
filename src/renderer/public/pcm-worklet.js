@@ -1,4 +1,6 @@
 // Converts mic audio to 16 kHz mono PCM16 and posts ~50 ms chunks to the main thread.
+// These three are globals of the audio worklet scope this file runs in.
+/* global AudioWorkletProcessor, registerProcessor, sampleRate */
 class PcmCapture extends AudioWorkletProcessor {
   constructor() {
     super()

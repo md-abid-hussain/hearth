@@ -1,6 +1,7 @@
 import type { InsightEntry } from '@shared/types'
 import { InsightCard } from '../../components/InsightCard'
-import { PageHeader, clock } from '../shared'
+import { clock } from '../helpers'
+import { PageHeader } from '../shared'
 
 export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.Element {
   const items = [...insights].reverse()
@@ -35,7 +36,11 @@ export function Insights({ insights }: { insights: InsightEntry[] }): React.JSX.
               <span className="t">{clock(i.at)}</span>
               <div>
                 <div className="who" style={i.isError ? { color: 'var(--red)' } : undefined}>
-                  {i.isError ? 'Presage, error' : i.onDemand ? 'Presage, asked by Hearth' : 'Presage'}
+                  {i.isError
+                    ? 'Presage, error'
+                    : i.onDemand
+                      ? 'Presage, asked by Hearth'
+                      : 'Presage'}
                 </div>
                 <InsightCard insight={i} className={i.isError ? 'body' : 'body voice'} />
               </div>

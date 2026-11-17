@@ -1,4 +1,10 @@
-import type { MainToRenderer, McpServerStatus, Settings, VitalsPoint, HearthState } from '../shared/types'
+import type {
+  MainToRenderer,
+  McpServerStatus,
+  Settings,
+  VitalsPoint,
+  HearthState
+} from '../shared/types'
 
 export interface HearthApi {
   getState(): Promise<HearthState>

@@ -87,14 +87,21 @@ class Memory {
       const turns = hub.memory.turns
       const older = turns.slice(0, -KEEP_RECENT_TURNS)
       const recent = turns.slice(-KEEP_RECENT_TURNS)
-      const transcript = older.map((t) => `${t.role === 'user' ? 'User' : 'Hearth'}: ${t.text}`).join('\n')
+      const transcript = older
+        .map((t) => `${t.role === 'user' ? 'User' : 'Hearth'}: ${t.text}`)
+        .join('\n')
       const summary = await complete(
         COMPACT_SYSTEM,
         `Previous summary:\n${hub.memory.summary || '(none)'}\n\nOlder turns:\n${transcript}`
       )
       older.forEach((t) => appendJsonl(ARCHIVE_FILE, t))
       writeJsonl(TURNS_FILE, recent)
-      hub.memory = { ...hub.memory, summary, turns: recent, compactions: hub.memory.compactions + 1 }
+      hub.memory = {
+        ...hub.memory,
+        summary,
+        turns: recent,
+        compactions: hub.memory.compactions + 1
+      }
       hub.record('memory', `Compacted ${older.length} turns into the summary`)
       this.persist()
     } catch (err) {

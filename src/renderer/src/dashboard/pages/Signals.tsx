@@ -2,17 +2,8 @@ import { useState } from 'react'
 import { Alert, SegmentedControl, Switch } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
 import type { HearthState, Settings, VitalsPoint } from '@shared/types'
-import {
-  CameraPicker,
-  TIME_AXIS,
-  CameraPreview,
-  PageHeader,
-  SensingButton,
-  SignalsChart,
-  clock,
-  fmt,
-  useWindowed
-} from '../shared'
+import { TIME_AXIS, clock, fmt, useWindowed } from '../helpers'
+import { CameraPicker, CameraPreview, PageHeader, SensingButton, SignalsChart } from '../shared'
 
 export function Signals({
   state,

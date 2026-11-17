@@ -3,17 +3,45 @@ import { createTheme, type CSSVariablesResolver } from '@mantine/core'
 export const theme = createTheme({
   fontFamily: "'Bricolage Grotesque Variable', system-ui, sans-serif",
   fontFamilyMonospace: "'JetBrains Mono', ui-monospace, monospace",
-  headings: { fontFamily: "'Bricolage Grotesque Variable', system-ui, sans-serif", fontWeight: '800' },
+  headings: {
+    fontFamily: "'Bricolage Grotesque Variable', system-ui, sans-serif",
+    fontWeight: '800'
+  },
   primaryColor: 'hearthBlue',
   defaultRadius: 'md',
   colors: {
-    hearthBlue: ['#eef3ff', '#dce6ff', '#b8ccff', '#8fb4ff', '#6f9bf5', '#4f7fe6', '#2453c9', '#1d44a6', '#173783', '#112960'],
-    amber: ['#fff6e8', '#ffe9c7', '#fcd394', '#f7bd60', '#f0a43a', '#e08f1f', '#bb7412', '#935a0d', '#6c4209', '#462a05']
+    hearthBlue: [
+      '#eef3ff',
+      '#dce6ff',
+      '#b8ccff',
+      '#8fb4ff',
+      '#6f9bf5',
+      '#4f7fe6',
+      '#2453c9',
+      '#1d44a6',
+      '#173783',
+      '#112960'
+    ],
+    amber: [
+      '#fff6e8',
+      '#ffe9c7',
+      '#fcd394',
+      '#f7bd60',
+      '#f0a43a',
+      '#e08f1f',
+      '#bb7412',
+      '#935a0d',
+      '#6c4209',
+      '#462a05'
+    ]
   },
   components: {
     Button: { defaultProps: { radius: 'md' }, styles: { root: { fontWeight: 650, fontSize: 14 } } },
     Switch: { defaultProps: { color: 'teal', size: 'md' } },
-    SegmentedControl: { defaultProps: { radius: 'md' }, styles: { label: { fontSize: 13, fontWeight: 550, paddingInline: 12 } } },
+    SegmentedControl: {
+      defaultProps: { radius: 'md' },
+      styles: { label: { fontSize: 13, fontWeight: 550, paddingInline: 12 } }
+    },
     TextInput: { styles: { input: { fontSize: 15 } } }
   }
 })

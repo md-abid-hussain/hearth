@@ -53,7 +53,10 @@ export function readJsonl<T>(name: string): T[] {
 }
 
 export function writeJsonl(name: string, values: unknown[]): void {
-  writeFileSync(dataPath(name), values.map((v) => JSON.stringify(v)).join('\n') + (values.length ? '\n' : ''))
+  writeFileSync(
+    dataPath(name),
+    values.map((v) => JSON.stringify(v)).join('\n') + (values.length ? '\n' : '')
+  )
 }
 
 export function wipeData(): void {

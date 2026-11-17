@@ -5,8 +5,6 @@ import { SetupChecklist } from '../../components/SetupChecklist'
 import { summarizeInsight } from '../../lib/text'
 import {
   RULE_TITLES,
-  SensingButton,
-  SignalsChart,
   clock,
   durationLabel,
   fmt,
@@ -16,7 +14,8 @@ import {
   useNow,
   useTrend,
   useWindowed
-} from '../shared'
+} from '../helpers'
+import { SensingButton, SignalsChart } from '../shared'
 
 interface Props {
   state: HearthState
@@ -364,7 +363,10 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
               <div className="mark">&ldquo;</div>
               <InsightGlance insight={insight} />
               <div className="quote-foot">
-                <span className="label">{clock(insight.at)}, {insight.onDemand ? 'from your numbers and question' : 'from your numbers'}</span>
+                <span className="label">
+                  {clock(insight.at)},{' '}
+                  {insight.onDemand ? 'from your numbers and question' : 'from your numbers'}
+                </span>
                 <span className="chip">{insight.onDemand ? 'asked by Hearth' : 'automatic'}</span>
               </div>
             </div>
@@ -388,8 +390,8 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
           <div className="card panel" style={{ flex: 1 }}>
             {observer.length === 0 ? (
               <p className="empty">
-                Hearth checks in every three minutes once a session is five minutes old. Each time it
-                speaks or holds back, the reason shows here.
+                Hearth checks in every three minutes once a session is five minutes old. Each time
+                it speaks or holds back, the reason shows here.
               </p>
             ) : (
               <div className="numbered">

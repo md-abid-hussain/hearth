@@ -41,6 +41,11 @@ const NAV: { group: string; items: { id: string; label: string }[] }[] = [
   }
 ]
 
+/** Each page's number in the nav, counted across the groups: 01, 02, ... */
+const NAV_NUMBER = new Map(
+  NAV.flatMap((g) => g.items).map((item, i) => [item.id, String(i + 1).padStart(2, '0')])
+)
+
 function StatusFooter({ state }: { state: HearthState }): React.JSX.Element {
   const { vitals, status, settings } = state
   const rows: [boolean, string][] = [
@@ -126,7 +131,6 @@ function DashboardBody({ state }: { state: HearthState | null }): React.JSX.Elem
     )
   }
 
-  let n = 0
   const body = (() => {
     switch (page) {
       case 'signals':
@@ -156,19 +160,16 @@ function DashboardBody({ state }: { state: HearthState | null }): React.JSX.Elem
         {NAV.map((g) => (
           <div key={g.group} className="nav-section">
             <div className="label nav-group">{g.group}</div>
-            {g.items.map((item) => {
-              n += 1
-              return (
-                <button
-                  key={item.id}
-                  className={page === item.id ? 'nav-item on' : 'nav-item'}
-                  onClick={() => setPage(item.id)}
-                >
-                  {item.label}
-                  <span className="n">{String(n).padStart(2, '0')}</span>
-                </button>
-              )
-            })}
+            {g.items.map((item) => (
+              <button
+                key={item.id}
+                className={page === item.id ? 'nav-item on' : 'nav-item'}
+                onClick={() => setPage(item.id)}
+              >
+                {item.label}
+                <span className="n">{NAV_NUMBER.get(item.id)}</span>
+              </button>
+            ))}
           </div>
         ))}
         <StatusFooter state={state} />

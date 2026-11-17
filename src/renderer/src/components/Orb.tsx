@@ -58,7 +58,9 @@ export function Orb({
 }: Props): React.JSX.Element {
   const root = useRef<HTMLDivElement>(null)
   const latest = useRef({ mood, breathing })
-  latest.current = { mood, breathing }
+  useEffect(() => {
+    latest.current = { mood, breathing }
+  }, [mood, breathing])
   const [action, setAction] = useState<IdleAction | null>(null)
 
   // Voice level and breathing drive CSS variables directly, without re-rendering React.

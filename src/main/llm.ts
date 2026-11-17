@@ -13,7 +13,9 @@ export function getModel(): LanguageModel {
   const cfg = loadConfig()
   if (!llmKeyPresent(cfg)) {
     throw new Error(
-      cfg.llmProvider === 'openai' ? 'OPENAI_API_KEY is not set in .env' : 'ANTHROPIC_API_KEY is not set in .env'
+      cfg.llmProvider === 'openai'
+        ? 'OPENAI_API_KEY is not set in .env'
+        : 'ANTHROPIC_API_KEY is not set in .env'
     )
   }
   model =

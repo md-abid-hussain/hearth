@@ -9,28 +9,19 @@ import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import './styles/tokens.css'
 
-import { StrictMode, useEffect } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MantineProvider, useMantineColorScheme } from '@mantine/core'
+import { MantineProvider } from '@mantine/core'
 import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
+import { ThemeSync } from './components/ThemeSync'
 import { Dashboard } from './dashboard/Dashboard'
 import { Pill } from './pill/Pill'
-import { connectStore, useHearth } from './lib/store'
+import { connectStore } from './lib/store'
 import { cssResolver, theme } from './theme'
 
 const role = window.location.hash.replace('#', '') === 'pill' ? 'pill' : 'dashboard'
 if (role === 'pill') document.body.classList.add('pill-body')
-
-function ThemeSync(): null {
-  const state = useHearth()
-  const { setColorScheme } = useMantineColorScheme()
-  const choice = state?.settings.theme
-  useEffect(() => {
-    if (choice) setColorScheme(choice)
-  }, [choice, setColorScheme])
-  return null
-}
 
 void connectStore()
 

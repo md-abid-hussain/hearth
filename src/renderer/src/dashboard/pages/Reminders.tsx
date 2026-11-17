@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Button } from '@mantine/core'
 import type { LogEntry, Reminder } from '@shared/types'
-import { PageHeader, clock } from '../shared'
+import { clock } from '../helpers'
+import { PageHeader } from '../shared'
 
 /** How a reminder or check-in ended up, as logged by the observer. */
 const VIA: Record<string, string> = {

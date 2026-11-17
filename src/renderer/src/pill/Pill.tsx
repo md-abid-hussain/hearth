@@ -138,9 +138,14 @@ export function Pill(): React.JSX.Element | null {
   const reply = state?.lastReply
   const partial = state?.partialTranscript
 
+  // The caption follows what you say while listening and the reply while speaking, then holds
+  // the last line (through thinking, say) until Hearth has been idle for a moment. Adjusting it
+  // while rendering, rather than in an effect, avoids a second render each time it changes.
+  const live =
+    mood === 'listening' && partial ? partial : mood === 'speaking' && reply ? reply : null
+  if (live && live !== caption) setCaption(live)
+
   useEffect(() => {
-    if (mood === 'listening' && partial) setCaption(partial)
-    else if (mood === 'speaking' && reply) setCaption(reply)
     if (mood === 'idle' || mood === 'sleeping') {
       const timer = setTimeout(() => setCaption(null), CAPTION_LINGER_MS)
       return () => clearTimeout(timer)

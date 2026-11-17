@@ -8,7 +8,13 @@ interface Combo {
 }
 
 export const HOTKEYS: Record<HotkeyId, Combo> = {
-  'ctrl-win': { label: 'Ctrl + Win', groups: [[UiohookKey.Ctrl, UiohookKey.CtrlRight], [UiohookKey.Meta, UiohookKey.MetaRight]] },
+  'ctrl-win': {
+    label: 'Ctrl + Win',
+    groups: [
+      [UiohookKey.Ctrl, UiohookKey.CtrlRight],
+      [UiohookKey.Meta, UiohookKey.MetaRight]
+    ]
+  },
   'right-alt': { label: 'Right Alt', groups: [[UiohookKey.AltRight]] },
   'right-ctrl': { label: 'Right Ctrl', groups: [[UiohookKey.CtrlRight]] }
 }
