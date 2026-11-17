@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion'
+import { AbsoluteFill, Audio, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
 import { color, fonts, s } from './theme'
 
 /** The app's dark canvas with a faint warm glow, optionally centered somewhere else. */
@@ -107,6 +107,15 @@ export function Spoken({
 /** Small mono text, for numbers and eyebrows. */
 export function Mono({ children, size = 26, tone = color.muted, style }: { children: ReactNode; size?: number; tone?: string; style?: CSSProperties }): React.JSX.Element {
   return <span style={{ font: `500 ${size}px ${fonts.mono}`, color: tone, ...style }}>{children}</span>
+}
+
+/** One narration line (public/voice/<file>.mp3, ElevenLabs, Carolyn) starting `at` seconds in. */
+export function Narration({ file, at }: { file: string; at: number }): React.JSX.Element {
+  return (
+    <Sequence from={s(at)} layout="none">
+      <Audio src={staticFile(`voice/${file}.mp3`)} />
+    </Sequence>
+  )
 }
 
 /** 0..1 progress of a spring that starts at `at` seconds. */

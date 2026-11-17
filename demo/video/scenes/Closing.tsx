@@ -1,20 +1,21 @@
 import { AbsoluteFill } from 'remotion'
 import { HearthFace } from '../HearthFace'
 import { color, fonts } from '../theme'
-import { Appear, Backdrop, Chip, Headline, Mono } from '../ui'
+import { Appear, Backdrop, Chip, Headline, Mono, Narration } from '../ui'
 
 const PROMISES: { title: string; tag: string; tone: 'green' | 'amber' | 'plain' | 'violet'; at: number }[] = [
   { title: 'Video never leaves your laptop', tag: 'local', tone: 'green', at: 0.4 },
-  { title: 'Only the numbers go to Presage', tag: 'presage', tone: 'amber', at: 2.5 },
-  { title: 'A wellness companion, not a medical device', tag: 'no diagnosis', tone: 'violet', at: 4.8 },
-  { title: 'One button deletes everything', tag: 'delete', tone: 'plain', at: 7.2 }
+  { title: 'Only the numbers go to Presage', tag: 'presage', tone: 'amber', at: 2.7 },
+  { title: 'A wellness companion, not a medical device', tag: 'no diagnosis', tone: 'violet', at: 5.6 },
+  { title: 'One button deletes everything', tag: 'delete', tone: 'plain', at: 8.8 }
 ]
 
-/** Scene 11 (10 s): the privacy promises, styled like the rows of Hearth's consent screen. */
+/** Scene 11 (12.5 s): the privacy promises, styled like the rows of Hearth's consent screen. */
 export function Privacy(): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Backdrop glow={0.04} />
+      <Narration file="n11-privacy" at={0.4} />
       <div style={{ position: 'absolute', left: 300, right: 300, top: 190 }}>
         <Appear at={0}>
           <Mono size={28} tone={color.amber}>PRIVACY</Mono>
@@ -48,6 +49,7 @@ export function Outro({ repo = '' }: { repo?: string }): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Backdrop glow={0.08} y="38%" />
+      <Narration file="n12-outro" at={0.6} />
       <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 18 }}>
         <Appear at={0}>
           <HearthFace

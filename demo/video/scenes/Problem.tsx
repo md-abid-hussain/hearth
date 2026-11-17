@@ -1,7 +1,7 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion'
 import { HearthFace } from '../HearthFace'
 import { FPS, color, fonts, s } from '../theme'
-import { Appear, Backdrop, Headline, Mono, Spoken } from '../ui'
+import { Appear, Backdrop, Headline, Mono, Narration, Spoken } from '../ui'
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
 
@@ -99,16 +99,17 @@ export function Problem(): React.JSX.Element {
   const { fps } = useVideoConfig()
   const t = frame / fps
 
-  const hour = Math.floor(interpolate(t, [0.5, 2.8], [9, 18], clamp))
+  const hour = Math.floor(interpolate(t, [0.5, 3.0], [9, 18], clamp))
   const clockOut = interpolate(t, [2.9, 3.3], [1, 0], clamp)
-  const cardsOut = interpolate(t, [10.8, 11.3], [1, 0], clamp)
-  const laptop = spring({ frame: frame - s(11.2), fps, config: { damping: 200 } })
-  const cam = interpolate(t, [12.0, 12.4], [0, 1], clamp)
-  const pop = spring({ frame: frame - s(13.4), fps, config: { damping: 11, mass: 0.7 } })
+  const cardsOut = interpolate(t, [8.8, 9.3], [1, 0], clamp)
+  const laptop = spring({ frame: frame - s(9.0), fps, config: { damping: 200 } })
+  const cam = interpolate(t, [9.9, 10.3], [0, 1], clamp)
+  const pop = spring({ frame: frame - s(11.45), fps, config: { damping: 11, mass: 0.7 } })
 
   return (
     <AbsoluteFill>
       <Backdrop glow={0.05} />
+      <Narration file="n01-problem" at={0.5} />
 
       {t < 3.4 && (
         <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: clockOut }}>
@@ -124,23 +125,23 @@ export function Problem(): React.JSX.Element {
         </AbsoluteFill>
       )}
 
-      {t >= 3.0 && t < 11.4 && (
+      {t >= 3.0 && t < 9.4 && (
         <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: cardsOut }}>
           <div style={{ display: 'flex', gap: 48 }}>
-            <Card at={3.0} title="blink less">
-              <Eye blinks={[3.6, 4.4, 5.8, 8.0, 10.6]} />
+            <Card at={3.5} title="blink less">
+              <Eye blinks={[4.1, 4.9, 6.4, 8.2]} />
             </Card>
-            <Card at={5.5} title="breathe shallow">
-              <Breath from={5.7} />
+            <Card at={4.55} title="breathe shallow">
+              <Breath from={4.7} />
             </Card>
-            <Card at={8.0} title="forget to move">
-              <SitTimer from={8.2} />
+            <Card at={6.35} title="forget to move">
+              <SitTimer from={6.5} />
             </Card>
           </div>
         </AbsoluteFill>
       )}
 
-      {t >= 11.0 && (
+      {t >= 9.0 && (
         <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'relative', width: 980, height: 640, opacity: laptop, transform: `translateY(${(1 - laptop) * 40}px)` }}>
             <div
@@ -192,9 +193,9 @@ export function Problem(): React.JSX.Element {
                 size={280}
                 cues={[
                   { at: 0, mood: 'idle' },
-                  { at: 14.4, gesture: 'blink' },
-                  { at: 15.0, smile: true },
-                  { at: 15.9, gesture: 'hop' }
+                  { at: 12.3, gesture: 'blink' },
+                  { at: 14.2, smile: true },
+                  { at: 14.9, gesture: 'hop' }
                 ]}
               />
             </div>
@@ -202,9 +203,9 @@ export function Problem(): React.JSX.Element {
         </AbsoluteFill>
       )}
 
-      {t >= 13.4 && (
+      {t >= 11.4 && (
         <div style={{ position: 'absolute', left: 0, right: 0, top: 930, textAlign: 'center' }}>
-          <Spoken text="What if it could notice, and look after you, kindly?" at={13.6} wps={3} size={46} />
+          <Spoken text="What if it could notice, and look after you, kindly?" at={11.5} wps={3.2} size={46} />
         </div>
       )}
     </AbsoluteFill>

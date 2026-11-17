@@ -1,10 +1,10 @@
 # Hearth demo video: script
 
-Target length: about **3:05**.
+Target length: about **3:10**.
 
-- **Generated** scenes are animated in Remotion and need no footage. They are being built now.
+- **Generated** scenes are animated in Remotion and need no footage. They are built, and their animation beats are timed to the narration's words.
 - **Footage** scenes come from your recording session.
-- **N** is the narrator (ElevenLabs).
+- **N** is the narrator: ElevenLabs `eleven_v4`, voice "Carolyn - Warm Grounded Narrator". Each line is its own file in `public/voice`.
 - **H** is Hearth's real voice, from the replies demo mode saves.
 - Your own lines are left out here; they appear as captions over the footage.
 
@@ -28,11 +28,26 @@ Target length: about **3:05**.
 
 | Part | Length |
 | --- | --- |
-| Generated scenes (1, 2, 3, 4a, 6, 11, 12) | about **1:22** |
-| Footage scenes (4b, 5, 7, 8, 9, 10, part of 11) | about **1:44** |
-| Total | about **3:06** |
+| Generated scenes (1, 2, 3, 4a, 6, 11, 12) | **1:26** (opening 12 s, problem 16.5 s, moods 16.5 s, how it works 21.5 s, privacy 12.5 s, outro 7 s) |
+| Footage scenes (4b, 5, 7, 8, 9, 10, part of 11) | about **1:45** |
+| Total | about **3:10** |
 
-The narration is about 290 words, which is roughly 2 minutes of speech. The rest is Hearth's own voice, the smile beat, and the music.
+The narration runs 1:53 in all. The rest is Hearth's own voice, the smile beat, and the music.
+
+| File | Line | Length |
+| --- | --- | --- |
+| n01-problem | Most of us spend the day… | 14.5 s |
+| n02-meet | This is Hearth… | 14.1 s |
+| n03-widget | Hover, and it opens up… | 3.4 s |
+| n04-consent | Nothing starts without your say… | 8.1 s |
+| n05-how | Under the hood… | 17.8 s |
+| n06-live | Here it is, live… | 10.1 s |
+| n07-checkin | Ask Hearth to keep an eye on something… | 9.8 s |
+| n08-away | When something's off… | 7.4 s |
+| n09-gentle | It waits until you're not talking… | 8.6 s |
+| n10-apps | It can read your mail… | 6.1 s |
+| n11-privacy | Video never leaves your laptop… | 10.6 s |
+| n12-outro | Hearth. A little warmth on your desk. | 2.9 s |
 
 Every claim in the narration matches the code and the README's consent section:
 - frames are processed on the device;

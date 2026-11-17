@@ -1,24 +1,25 @@
 import { AbsoluteFill, interpolate, interpolateColors, useCurrentFrame } from 'remotion'
 import { type Cue, HearthFace, type Mood } from '../HearthFace'
 import { FPS, color, fonts } from '../theme'
-import { Appear, Backdrop, Mono } from '../ui'
+import { Appear, Backdrop, Mono, Narration } from '../ui'
 
 const MOODS: { mood: Mood; from: number; name: string; detail: string; dot: string }[] = [
   { mood: 'idle', from: 0, name: 'idle', detail: 'blinks, glances, hops', dot: '#f0a43a' },
-  { mood: 'listening', from: 5.4, name: 'listening', detail: 'a ring follows your voice', dot: '#45c08a' },
-  { mood: 'thinking', from: 8.0, name: 'thinking', detail: 'looks up while dots circle', dot: '#8f86f5' },
+  { mood: 'listening', from: 8.3, name: 'listening', detail: 'a ring follows your voice', dot: '#45c08a' },
+  { mood: 'thinking', from: 9.95, name: 'thinking', detail: 'looks up while dots circle', dot: '#8f86f5' },
   { mood: 'speaking', from: 10.6, name: 'speaking', detail: 'its mouth follows its voice', dot: '#f5b041' },
-  { mood: 'sleeping', from: 13.2, name: 'asleep', detail: 'dozes off when left alone', dot: '#6b665f' }
+  { mood: 'sleeping', from: 12.3, name: 'asleep', detail: 'dozes off when left alone', dot: '#6b665f' }
 ]
 
 const CUES: Cue[] = [
   { at: 0, mood: 'idle' },
-  { at: 0.7, gesture: 'blink' },
-  { at: 1.4, gesture: 'glanceLeft' },
-  { at: 2.9, gesture: 'glanceRight' },
-  { at: 4.2, gesture: 'hop' },
+  { at: 1.0, gesture: 'blink' },
+  { at: 2.4, gesture: 'tilt' },
+  { at: 4.5, gesture: 'blink' },
+  { at: 5.3, gesture: 'glanceLeft' },
+  { at: 6.95, gesture: 'hop' },
+  { at: 7.6, gesture: 'blink' },
   ...MOODS.slice(1).map((m) => ({ at: m.from, mood: m.mood })),
-  { at: 7.0, gesture: 'blink' }
 ]
 
 /** Scene 4a (16 s): one big Hearth going through each mood, with the list of moods beside it. */
@@ -27,6 +28,7 @@ export function MeetHearth(): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Backdrop glow={0.06} x="36%" />
+      <Narration file="n02-meet" at={0.4} />
       <div style={{ position: 'absolute', left: 470, top: 300 }}>
         <Appear at={0}>
           <HearthFace size={440} cues={CUES} />

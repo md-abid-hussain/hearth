@@ -11,10 +11,10 @@ import { Backdrop } from './ui'
 /** The scenes that need no footage, in video order, with their lengths in seconds. */
 export const GENERATED: { id: string; seconds: number; component: React.ComponentType }[] = [
   { id: 'Opening', seconds: 12, component: Opening },
-  { id: 'Problem', seconds: 18, component: Problem },
-  { id: 'MeetHearth', seconds: 16, component: MeetHearth },
-  { id: 'HowItWorks', seconds: 18, component: HowItWorks },
-  { id: 'Privacy', seconds: 10, component: Privacy },
+  { id: 'Problem', seconds: 16.5, component: Problem },
+  { id: 'MeetHearth', seconds: 16.5, component: MeetHearth },
+  { id: 'HowItWorks', seconds: 21.5, component: HowItWorks },
+  { id: 'Privacy', seconds: 12.5, component: Privacy },
   { id: 'Outro', seconds: 7, component: Outro }
 ]
 

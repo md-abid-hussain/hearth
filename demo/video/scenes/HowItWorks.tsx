@@ -1,7 +1,7 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion'
 import { HearthFace } from '../HearthFace'
 import { FPS, color, fonts } from '../theme'
-import { Appear, Backdrop, Chip, Mono } from '../ui'
+import { Appear, Backdrop, Chip, Mono, Narration } from '../ui'
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
 
@@ -54,10 +54,13 @@ function Box({ x, y, w, h, children }: { x: number; y: number; w: number; h: num
   )
 }
 
+/** When each signal appears: on its word in the narration (pulse, breathing, HRV, blinks), then talking. */
+const SIGNAL_AT = [4.7, 5.9, 6.65, 7.9, 8.4]
+
 const OUTPUTS = [
-  { label: 'speaks up', at: 13.6, focus: 15.4 },
-  { label: 'sends a notification', at: 14.1, focus: 16.2 },
-  { label: 'stays quiet', at: 14.6, focus: 17.0 }
+  { label: 'speaks up', at: 17.4, focus: 18.8 },
+  { label: 'sends a notification', at: 17.8, focus: 19.6 },
+  { label: 'stays quiet', at: 18.2, focus: 20.4 }
 ]
 
 /**
@@ -78,12 +81,13 @@ export function HowItWorks(): React.JSX.Element {
   return (
     <AbsoluteFill>
       <Backdrop glow={0.04} />
+      <Narration file="n05-how" at={0.3} />
       <svg width="1920" height="1080" style={{ position: 'absolute', inset: 0 }}>
-        <Link x1={235} y1={520} x2={292} y2={520} at={0.8} />
-        <Link x1={688} y1={520} x2={742} y2={520} at={3.1} />
-        <Link x1={490} y1={404} x2={490} y2={262} at={4.6} dashed />
-        <Link x1={1088} y1={520} x2={1142} y2={520} at={7.6} />
-        <Link x1={1452} y1={520} x2={1512} y2={520} at={12.2} />
+        <Link x1={235} y1={520} x2={292} y2={520} at={1.1} />
+        <Link x1={688} y1={520} x2={742} y2={520} at={3.9} />
+        <Link x1={490} y1={404} x2={490} y2={262} at={9.5} dashed />
+        <Link x1={1088} y1={520} x2={1142} y2={520} at={10.6} />
+        <Link x1={1452} y1={520} x2={1512} y2={520} at={16.3} />
       </svg>
 
       <Appear at={0.3} style={{ position: 'absolute', left: 80, top: 445 }}>
@@ -95,28 +99,28 @@ export function HowItWorks(): React.JSX.Element {
         </div>
       </Appear>
 
-      <Appear at={1.2}>
+      <Appear at={1.45}>
         <Box x={300} y={410} w={388} h={220}>
           <div style={{ font: `600 38px ${fonts.sans}`, color: color.text, letterSpacing: -1 }}>SmartSpectra SDK</div>
           <Mono size={24}>by Presage</Mono>
-          <div style={{ height: 52, opacity: interpolate(t, [6.4, 6.8], [0, 1], clamp) }}>
+          <div style={{ height: 52, opacity: interpolate(t, [8.95, 9.35], [0, 1], clamp) }}>
             <Chip tone="green">● on this laptop</Chip>
           </div>
         </Box>
       </Appear>
 
-      <Appear at={4.6}>
+      <Appear at={9.7}>
         <Box x={300} y={140} w={388} h={120}>
           <div style={{ font: `600 38px ${fonts.sans}`, color: color.text }}>Presage Insights</div>
         </Box>
       </Appear>
-      <Appear at={5.0} style={{ position: 'absolute', left: 30, width: 440, top: 296, textAlign: 'right' }}>
+      <Appear at={10.0} style={{ position: 'absolute', left: 30, width: 440, top: 296, textAlign: 'right' }}>
         <Mono size={22} tone={color.faint}>numbers only, about once a minute</Mono>
       </Appear>
 
       <div style={{ position: 'absolute', left: 750, top: 292, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {signals.map((sig, i) => (
-          <Appear key={sig.name} at={3.4 + i * 0.45}>
+          <Appear key={sig.name} at={SIGNAL_AT[i]}>
             <div style={{ width: 336, height: 76, borderRadius: 18, background: color.surface, border: `1.5px solid ${color.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', boxSizing: 'border-box' }}>
               <span style={{ font: `500 32px ${fonts.sans}`, color: color.text }}>{sig.name}</span>
               <Mono size={28} tone={color.amber}>{sig.value}</Mono>
@@ -126,16 +130,16 @@ export function HowItWorks(): React.JSX.Element {
       </div>
 
       <div style={{ position: 'absolute', left: 1150, top: 440, display: 'flex', flexDirection: 'column', gap: 22, alignItems: 'flex-start' }}>
-        <Appear at={8.2}>
+        <Appear at={13.5}>
           <Chip tone="green">✓ stable</Chip>
         </Appear>
-        <Appear at={10.6}>
+        <Appear at={14.8}>
           <Chip tone="amber">vs your baseline</Chip>
         </Appear>
       </div>
 
-      <Appear at={12.6} style={{ position: 'absolute', left: 1530, top: 410 }}>
-        <HearthFace size={210} cues={[{ at: 0, mood: 'idle' }, { at: 13.2, gesture: 'blink' }, { at: OUTPUTS[0].focus, mood: 'speaking' }, { at: OUTPUTS[1].focus, mood: 'idle' }, { at: 16.8, gesture: 'glanceLeft' }]} />
+      <Appear at={16.7} style={{ position: 'absolute', left: 1530, top: 410 }}>
+        <HearthFace size={210} cues={[{ at: 0, mood: 'idle' }, { at: 17.5, gesture: 'blink' }, { at: OUTPUTS[0].focus, mood: 'speaking' }, { at: OUTPUTS[1].focus, mood: 'idle' }, { at: 20.7, gesture: 'glanceLeft' }]} />
       </Appear>
       <div style={{ position: 'absolute', left: 1490, top: 680, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {OUTPUTS.map((o, i) => (
