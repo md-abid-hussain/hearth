@@ -88,6 +88,7 @@ app.whenReady().then(async () => {
   const pngs = []
   for (const size of ICO_SIZES) pngs.push({ size, data: await render(size) })
   writeFileSync(join(root, 'build', 'icon.ico'), ico(pngs))
+  writeFileSync(join(root, 'resources', 'icon.ico'), ico(pngs))
   console.log(`icons written: build/icon.png, build/icon.ico (${ICO_SIZES.join(', ')}), resources/icon.png`)
   app.quit()
 })

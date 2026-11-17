@@ -6,6 +6,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { bindSmartSpectraIpc } from '@smartspectra/node-sdk/main'
 import { uIOhook } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
+import iconIco from '../../resources/icon.ico?asset'
 import type { Settings, WindowRole } from '../shared/types'
 import { composio } from './composio'
 import { llmKeyPresent, loadConfig } from './config'
@@ -97,13 +98,23 @@ function createDashboard(): BrowserWindow {
     title: 'Hearth',
     backgroundColor: hub.settings.theme === 'light' ? '#f6f3ec' : '#131313',
     autoHideMenuBar: true,
-    icon,
+    icon: process.platform === 'win32' ? iconIco : icon,
     // Hearth draws its own header; Windows keeps its minimize, maximize and close buttons
     // (with snap layouts), colored to match the theme.
     titleBarStyle: 'hidden',
     titleBarOverlay: titleBarColors(hub.settings.theme === 'light' ? 'light' : 'dark'),
     webPreferences
   })
+
+  // The taskbar button takes its icon from the window's app identity. Without this, a dev run is
+  // grouped under electron.exe and shows Electron's icon; an installed build matches anyway.
+  if (process.platform === 'win32')
+    win.setAppDetails({
+      appId: 'com.hearth.companion',
+      appIconPath: iconIco,
+      appIconIndex: 0,
+      relaunchDisplayName: 'Hearth'
+    })
 
   bindSmartSpectraIpc(win, {
     logger: (level, msg) => {
