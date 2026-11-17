@@ -49,6 +49,7 @@ Hearth has two windows. The **pill** is frameless, transparent and always on top
 Requirements: Windows 10 or 11, Node 22 LTS, and a webcam.
 
 ```bash
+git clone https://github.com/md-abid-hussain/hearth.git
 cd hearth
 npm install
 ```
