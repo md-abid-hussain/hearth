@@ -37,7 +37,15 @@ export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
             <Switch checked={settings.nudgesEnabled} onChange={(e) => update({ nudgesEnabled: e.currentTarget.checked })} />
           </div>
           <div className="field">
-            <div><div className="name">Share SDK telemetry</div><div className="help">off by default, never frames or vitals, applies next start</div></div>
+            <div><div className="name">Measure blinks and talking</div><div className="help">blink rate, and pausing breathing readings while you speak; applies next start</div></div>
+            <Switch checked={settings.measureBlinks} onChange={(e) => update({ measureBlinks: e.currentTarget.checked })} />
+          </div>
+          <div className="field">
+            <div><div className="name">Measure facial expressions</div><div className="help">off by default; estimates stay on this computer and never go to the language model; applies next start</div></div>
+            <Switch checked={settings.measureExpressions} onChange={(e) => update({ measureExpressions: e.currentTarget.checked })} />
+          </div>
+          <div className="field">
+            <div><div className="name">Share SDK telemetry</div><div className="help">off by default; session summaries and device diagnostics (device model, OS) tied to the API key, never frames or vitals; applies next start</div></div>
             <Switch checked={settings.telemetry} onChange={(e) => update({ telemetry: e.currentTarget.checked })} />
           </div>
           <div className="field">

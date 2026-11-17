@@ -9,6 +9,7 @@ const api: HearthApi = {
   getSmartSpectraKey: () => ipcRenderer.invoke('hearth:getSmartSpectraKey'),
 
   setSensing: (on: boolean) => ipcRenderer.send('hearth:sensing', on),
+  requestSensing: (on: boolean) => ipcRenderer.send('hearth:requestSensing', on),
   pushMetrics: (buf: Uint8Array) => ipcRenderer.send('hearth:metrics', buf),
   pushValidation: (hint: string | null) => ipcRenderer.send('hearth:validation', hint),
   pushInsight: (buf: Uint8Array, requestId: number) => ipcRenderer.send('hearth:insight', buf, requestId),

@@ -7,13 +7,18 @@ import { sensing } from '../lib/sensing'
 const POINTS: { title: string; sub: string; chip: string }[] = [
   {
     title: 'Video stays on this device',
-    sub: 'camera frames are processed locally by the SmartSpectra SDK, never stored or sent',
+    sub: 'camera frames are processed locally by the SmartSpectra SDK, never stored or sent; facial expression estimates are off unless you turn them on in Privacy',
     chip: 'local'
   },
   {
     title: 'Derived numbers go to Presage',
-    sub: 'pulse, breathing and HRV only, to write wellness insights',
+    sub: 'when sensing starts, the SDK checks the API key with Presage; while it runs, about once a minute it sends your pulse, HRV and breathing numbers, plus any question Hearth asks, so Presage’s language model can write a wellness insight',
     chip: 'presage'
+  },
+  {
+    title: 'SmartSpectra telemetry is off',
+    sub: 'if you turn it on in Privacy, the SDK sends session summaries and device diagnostics linked to the API key, never video or vitals',
+    chip: 'opt-in'
   },
   {
     title: 'Your voice goes to AssemblyAI',
@@ -22,7 +27,7 @@ const POINTS: { title: string; sub: string; chip: string }[] = [
   },
   {
     title: 'Your words go to the language model',
-    sub: 'plus a short summary of your signals, sent to the configured LLM provider',
+    sub: 'plus a short summary of your signals, and Presage’s insights to lay them out, sent to the configured LLM provider',
     chip: 'llm'
   },
   {

@@ -33,7 +33,8 @@ const ROUTES: Partial<Record<MainToRenderer['type'], WindowRole>> = {
   ttsEnd: 'pill',
   ttsCancel: 'pill',
   pttRemote: 'pill',
-  requestInsight: 'dashboard'
+  requestInsight: 'dashboard',
+  sensingCommand: 'dashboard'
 }
 
 export const emptyVitals = (): VitalsSnapshot => ({
@@ -48,6 +49,7 @@ export const emptyVitals = (): VitalsSnapshot => ({
   hrvRmssd: null,
   talking: false,
   blinksPerMinute: null,
+  expression: null,
   validationHint: null,
   updatedAt: 0
 })
@@ -72,7 +74,9 @@ class Hub {
     theme: 'dark',
     hotkey: 'right-ctrl',
     reasoningEffort: null,
-    consentAt: null
+    consentAt: null,
+    measureBlinks: true,
+    measureExpressions: false
   }
   status!: AppStatus
   partialTranscript = ''

@@ -3,17 +3,36 @@ import { respond } from './agent'
 import { loadConfig, llmKeyPresent } from './config'
 import { hub } from './hub'
 import { observer } from './observer'
-import { openPttSession, warmStandby, type PttSession } from './voice/stt'
+import { beginUtterance, warmVoiceSession, type VoiceSession } from './voice/stt'
 import { beginSpeech, cancelSpeech, speak, warmSpeech } from './voice/tts'
 
 /** Shorter presses are treated as accidental and never reach speech-to-text. */
 const MIN_HOLD_MS = 250
+/**
+ * Audio already captured when the keys come up is still in flight from the pill, so the
+ * endpoint waits this long; otherwise the last word ("remind me at seven") is cut off.
+ */
+const RELEASE_GRACE_MS = 200
 
-let session: PttSession | null = null
+let session: VoiceSession | null = null
+/** The press being finished: it still receives the audio that arrives during the grace period. */
+let finishing: VoiceSession | null = null
 let startedAt = 0
+/** Bumped by every new press or typed message; older turns stop when they see it change. */
+let turn = 0
+let replyAbort: AbortController | null = null
 
 export function pttActive(): boolean {
   return observer.pttActive
+}
+
+/** A new turn interrupts the old one: its speech stops and its reply stops being written. */
+function newTurn(): number {
+  turn++
+  replyAbort?.abort()
+  replyAbort = null
+  cancelSpeech()
+  return turn
 }
 
 export async function say(text: string): Promise<void> {
@@ -27,14 +46,15 @@ export function playbackIdle(): void {
   if (hub.mood === 'speaking') hub.setMood('idle')
 }
 
-/** Opens speech sessions ahead of the first press, so it does not pay for the handshake. */
+/** Opens the speech session ahead of the first press, so it does not pay for the handshake. */
 export function warmVoice(): void {
-  warmStandby()
+  warmVoiceSession()
 }
 
 export function pttStart(mode: ListenMode = 'hold'): void {
-  cancelSpeech()
-  void session?.abort()
+  newTurn()
+  // A press that never ended (a missed key-up) is dropped rather than merged into this one.
+  session?.discard()
   session = null
   observer.pttActive = true
   startedAt = Date.now()
@@ -45,7 +65,7 @@ export function pttStart(mode: ListenMode = 'hold'): void {
     hub.notify('Add ASSEMBLYAI_API_KEY to .env to talk to Hearth.')
     return
   }
-  session = openPttSession((text) => {
+  session = beginUtterance((text) => {
     hub.partialTranscript = text
     hub.changed()
   })
@@ -58,15 +78,14 @@ export function pttLock(): void {
 }
 
 export function pttAudio(chunk: Uint8Array): void {
-  session?.push(Buffer.from(chunk))
+  ;(session ?? finishing)?.push(Buffer.from(chunk))
 }
 
 /** Drops the utterance without transcribing it. */
 export function pttCancel(): void {
   observer.pttActive = false
-  const current = session
+  session?.discard()
   session = null
-  void current?.abort()
   hub.listenMode = null
   hub.partialTranscript = ''
   hub.setMood('idle')
@@ -80,20 +99,25 @@ export async function pttStop(): Promise<void> {
   observer.pttActive = false
   hub.listenMode = null
   const current = session
+  const myTurn = turn
   session = null
   if (!current) {
     hub.setMood('idle')
     return
   }
   hub.setMood('thinking')
+  finishing = current
+  await new Promise((resolve) => setTimeout(resolve, RELEASE_GRACE_MS))
+  if (finishing === current) finishing = null
   const releasedAt = Date.now()
   const text = await current.finish()
+  // Another press began while this one was being transcribed; that press owns the turn now.
+  if (myTurn !== turn) return
   const transcribeMs = Date.now() - releasedAt
   if (current.error) hub.notify(`Speech-to-text: ${current.error}`)
   hub.partialTranscript = text
   if (!text) {
     hub.setMood('idle')
-    warmStandby()
     return
   }
   await handleUserText(text, 'voice', transcribeMs)
@@ -104,6 +128,7 @@ export async function handleUserText(
   via: 'voice' | 'typed',
   transcribeMs: number | null = null
 ): Promise<void> {
+  const myTurn = via === 'typed' ? newTurn() : turn
   observer.lastUserTurnAt = Date.now()
   hub.record('ptt', `You (${via}): ${text}`)
   if (!llmKeyPresent(loadConfig())) {
@@ -115,14 +140,22 @@ export async function handleUserText(
   const started = Date.now()
   const voiced = Boolean(loadConfig().assemblyKey)
   const speech = voiced ? beginSpeech() : null
+  const abort = new AbortController()
+  replyAbort = abort
   hub.lastReply = ''
   try {
-    const reply = await respond(text, (delta) => {
-      if (hub.mood === 'thinking') hub.setMood('speaking')
-      hub.lastReply += delta
-      hub.changed()
-      speech?.push(delta)
-    })
+    const reply = await respond(
+      text,
+      (delta) => {
+        if (abort.signal.aborted) return
+        if (hub.mood === 'thinking') hub.setMood('speaking')
+        hub.lastReply += delta
+        hub.changed()
+        speech?.push(delta)
+      },
+      { abortSignal: abort.signal, onStepEnd: () => speech?.flushPending() }
+    )
+    if (myTurn !== turn) return
     hub.lastReply = reply.text
     hub.record('reply', reply.text)
     const exchange = {
@@ -143,18 +176,22 @@ export async function handleUserText(
     observer.lastUserTurnAt = Date.now()
     if (speech) {
       await speech.end()
-      hub.setExchange({
-        ...exchange,
-        timings: { ...exchange.timings, firstAudioMs: speech.firstAudioMs }
-      })
+      if (myTurn === turn)
+        hub.setExchange({
+          ...exchange,
+          timings: { ...exchange.timings, firstAudioMs: speech.firstAudioMs }
+        })
     } else {
       hub.setMood('idle')
     }
-    if (via === 'voice') warmStandby()
   } catch (err) {
+    // A newer press or message interrupted this turn; it has already taken over the mood.
+    if (abort.signal.aborted || myTurn !== turn) return
     cancelSpeech()
     void speech?.end()
     hub.notify(`Hearth could not answer: ${(err as Error).message}`)
     hub.setMood('idle')
+  } finally {
+    if (replyAbort === abort) replyAbort = null
   }
 }

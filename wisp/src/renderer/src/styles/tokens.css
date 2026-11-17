@@ -966,6 +966,13 @@ table.plain td code {
   border-color: var(--red);
   -webkit-line-clamp: 3;
 }
+/* Camera guidance from SmartSpectra, such as light or face position: advice, not an error. */
+.caption.hint {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: var(--t-sm);
+  border-color: var(--amber);
+}
 .bars {
   display: flex;
   gap: 3px;

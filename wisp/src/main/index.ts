@@ -178,6 +178,17 @@ function registerIpc(): void {
     if (!on) vitals.stop()
     else if (requireConsent()) vitals.start()
   })
+  // From the pill: the camera session lives in the dashboard window, even while it is hidden.
+  ipcMain.on('hearth:requestSensing', (_e, on: unknown) => {
+    if (on === true && !requireConsent()) return
+    if (on === true && !loadConfig().smartspectraKey) {
+      hub.notify('Add SMARTSPECTRA_API_KEY to .env to start sensing.')
+      return
+    }
+    const send = (): void => hub.send({ type: 'sensingCommand', on: on === true })
+    if (hub.window('dashboard')) send()
+    else createDashboard().webContents.once('did-finish-load', () => setTimeout(send, 500))
+  })
   ipcMain.on('hearth:metrics', (_e, buf: Uint8Array) => vitals.ingest(buf))
   ipcMain.on('hearth:validation', (_e, hint: string | null) => vitals.setValidationHint(hint))
   ipcMain.on('hearth:insight', (_e, buf: Uint8Array, requestId: number) =>

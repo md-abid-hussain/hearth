@@ -6,9 +6,9 @@ Built for the DEV.to Presage SmartSpectra challenge. Hearth is a wellness compan
 
 ## Features
 
-- **Live signals from the webcam.** The SmartSpectra SDK measures pulse, breathing rate, HRV (RMSSD), blinks, talking and presence on the device, with a confidence value for each reading.
+- **Live signals from the webcam.** The SmartSpectra SDK measures pulse, breathing rate, HRV (RMSSD), blinks, talking and presence on the device. Hearth only uses a reading once the SDK marks it stable. Start and stop sensing from the camera button on the pill or from the dashboard; the pill shows the camera's state and SmartSpectra's guidance, such as "not enough light".
 - **Presage Insights.** Presage's vitals model writes plain-language insights about the session. Hearth can also ask it a question when you want to know how you're doing.
-- **Push-to-talk voice.** Hold the talk keys, speak, and let go. AssemblyAI streams the transcript, the model answers, and AssemblyAI voices the reply.
+- **Push-to-talk voice.** Hold the talk keys, speak, and let go. AssemblyAI streams the transcript with its voice-agent model (`assemblyai-stt-3-7-realtime-agent`) in `manual` mode, which ends a turn only when you release, so the final transcript arrives about 0.2 s later. The model answers, and AssemblyAI voices each sentence as soon as it is written. Pressing the talk keys while Hearth speaks stops it at once.
 - **A considerate observer.** Hearth suggests a break after long sitting, and a slower breath when your pulse rises above your own session baseline or your breathing runs quick. It also speaks reminders when they come due. It stays silent for the first 5 minutes of a session, waits at least 15 minutes between nudges, allows 3 an hour at most, and never speaks first in quiet mode. The Timeline records every time it held back, and why.
 - **Memory and reminders.** Hearth keeps a rolling summary of your conversations and pins facts you ask it to remember. It can set spoken reminders and cancel them.
 - **Read-only connectors.** MCP servers such as Notion, Linear, Atlassian, Todoist, GitHub, Sentry, Vercel and Linkup, plus your own. A gate exposes only tools that cannot write. Gmail, Google Calendar and Google Drive, and Composio's wider app catalog, come through a read-only Composio session.
@@ -16,7 +16,7 @@ Built for the DEV.to Presage SmartSpectra challenge. Hearth is a wellness compan
 
 ## How SmartSpectra and Presage Insights are used
 
-- The dashboard window captures the camera at 640x480 and runs a `SmartSpectraSDK` session from `@smartspectra/node-sdk/renderer`. It requests the breathing, cardio and face metrics. The main process does the processing through `bindSmartSpectraIpc` (`src/renderer/src/lib/sensing.ts`).
+- The dashboard window captures the camera at 640x480 and runs a `SmartSpectraSDK` session from `@smartspectra/node-sdk/renderer`. It requests the breathing and cardio metrics, blink and talking detection, and facial expressions only if you switch them on in Privacy (off by default). Nothing else from the face bundle is requested. The main process does the processing through `bindSmartSpectraIpc` (`src/renderer/src/lib/sensing.ts`).
 - Metric packets go to the main process (`src/main/vitals.ts`). There they become the live snapshot, 5-minute averages, session baselines and the history for the charts. The orb's breathing animation follows your measured breathing rate.
 - Presage Insights arrive as protobuf `Insight` buffers. The Node SDK ships no decoder for them, so Hearth decodes them with `protobufjs` using the schema from the SmartSpectra docs (`src/main/insights.ts`). Each insight is saved locally. When an LLM key is set, the configured model also turns the insight into structured fields: a headline, metrics, observations and suggestions.
 - The agent (`src/main/agent.ts`) has these tools for the signals:
@@ -110,14 +110,15 @@ Hearth shows a consent screen the first time you open it, before the camera or m
 What the consent screen says, and what the code does:
 
 - **Video stays on this device.** The SmartSpectra SDK processes camera frames locally. Frames are never stored or sent.
-- **Derived numbers go to Presage.** Pulse, breathing and HRV values go to Presage to write insights and to answer your questions about them.
+- **Derived numbers go to Presage.** When sensing starts, the SDK checks the API key with Presage. While it runs, the SDK sends your pulse, HRV and breathing values to Presage about once a minute (after warm-up), and Presage's language model writes a wellness insight from them. When you ask Hearth how you are doing, your question goes along too. Session and request IDs are included. Video and facial images are never sent ([SmartSpectra LLM Insights](https://smartspectra.presagetech.com/docs/llm-insights)).
+- **Facial expressions are off by default.** If you switch them on in Privacy, the SDK estimates expressions on this computer. Hearth keeps only the most likely one in the live signals and never sends it to the language model.
 - **Your voice goes to AssemblyAI** only while you hold the talk keys or the orb, or in hands-free mode until you send. AssemblyAI also turns Hearth's replies into speech.
-- **Your words go to the language model.** What you say or type goes to the provider in `LLM_PROVIDER`, along with a short summary of your signals, your memory and your reminders. Nudge lines and insight structuring use the same provider.
+- **Your words go to the language model.** What you say or type goes to the provider in `LLM_PROVIDER`, along with a short summary of your signals, your memory and your reminders. Nudge lines use the same provider, and each Presage insight is sent to it once to be laid out as headline, metrics and suggestions.
 - **Connectors are read-only.** Hearth sees only the services you sign into, and it can only use their read tools.
 - **Google apps go through Composio.** If you sign in to Gmail, Calendar or Drive, Composio stores that Google sign-in on its servers and relays the data Hearth reads. If Instant Toolkits are on in your Composio project, Composio's paid web tools use your Composio credits.
 - **Everything else stays local.** Settings, memory, reminders, insights, the last exchange and the event log are saved in `%APPDATA%\hearth\hearth-data`. Connector tokens and keys are saved there too, encrypted.
 - **Deletion.** **Privacy > Delete all local data** removes that folder, including your consent. That clears memory, reminders, insights and logs, and signs you out of every connector. It also asks Composio to delete this install's Google connections and its session.
-- **SDK telemetry** is off by default. It never includes frames or vitals, and you can switch it on in Privacy.
+- **SDK telemetry** is off by default (the SDK's own default is on). If you switch it on in Privacy, the SDK sends measurement-session summaries and device readiness reports: device model, OS version, frame rates, warning counts and error codes. They are tied to the API key, so they are not anonymous, and Presage sets no fixed retention period for them. Telemetry never includes video frames or vital-sign values ([Telemetry and Privacy](https://smartspectra.presagetech.com/docs/telemetry-and-privacy)).
 - **Retention.** Data stays until you delete it. There are no servers or accounts beyond the providers above, Composio included.
 
 ## Wellness disclaimer

@@ -69,10 +69,12 @@ function builtinTools(): ToolSet {
         question: z.string().describe('A short question about the measured vitals')
       }),
       execute: async ({ question }) => {
+        const unavailable = insights.unavailableReason()
+        if (unavailable) return { answer: null, note: unavailable }
         const answer = await insights.request(question)
         return answer
           ? { answer: answer.text }
-          : { answer: null, note: 'No insight available (sensing off or timed out).' }
+          : { answer: null, note: 'Presage did not answer in time. Try again in a moment.' }
       }
     }),
     recent_insights: tool({
@@ -156,7 +158,25 @@ export interface Reply {
  * Runs one user turn through the tool loop, streaming reply text to `onText` as the
  * model writes it so speech can start before the reply is complete.
  */
-export async function respond(userText: string, onText: (delta: string) => void): Promise<Reply> {
+export interface RespondOptions {
+  /** Aborted when the user starts a new turn, so a stale answer is not finished or remembered. */
+  abortSignal?: AbortSignal
+  /** Called when the model finishes a step, such as just before it runs a tool. */
+  onStepEnd?: () => void
+}
+
+/** Thrown when the turn was superseded by a newer one. */
+export class TurnAborted extends Error {
+  constructor() {
+    super('The turn was interrupted')
+  }
+}
+
+export async function respond(
+  userText: string,
+  onText: (delta: string) => void,
+  options: RespondOptions = {}
+): Promise<Reply> {
   const history: ModelMessage[] = memory
     .recentTurns()
     .map((t) => ({ role: t.role, content: t.text }))
@@ -173,6 +193,7 @@ export async function respond(userText: string, onText: (delta: string) => void)
     tools: { ...builtinTools(), ...mcp.toolset(), ...composio.toolset() },
     stopWhen: isStepCount(MAX_STEPS),
     maxRetries: 1,
+    abortSignal: options.abortSignal,
     providerOptions: providerOptions(),
     onToolExecutionStart: ({ toolCall }) => {
       tools.push(toolCall.toolName)
@@ -183,9 +204,13 @@ export async function respond(userText: string, onText: (delta: string) => void)
 
   let newStep = false
   for await (const part of result.fullStream) {
+    if (options.abortSignal?.aborted) break
     if (part.type === 'error')
       throw part.error instanceof Error ? part.error : new Error(String(part.error))
-    if (part.type === 'finish-step') newStep = true
+    if (part.type === 'finish-step') {
+      newStep = true
+      options.onStepEnd?.()
+    }
     if (part.type !== 'text-delta' || !part.text) continue
     // Text written either side of a tool call must stay separate words when spoken.
     const delta = newStep && /\S$/.test(text) && /^\S/.test(part.text) ? ` ${part.text}` : part.text
@@ -195,6 +220,10 @@ export async function respond(userText: string, onText: (delta: string) => void)
     onText(delta)
   }
 
+  if (options.abortSignal?.aborted) {
+    if (text.trim()) memory.add('assistant', `${text.trim()} (interrupted)`)
+    throw new TurnAborted()
+  }
   const usage = await result.totalUsage
   const reply = text.trim()
   if (!reply) onText(LOST_THOUGHT)

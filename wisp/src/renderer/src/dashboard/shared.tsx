@@ -120,7 +120,7 @@ export function SensingButton({
     setBusy(true)
     try {
       if (on) await sensing.stop()
-      else await sensing.start(state.settings.telemetry)
+      else await sensing.start()
     } catch (err) {
       notifications.show({
         color: 'red',
@@ -170,7 +170,7 @@ export function CameraPicker({ state }: { state: HearthState }): React.JSX.Eleme
     setBusy(true)
     try {
       await sensing.stop()
-      await sensing.start(state.settings.telemetry)
+      await sensing.start()
     } catch (err) {
       notifications.show({
         color: 'red',

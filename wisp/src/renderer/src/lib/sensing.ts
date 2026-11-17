@@ -1,13 +1,33 @@
 import {
+  MetricType,
   ProcessingStatus,
   SmartSpectraErrorCode,
   SmartSpectraSDK,
   ValidationCode,
   breathingMetrics,
-  cardioMetrics,
-  faceMetrics
+  cardioMetrics
 } from '@smartspectra/node-sdk/renderer'
+import type { Settings } from '@shared/types'
 import { reviewConsent } from './consent'
+
+/**
+ * Only what Hearth uses: breathing and cardio always, blink and talk detection and facial
+ * expressions when switched on in Privacy. The full face bundle would also compute 478
+ * landmarks per frame that nothing reads.
+ */
+function requestedMetrics(settings: Settings): number[] {
+  const metrics: number[] = [...breathingMetrics, ...cardioMetrics]
+  if (settings.measureBlinks) metrics.push(MetricType.BLINKING, MetricType.TALKING)
+  if (settings.measureExpressions) metrics.push(MetricType.EXPRESSIONS)
+  return metrics
+}
+
+/** Errors that end a running session even when the SDK does not report kError. */
+const FATAL_WHILE_RUNNING = new Set<number>([
+  SmartSpectraErrorCode.kInputUnavailable,
+  SmartSpectraErrorCode.kProcessingFailed,
+  SmartSpectraErrorCode.kSustainedLowFrameRate
+])
 
 type StreamListener = (stream: MediaStream | null) => void
 
@@ -111,7 +131,12 @@ async function restoreAutoModes(track: MediaStreamTrack): Promise<void> {
   const set: Record<string, unknown> = {}
   if (caps.exposureMode?.includes('continuous')) set.exposureMode = 'continuous'
   if (caps.whiteBalanceMode?.includes('continuous')) set.whiteBalanceMode = 'continuous'
-  if (caps.exposureCompensation) set.exposureCompensation = caps.exposureCompensation.min
+  // Neutral (0) when the camera allows it; the minimum would darken the image, and SmartSpectra
+  // needs a well-lit face.
+  if (caps.exposureCompensation) {
+    const { min, max } = caps.exposureCompensation
+    set.exposureCompensation = min <= 0 && max >= 0 ? 0 : (min + max) / 2
+  }
   if (caps.brightness) set.brightness = Math.round((caps.brightness.min + caps.brightness.max) / 2)
   if (!Object.keys(set).length) return
   try {
@@ -184,11 +209,11 @@ class Sensing {
     this.listeners.forEach((l) => l(stream))
   }
 
-  private create(apiKey: string, telemetry: boolean): SmartSpectraSDK {
+  private create(apiKey: string, settings: Settings): SmartSpectraSDK {
     const sdk = new SmartSpectraSDK({
       apiKey,
-      requestedMetrics: [...breathingMetrics, ...cardioMetrics, ...faceMetrics],
-      enableTelemetry: telemetry
+      requestedMetrics: requestedMetrics(settings),
+      enableTelemetry: settings.telemetry
     })
     sdk.on('metrics', (buf) => window.hearth.pushMetrics(buf))
     sdk.on('insight', (buf, requestId) => window.hearth.pushInsight(buf, requestId))
@@ -206,12 +231,13 @@ class Sensing {
       if (code === SmartSpectraErrorCode.kInvalidState || this.sdk !== sdk) return
       this.lastError = toSensingError({ code, message, retryable })
       window.hearth.reportSdkError(this.lastError.message, false)
+      if (this.running && FATAL_WHILE_RUNNING.has(code)) void this.fail(sdk)
     })
     return sdk
   }
 
   /** One attempt. Per the SDK docs a retryable failure is the user's to retry, never automatic. */
-  async start(telemetry: boolean): Promise<void> {
+  async start(): Promise<void> {
     if (this.running || this.sdk) return
     const { settings } = await window.hearth.getState()
     if (settings.consentAt == null) {
@@ -220,19 +246,35 @@ class Sensing {
     }
     const apiKey = await window.hearth.getSmartSpectraKey()
     if (!apiKey) throw new SensingError('SMARTSPECTRA_API_KEY is not set in .env.', null, false)
+    if (this.running || this.sdk) return
 
     this.lastError = null
-    const sdk = this.create(apiKey, telemetry)
+    const sdk = this.create(apiKey, settings)
     this.sdk = sdk
+    // stop() can land during any await below; it clears this.sdk, and start() must not carry on.
+    const stopped = (): boolean => this.sdk !== sdk
     try {
       const camera = await openCamera()
+      if (stopped()) {
+        stopTracks(camera)
+        return
+      }
       await restoreAutoModes(camera.getVideoTracks()[0])
       this.setStream(camera)
+      // A camera that disconnects (a phone over Phone Link, a USB cable) just stops sending frames.
+      camera.getVideoTracks()[0]?.addEventListener('ended', () => {
+        if (this.sdk === sdk && this.running) {
+          this.lastError = new SensingError('The camera disconnected.', null, true)
+          void this.fail(sdk)
+        }
+      })
       sdk.useMediaStream(camera)
       await sdk.start()
+      if (stopped()) return
       this.running = true
       window.hearth.setSensing(true)
     } catch (err) {
+      if (stopped()) return
       await this.teardown(sdk)
       throw toSensingError(err)
     }

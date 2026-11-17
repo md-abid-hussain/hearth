@@ -19,6 +19,11 @@ export interface VitalsSnapshot {
   hrvRmssd: number | null
   talking: boolean
   blinksPerMinute: number | null
+  /**
+   * The most likely facial expression, only when Settings.measureExpressions is on. Kept for the
+   * orb and the dashboard; never sent to the language model.
+   */
+  expression: { label: string; confidence: number } | null
   validationHint: string | null
   updatedAt: number
 }
@@ -180,6 +185,10 @@ export interface Settings {
   reasoningEffort: ReasoningEffort | null
   /** When the user accepted the first-run consent; null until then, and the camera and mic stay off. */
   consentAt: number | null
+  /** Ask SmartSpectra for blink and talking detection. Applies the next time sensing starts. */
+  measureBlinks: boolean
+  /** Ask SmartSpectra for facial expression estimates. Off by default; applies the next time sensing starts. */
+  measureExpressions: boolean
 }
 
 export interface HearthState {
@@ -211,4 +220,6 @@ export type MainToRenderer =
   | { type: 'ttsEnd' }
   | { type: 'ttsCancel' }
   | { type: 'requestInsight'; token: string; prompt: string }
+  /** Start or stop the camera session, which lives in the dashboard window. */
+  | { type: 'sensingCommand'; on: boolean }
   | { type: 'pttRemote'; on: boolean; discard?: boolean }

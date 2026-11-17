@@ -6,6 +6,8 @@ export interface HearthApi {
   getSmartSpectraKey(): Promise<string>
 
   setSensing(on: boolean): void
+  /** Asks the dashboard window, which owns the camera session, to start or stop sensing. */
+  requestSensing(on: boolean): void
   pushMetrics(buf: Uint8Array): void
   pushValidation(hint: string | null): void
   pushInsight(buf: Uint8Array, requestId: number): void

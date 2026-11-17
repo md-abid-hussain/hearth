@@ -49,7 +49,9 @@ class Player {
     this.maybeIdle()
   }
 
+  /** Every new reply starts with a cancel, so only report idle when something was playing. */
   cancel(): void {
+    const wasPlaying = this.sources.size > 0 || !this.streamEnded
     this.sources.forEach((s) => {
       s.onended = null
       s.stop()
@@ -57,7 +59,7 @@ class Player {
     this.sources.clear()
     this.playhead = 0
     this.streamEnded = true
-    window.hearth.playbackIdle()
+    if (wasPlaying) window.hearth.playbackIdle()
   }
 
   level(): number {

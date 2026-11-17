@@ -35,9 +35,22 @@ function handle(msg: MainToRenderer): void {
     case 'requestInsight':
       void sensing.requestInsight(msg.token, msg.prompt)
       break
+    case 'sensingCommand':
+      void runSensingCommand(msg.on)
+      break
     case 'pttRemote':
       remotePtt.forEach((l) => l(msg.on))
       break
+  }
+}
+
+/** Sensing started or stopped from the pill; failures go back to the pill as a notice. */
+async function runSensingCommand(on: boolean): Promise<void> {
+  try {
+    if (on) await sensing.start()
+    else await sensing.stop()
+  } catch (err) {
+    window.hearth.reportSdkError(`Sensing could not start. ${(err as Error).message}`, true)
   }
 }
 
@@ -53,7 +66,10 @@ export async function connectStore(): Promise<void> {
   // The renderer is only useful inside Electron; a plain browser tab on the dev URL has no bridge.
   if (!window.hearth) return
   window.hearth.onEvent(handle)
-  const [initial, points] = await Promise.all([window.hearth.getState(), window.hearth.getHistory()])
+  const [initial, points] = await Promise.all([
+    window.hearth.getState(),
+    window.hearth.getHistory()
+  ])
   state = initial
   history = points
   emit()

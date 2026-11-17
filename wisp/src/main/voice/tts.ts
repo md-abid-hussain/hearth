@@ -65,6 +65,8 @@ export function warmSpeech(): void {
 export interface SpeechStream {
   /** Appends reply text as it is written; texts are joined exactly as sent. */
   push(text: string): void
+  /** Speaks whatever has been written so far, for example before a tool call. */
+  flushPending(): void
   /** Concludes the reply and resolves once its audio has been forwarded. */
   end(): Promise<void>
   /** Milliseconds from start to the first audio chunk, or null if none arrived. */
@@ -72,8 +74,27 @@ export interface SpeechStream {
 }
 
 /**
- * Starts one spoken reply on the shared TTS session. Text can be pushed while the
- * session is still connecting; audio streams to the pill as soon as the API sends it.
+ * The end of the last complete sentence in `text`: . ! ? or an ellipsis, optionally closed by a
+ * quote or bracket, then whitespace. AssemblyAI treats a sentence as finished only once
+ * whitespace follows it.
+ */
+function lastSentenceEnd(text: string): number {
+  let end = -1
+  for (const match of text.matchAll(/[.!?…]["'”’)\]]*\s+/g)) end = match.index + match[0].length
+  return end
+}
+
+/** One Generate frame holds at most 2,000 characters. */
+const FRAME_CHARS = 1_800
+
+/** Stops the reply being spoken, so its audio pump does not wait forever. */
+let stopCurrent: (() => void) | null = null
+
+/**
+ * Starts one spoken reply on the shared TTS session. Text can be pushed while the session is
+ * still connecting. Each finished sentence becomes its own request and is flushed at once:
+ * per AssemblyAI's latency guide, an unflushed short sentence (or text written just before a
+ * tool call) would otherwise wait for more text before it is spoken.
  */
 export function beginSpeech(): SpeechStream {
   cancelSpeech()
@@ -82,38 +103,92 @@ export function beginSpeech(): SpeechStream {
   let firstAudioMs: number | null = null
   let tts: TextToSpeechSession | null = null
   let reader: Promise<void> = Promise.resolve()
-  const held: string[] = []
+  let buffered = ''
+  let finished = false
+  let failed = false
+  const requests: number[] = []
+  let wake: (() => void) | null = null
+  const nudge = (): void => {
+    const w = wake
+    wake = null
+    w?.()
+  }
+  stopCurrent = nudge
   if (idleTimer) clearTimeout(idleTimer)
 
+  /** Sends text as one request and flushes it; a failure leaves the reply as text only. */
+  const sendRequest = (text: string): void => {
+    if (!tts || failed || !text.trim()) return
+    try {
+      for (let i = 0; i < text.length; i += FRAME_CHARS)
+        tts.generate(text.slice(i, i + FRAME_CHARS))
+      requests.push(tts.flush())
+    } catch (err) {
+      failed = true
+      hub.record('error', `Text-to-speech: ${describeVoiceError(err)}`)
+    }
+    nudge()
+  }
+
+  /** Sends every complete sentence written so far, keeping the unfinished rest. */
+  const sendSentences = (): void => {
+    const end = lastSentenceEnd(buffered)
+    if (end <= 0) return
+    sendRequest(buffered.slice(0, end))
+    buffered = buffered.slice(end)
+  }
+
+  const flushAll = (): void => {
+    sendRequest(buffered)
+    buffered = ''
+  }
+
+  /** Reads each request's audio in order until the reply ends or is cancelled. */
   const pump = async (s: TextToSpeechSession): Promise<void> => {
     speaking = true
     hub.send({ type: 'ttsStart' })
-    for await (const pcm of s.audio()) {
-      if (mine !== generation) break
-      firstAudioMs ??= Date.now() - startedAt
-      hub.send({ type: 'ttsAudio', pcm })
+    for (;;) {
+      if (mine !== generation || failed) return
+      const id = requests.shift()
+      if (id === undefined) {
+        if (finished) return
+        await new Promise<void>((resolve) => (wake = resolve))
+        continue
+      }
+      for await (const pcm of s.audio(id)) {
+        if (mine !== generation) return
+        firstAudioMs ??= Date.now() - startedAt
+        hub.send({ type: 'ttsAudio', pcm })
+      }
     }
   }
 
   const ready = openSession().then((s) => {
     if (mine !== generation) return
     tts = s
-    reader = pump(s)
-    held.forEach((text) => s.generate(text))
-    held.length = 0
+    reader = pump(s).catch((err) => {
+      if (mine === generation) hub.record('error', `Text-to-speech: ${describeVoiceError(err)}`)
+    })
+    sendSentences()
   })
+  ready.catch(() => undefined)
 
   return {
     push(text) {
       if (mine !== generation || !text) return
-      if (tts) tts.generate(text)
-      else held.push(text)
+      buffered += text
+      sendSentences()
+    },
+    flushPending() {
+      if (mine === generation) flushAll()
     },
     async end() {
       try {
         await ready
         if (mine !== generation || !tts) return
-        tts.flush()
+        flushAll()
+        finished = true
+        nudge()
         await reader
       } catch (err) {
         if (mine === generation) hub.record('error', `Text-to-speech: ${describeVoiceError(err)}`)
@@ -139,15 +214,22 @@ export async function speak(text: string): Promise<void> {
   await speech.end()
 }
 
-/** Barge-in: stops the reply in flight and keeps the session open for the next one. */
+/**
+ * Barge-in: stops the reply in flight and keeps the session open for the next one. The pill is
+ * told to stop playback even after all audio has arrived, because synthesis runs well ahead of
+ * playback and FlushDone lands long before the last words are heard.
+ */
 export function cancelSpeech(): void {
   generation++
-  if (!speaking) return
-  speaking = false
-  try {
-    session?.cancel()
-  } catch {
-    // The session already ended; there is nothing to cancel.
+  stopCurrent?.()
+  stopCurrent = null
+  if (speaking) {
+    speaking = false
+    try {
+      session?.cancel()
+    } catch {
+      // The session already ended; there is nothing to cancel.
+    }
   }
   hub.send({ type: 'ttsCancel' })
 }

@@ -55,7 +55,7 @@ function useHeadline(
   }
   if (breathing.recent)
     facts.push(
-      breathing.recent >= 20 ? 'Breathing has been on the quick side.' : 'Breathing looks calm.'
+      breathing.recent >= 20 ? 'Breathing has been on the quick side.' : 'Breathing looks steady.'
     )
   if (sitting != null)
     facts.push(`You have been at the desk ${durationLabel(sitting)} since your last break.`)
@@ -287,7 +287,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
               vitals.breathing
                 ? vitals.breathing >= 20
                   ? 'on the quick side'
-                  : 'calm'
+                  : 'steady'
                 : 'waiting for a stable reading'
             }
             confidence={vitals.breathingConfidence}
@@ -343,7 +343,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
               <div className="mark">&ldquo;</div>
               <h3>{insight.structured?.headline || preview(insight.text, 220)}</h3>
               <div className="quote-foot">
-                <span className="label">{clock(insight.at)}, from your numbers only</span>
+                <span className="label">{clock(insight.at)}, {insight.onDemand ? 'from your numbers and question' : 'from your numbers'}</span>
                 <span className="chip">{insight.onDemand ? 'asked by Hearth' : 'automatic'}</span>
               </div>
             </div>

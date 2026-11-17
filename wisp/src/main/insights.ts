@@ -8,7 +8,10 @@ import { getModel, providerOptions } from './llm'
 import { appendJsonl, newId, readJsonl } from './store'
 
 const FILE = 'insights.jsonl'
-const ON_DEMAND_TIMEOUT_MS = 30_000
+/** Presage reports transport failures after about 30 seconds, so wait a little longer than that. */
+const ON_DEMAND_TIMEOUT_MS = 40_000
+/** SmartSpectra caps insight prompts at 2048 bytes; leave room for multi-byte characters. */
+const PROMPT_MAX_BYTES = 1_800
 
 const STRUCTURE_SYSTEM = `You turn a wellness insight written in markdown into structured fields.
 Extract only what the text says. Never invent, estimate, convert or round numbers; copy each value exactly as written, with its unit. If the text gives no metrics, return an empty metrics list.
@@ -118,9 +121,21 @@ class Insights {
     }
   }
 
+  /**
+   * Why an on-demand question cannot go to Presage yet. Before pulse is stable (about 15 seconds
+   * in) the SDK would send the question without any measurements.
+   */
+  unavailableReason(): string | null {
+    if (!hub.vitals.sensing) return 'Sensing is off, so Presage has no measurements to read.'
+    if (hub.vitals.pulse == null) return 'Sensing is still warming up; pulse is not stable yet.'
+    return null
+  }
+
   /** Asks the renderer-side SDK to dispatch a prompt; resolves with the matching insight or null. */
-  request(prompt: string): Promise<InsightEntry | null> {
-    if (!hub.vitals.sensing) return Promise.resolve(null)
+  request(question: string): Promise<InsightEntry | null> {
+    if (this.unavailableReason()) return Promise.resolve(null)
+    let prompt = question
+    while (Buffer.byteLength(prompt, 'utf8') > PROMPT_MAX_BYTES) prompt = prompt.slice(0, -50)
     const token = newId()
     return new Promise((resolve) => {
       const timer = setTimeout(() => {

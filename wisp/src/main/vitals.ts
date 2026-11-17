@@ -7,6 +7,28 @@ const HISTORY_MS = 60 * 60_000
 const PRESENCE_TIMEOUT_MS = 20_000
 const BREAK_AWAY_MS = 3 * 60_000
 const TALKING_WINDOW_MS = 8_000
+/** Breathing rate is not measured reliably while talking, so it waits this long after speech. */
+const BREATHING_AFTER_TALK_MS = 20_000
+/** A value not refreshed for this long is left out of the history instead of being repeated. */
+const STALE_MS = 6_000
+
+/**
+ * Confidence floors behind the SDK's `stable` flag (SmartSpectra data types: pulse 40,
+ * breathing 45, HRV 50). Used only when a packet carries no `stable` flag.
+ */
+const STABLE_AT = { pulse: 40, breathing: 45, hrv: 50 } as const
+
+/** ExpressionType values from the SmartSpectra protobuf schema. */
+const EXPRESSIONS: Record<number, string> = {
+  1: 'angry',
+  2: 'contempt',
+  3: 'disgust',
+  4: 'fear',
+  5: 'happy',
+  6: 'neutral',
+  7: 'sad',
+  8: 'surprise'
+}
 
 interface Measured {
   value?: number | null
@@ -17,6 +39,10 @@ interface Measured {
 const lastOf = <T>(list: T[] | null | undefined): T | undefined =>
   list && list.length ? list[list.length - 1] : undefined
 
+/** Readings before the SDK's analysis window fills are not trustworthy, so they are skipped. */
+const isStable = (m: Measured | undefined, floor: number): boolean =>
+  m?.stable === true || (m?.stable == null && (m?.confidence ?? 0) >= floor)
+
 class VitalsTracker {
   history: VitalsPoint[] = []
   private lastPointAt = 0
@@ -26,12 +52,21 @@ class VitalsTracker {
   private blinkTimes: number[] = []
   private lastBlinkState = false
   private presenceTimer: NodeJS.Timeout | null = null
+  private updated = { pulse: 0, breathing: 0, hrv: 0 }
 
   start(): void {
     const now = Date.now()
-    hub.vitals = { ...emptyVitals(), sensing: true, sessionStartedAt: now, sittingSince: now, updatedAt: now }
+    hub.vitals = {
+      ...emptyVitals(),
+      sensing: true,
+      sessionStartedAt: now,
+      sittingSince: now,
+      updatedAt: now
+    }
     this.history = []
     this.awaySince = null
+    this.updated = { pulse: 0, breathing: 0, hrv: 0 }
+    this.lastTalkingAt = 0
     hub.record('session', 'Sensing started')
     if (!this.presenceTimer) this.presenceTimer = setInterval(() => this.checkPresence(), 5_000)
   }
@@ -55,22 +90,39 @@ class VitalsTracker {
     const m = decodeMetrics(buf)
     const v = { ...hub.vitals }
 
+    // Talking first: breathing below is skipped while the user speaks or holds the talk keys.
+    const talking = lastOf(m.face?.talking)
+    if (talking?.detected || hub.listenMode) this.lastTalkingAt = now
+    v.talking = now - this.lastTalkingAt < TALKING_WINDOW_MS
+
     const pulse = lastOf(m.cardio?.pulseRate as Measured[] | undefined)
-    if (pulse?.value) {
+    if (pulse?.value && isStable(pulse, STABLE_AT.pulse)) {
       v.pulse = pulse.value
       v.pulseConfidence = pulse.confidence ?? null
+      this.updated.pulse = now
     }
     const breathing = lastOf(m.breathing?.rate as Measured[] | undefined)
-    if (breathing?.value) {
+    const recentlyTalked =
+      this.lastTalkingAt > 0 && now - this.lastTalkingAt < BREATHING_AFTER_TALK_MS
+    if (breathing?.value && isStable(breathing, STABLE_AT.breathing) && !recentlyTalked) {
       v.breathing = breathing.value
       v.breathingConfidence = breathing.confidence ?? null
+      this.updated.breathing = now
     }
     const hrv = lastOf(m.cardio?.hrv)
-    if (hrv?.rmssd) v.hrvRmssd = hrv.rmssd
+    if (hrv?.rmssd && isStable(hrv, STABLE_AT.hrv)) {
+      v.hrvRmssd = hrv.rmssd
+      this.updated.hrv = now
+    }
 
-    const talking = lastOf(m.face?.talking)
-    if (talking?.detected) this.lastTalkingAt = now
-    v.talking = now - this.lastTalkingAt < TALKING_WINDOW_MS
+    const expression = lastOf(m.face?.expression)
+    if (expression?.stable && expression.scores?.length) {
+      const top = [...expression.scores].sort(
+        (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
+      )[0]
+      const label = EXPRESSIONS[top.type ?? 0]
+      v.expression = label ? { label, confidence: top.confidence ?? 0 } : null
+    }
 
     const blink = lastOf(m.face?.blinking)
     if (blink) {
@@ -93,7 +145,14 @@ class VitalsTracker {
 
     if (now - this.lastPointAt >= POINT_INTERVAL_MS) {
       this.lastPointAt = now
-      const point: VitalsPoint = { t: now, pulse: v.pulse, breathing: v.breathing, hrv: v.hrvRmssd }
+      const fresh = (key: 'pulse' | 'breathing' | 'hrv', value: number | null): number | null =>
+        now - this.updated[key] < STALE_MS ? value : null
+      const point: VitalsPoint = {
+        t: now,
+        pulse: fresh('pulse', v.pulse),
+        breathing: fresh('breathing', v.breathing),
+        hrv: fresh('hrv', v.hrvRmssd)
+      }
       this.history.push(point)
       const cutoff = now - HISTORY_MS
       while (this.history.length && this.history[0].t < cutoff) this.history.shift()
