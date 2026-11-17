@@ -4,6 +4,24 @@
   "type": "module",
   "description": "Tools to record and edit the Hearth demo video",
   "dependencies": {
-    "ffmpeg-static": "^5.3.0"
+    "@remotion/cli": "4.0.544",
+    "@remotion/google-fonts": "4.0.544",
+    "@remotion/media-utils": "4.0.544",
+    "@remotion/shapes": "4.0.544",
+    "ffmpeg-static": "^5.3.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "remotion": "4.0.544"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "studio": "remotion studio video/index.ts",
+    "render": "remotion render video/index.ts",
+    "still": "remotion still video/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "record": "node tools/record.mjs"
   }
 }
