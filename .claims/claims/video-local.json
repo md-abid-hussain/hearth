@@ -1,0 +1,49 @@
+{
+  "id": "video-local",
+  "desc": "Camera frames are processed on the user's computer by the SmartSpectra SDK and are never stored or sent anywhere.",
+  "keywords": [
+    "video",
+    "frames",
+    "never leave",
+    "locally",
+    "on this computer"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Camera frames are processed on the user's computer by the SmartSpectra SDK and are never stored or sent anywhere.",
+      "at": "2026-11-18T15:01:30.175Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "what it does",
+      "anchor": "Camera frames never leave the device.",
+      "line": 13
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "src/renderer/src/components/Consent.tsx",
+      "rev": 1,
+      "note": "consent screen",
+      "anchor": "camera frames are processed locally by the SmartSpectra SDK, never stored or sent",
+      "line": 9
+    },
+    {
+      "id": "m3",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet",
+      "anchor": "The SmartSpectra SDK processes camera frames locally. Frames are never stored or sent.",
+      "line": 13
+    }
+  ],
+  "next": 4
+}

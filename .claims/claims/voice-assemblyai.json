@@ -1,0 +1,49 @@
+{
+  "id": "voice-assemblyai",
+  "desc": "The user's voice goes to AssemblyAI only while they are talking to Hearth: holding the talk key or the face, or in hands-free mode until they send.",
+  "keywords": [
+    "voice",
+    "assemblyai",
+    "talk key",
+    "hands-free",
+    "hold to talk"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "The user's voice goes to AssemblyAI only while they are talking to Hearth: holding the talk key or the face, or in hands-free mode until they send.",
+      "at": "2026-11-18T15:01:32.239Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet",
+      "anchor": "only while you hold the talk key or are in hands-free mode",
+      "line": 16
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "src/renderer/src/components/Consent.tsx",
+      "rev": 1,
+      "note": "consent screen",
+      "anchor": "only while you hold the talk keys or the orb, or in hands-free until you send",
+      "line": 24
+    },
+    {
+      "id": "m3",
+      "kind": "text",
+      "path": "src/renderer/src/dashboard/pages/Privacy.tsx",
+      "rev": 1,
+      "note": "Privacy page",
+      "anchor": "streamed to AssemblyAI only while you hold the talk key or the face, or in hands-free until you send",
+      "line": 155
+    }
+  ],
+  "next": 4
+}

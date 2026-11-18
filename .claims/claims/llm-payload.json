@@ -1,0 +1,53 @@
+{
+  "id": "llm-payload",
+  "desc": "The language model receives the user's words plus a short summary of signals, memory, reminders and the latest insight, and whatever Hearth reads from connected apps to answer them; expressions are never included.",
+  "keywords": [
+    "language model",
+    "summary",
+    "memory",
+    "reminders",
+    "llm provider",
+    "your words"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "The language model receives the user's words plus a short summary of signals, memory, reminders and the latest insight, and whatever Hearth reads from connected apps to answer them; expressions are never included.",
+      "at": "2026-11-18T15:01:29.892Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet",
+      "anchor": "It receives what you say or type, plus a short summary of your signals, memory and reminders, the latest Presage insight, and whatever Hearth reads from your apps to answer you.",
+      "line": 17
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "src/renderer/src/dashboard/pages/Privacy.tsx",
+      "rev": 1,
+      "note": "Privacy page, words row",
+      "anchor": "plus a summary of signals, memory, reminders and the latest insight, and app content you ask about, sent to",
+      "line": 163
+    },
+    {
+      "id": "m3",
+      "kind": "url",
+      "path": "https://dev.to/md-abid-hussain/hearth-a-desk-companion-that-looks-after-you-kindly-3oed",
+      "rev": 0,
+      "note": "CONFLICT: The published post doesn't say that text read from apps goes to the language model; paste the corrected apps row from demo/DEV-POST.publish.md. | published DEV post, consent table",
+      "ack": {
+        "sig": "a38a9f56d27a",
+        "note": "Published DEV post; the user adds the apps-row sentence from demo/DEV-POST.publish.md in the DEV editor. Clear once they confirm.",
+        "at": "2026-11-18T15:06:26.384Z"
+      }
+    }
+  ],
+  "next": 4
+}

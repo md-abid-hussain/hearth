@@ -1,0 +1,30 @@
+{
+  "id": "consent-first",
+  "desc": "The camera and microphone stay off until the user agrees on the consent screen, and the main process refuses access until then.",
+  "keywords": [
+    "consent",
+    "until you agree",
+    "camera",
+    "microphone"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "The camera and microphone stay off until the user agrees on the consent screen, and the main process refuses access until then.",
+      "at": "2026-11-18T15:01:30.867Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "what it does",
+      "anchor": "Nothing turns on the camera or microphone until you agree.",
+      "line": 18
+    }
+  ],
+  "next": 2
+}

@@ -1,0 +1,61 @@
+{
+  "id": "insights-to-llm",
+  "desc": "Each new Presage insight is sent to the language model once to be laid out as a card, and the latest insight also goes along with every question the user asks.",
+  "keywords": [
+    "insight",
+    "once",
+    "language model",
+    "laid out",
+    "latest insight"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Each new Presage insight is sent to the language model once to be laid out as a card, and the latest insight also goes along with every question the user asks.",
+      "at": "2026-11-18T15:01:29.375Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet",
+      "anchor": "Each new insight is sent once on its own, to be laid out as a card. The latest one is also included with each question you ask",
+      "line": 18
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "docs/how-it-works.md",
+      "rev": 1,
+      "note": "how it works, insights",
+      "anchor": "Each new insight is sent to the language model once, to be laid out as a headline, metrics and suggestions.",
+      "line": 18
+    },
+    {
+      "id": "m3",
+      "kind": "text",
+      "path": "src/renderer/src/components/Consent.tsx",
+      "rev": 1,
+      "note": "consent screen, model row",
+      "anchor": "plus a summary of your signals, memory and reminders, the latest Presage insight, and what Hearth reads from your apps when you ask; each new insight is also sent once to be laid out. All of it goes to the configured LLM provider",
+      "line": 29
+    },
+    {
+      "id": "m4",
+      "kind": "url",
+      "path": "https://dev.to/md-abid-hussain/hearth-a-desk-companion-that-looks-after-you-kindly-3oed",
+      "rev": 0,
+      "note": "CONFLICT: The published post still says each insight goes to the model \"once\"; paste the corrected model row from demo/DEV-POST.publish.md into the DEV editor. | published DEV post, consent table",
+      "ack": {
+        "sig": "a38a9f56d27a",
+        "note": "Published DEV post; the user pastes the corrected model row from demo/DEV-POST.publish.md in the DEV editor. Clear once they confirm.",
+        "at": "2026-11-18T15:06:26.327Z"
+      }
+    }
+  ],
+  "next": 5
+}

@@ -152,7 +152,10 @@ export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
               <span className="idx">03</span>
               <div>
                 <div className="title">Your voice</div>
-                <div className="sub">streamed to AssemblyAI only while you hold to talk</div>
+                <div className="sub">
+                  streamed to AssemblyAI only while you hold the talk key or the face, or in
+                  hands-free until you send
+                </div>
               </div>
               <span className="chip">assemblyai</span>
             </div>
@@ -160,7 +163,10 @@ export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
               <span className="idx">04</span>
               <div>
                 <div className="title">Your words</div>
-                <div className="sub">plus a short signal summary, sent to {status.llmModel}</div>
+                <div className="sub">
+                  plus a summary of signals, memory, reminders and the latest insight, and app
+                  content you ask about, sent to {status.llmModel}
+                </div>
               </div>
               <span className="chip">{status.llmProvider}</span>
             </div>

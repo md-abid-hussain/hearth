@@ -14,7 +14,7 @@ Built for the DEV.to Presage SmartSpectra challenge. A wellness companion, not a
 - **Talks by voice.** Hold Right Ctrl (Right Option on a Mac), ask, let go. Hearth answers out loud.
 - **Knows when to stay quiet.** Breaks, breathing nudges and reminders (once, or repeating up to 10 times), with a warm-up, cooldowns and an hourly limit.
 - **Checks in for you.** Say "keep an eye on my eye strain every 10 minutes". Hearth re-reads the signal and only speaks when something is off.
-- **Reads your apps, never writes.** Calendar, Gmail, Notion, Linear and more, through read-only connectors.
+- **Reads your apps, never writes.** Calendar, Gmail, Notion, Linear and more. Hearth blocks any app tool that isn't clearly read-only.
 - **Asks first.** Nothing turns on the camera or microphone until you agree.
 
 ## Quick start

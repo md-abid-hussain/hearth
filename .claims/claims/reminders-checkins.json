@@ -1,0 +1,40 @@
+{
+  "id": "reminders-checkins",
+  "desc": "Reminders fire once or repeat up to ten times; up to three check-ins run at once, each for 2 hours unless asked otherwise (at most 4 hours and 24 checks), and none survive a restart.",
+  "keywords": [
+    "reminder",
+    "ten times",
+    "check-in",
+    "2 hours",
+    "repeating"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Reminders fire once or repeat up to ten times; up to three check-ins run at once, each for 2 hours unless asked otherwise (at most 4 hours and 24 checks), and none survive a restart.",
+      "at": "2026-11-18T15:01:31.947Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "what it does",
+      "anchor": "reminders (once, or repeating up to 10 times)",
+      "line": 15
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "docs/how-it-works.md",
+      "rev": 1,
+      "note": "check-ins",
+      "anchor": "Each runs for 2 hours unless you ask for another length (up to 4 hours, at most 24 checks), and none of them survive a restart.",
+      "line": 44
+    }
+  ],
+  "next": 3
+}

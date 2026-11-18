@@ -1,0 +1,3 @@
+# claimkeeper: local/ holds personal settings and mentions in git-ignored files
+local/
+*.tmp

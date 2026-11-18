@@ -1,0 +1,41 @@
+{
+  "id": "wellness-limits",
+  "desc": "Hearth is a wellness companion, not a medical device; SmartSpectra needs at least 25 fps (Hearth captures at 640x480), and HRV needs a still minute.",
+  "keywords": [
+    "wellness",
+    "not a medical device",
+    "25 fps",
+    "640",
+    "hrv"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Hearth is a wellness companion, not a medical device; SmartSpectra needs at least 25 fps (Hearth captures at 640x480), and HRV needs a still minute.",
+      "at": "2026-11-18T15:01:32.820Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "src/renderer/src/components/Consent.tsx",
+      "rev": 1,
+      "note": "consent screen",
+      "anchor": "Hearth is a wellness companion, not a medical device. Nothing it says is medical advice.",
+      "line": 92
+    },
+    {
+      "id": "m2",
+      "kind": "code",
+      "path": "src/renderer/src/lib/sensing.ts",
+      "rev": 1,
+      "note": "capture size in code",
+      "anchor": "width: { ideal: 640 },",
+      "line": 42,
+      "block": "109a5c91c07f"
+    }
+  ],
+  "next": 3
+}
