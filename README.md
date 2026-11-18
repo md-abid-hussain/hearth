@@ -2,7 +2,7 @@
   <img src="docs/images/banner.png" alt="Hearth: reads your pulse and breath, looks after you kindly" width="760">
 </p>
 
-Hearth is a small companion that lives on your desktop. It reads your pulse, breathing and blinks from the webcam with [Presage SmartSpectra](https://smartspectra.presagetech.com), talks with you by voice, and speaks up only when it matters: a break after long sitting, a slower breath when your pulse climbs, a reminder you asked for.
+Hearth is a small companion that lives on your desktop. It reads your pulse, breathing and blinks from the webcam with [Presage SmartSpectra](https://smartspectra.presagetech.com), talks with you by voice, and speaks up only when it matters: a break after long sitting, a slower breath when your pulse climbs, a reminder you asked for. Connect your apps and it can also read your calendar, mail or notes, but only when you ask, never on its own.
 
 Built for the DEV.to Presage SmartSpectra challenge. A wellness companion, not a medical device.
 
