@@ -52,4 +52,4 @@ Then click **Start sensing**, hold **Right Ctrl** (**Right Option** on a Mac) an
 
 ## License
 
-No license file yet, so all rights are reserved by the author.
+[MIT](LICENSE). The agent skills in `.cursor/skills/` come from AssemblyAI and Presage and keep their authors' terms.

@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Hearth: a push-to-talk desk companion that responds to live SmartSpectra wellness signals.",
   "main": "./out/main/index.js",
-  "author": "abid1",
+  "author": "Md Abid Hussain",
+  "license": "MIT",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
