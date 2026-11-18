@@ -80,5 +80,9 @@
     "protobufjs@7.6.6": true,
     "electron-winstaller@5.4.0": true,
     "uiohook-napi@1.5.5": true
+  },
+  "overrides": {
+    "minimatch@^9": "^11.0.1",
+    "minimatch@^10": "^11.0.1"
   }
 }
