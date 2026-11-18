@@ -55,4 +55,4 @@ main (Node)                                renderer (React 19 + Mantine 9)
   mcp.ts, composio.ts   read-only connectors
 ```
 
-Hearth has two windows. The **widget** is the face: transparent and always on top. It plays Hearth's voice. The **dashboard** owns the camera session. Both talk to the main process through `window.hearth` ([`src/preload`](../src/preload)). The language model runs through the AI SDK with OpenAI or Anthropic.
+Hearth has two windows. The **widget** is Hearth itself: transparent and always on top. It plays Hearth's voice. The **dashboard** owns the camera session. Both talk to the main process through `window.hearth` ([`src/preload`](../src/preload)). The language model runs through the AI SDK with OpenAI or Anthropic.

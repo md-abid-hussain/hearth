@@ -2,7 +2,7 @@
   <img src="docs/images/banner.png" alt="Hearth: reads your pulse and breath, looks after you kindly" width="760">
 </p>
 
-Hearth is a small companion that lives on your Windows desktop. It reads your pulse, breathing and blinks from the webcam with [Presage SmartSpectra](https://smartspectra.presagetech.com), talks with you by voice, and speaks up only when it matters: a break after long sitting, a slower breath when your pulse climbs, a reminder you asked for.
+Hearth is a small companion that lives on your desktop. It reads your pulse, breathing and blinks from the webcam with [Presage SmartSpectra](https://smartspectra.presagetech.com), talks with you by voice, and speaks up only when it matters: a break after long sitting, a slower breath when your pulse climbs, a reminder you asked for.
 
 Built for the DEV.to Presage SmartSpectra challenge. A wellness companion, not a medical device.
 
@@ -10,9 +10,9 @@ Built for the DEV.to Presage SmartSpectra challenge. A wellness companion, not a
 
 ## What it does
 
-- **Reads live signals, on your computer.** Pulse, breathing, HRV and blinks come from the SmartSpectra SDK. Camera frames never leave the device.
-- **Talks by voice.** Hold Right Ctrl, ask, let go. Hearth answers out loud.
-- **Knows when to stay quiet.** Breaks, breathing nudges and reminders, with a warm-up, cooldowns and an hourly limit.
+- **Reads live signals, on your computer.** Pulse, breathing, HRV and blinks come from the SmartSpectra SDK, and you choose which ones it reads. Camera frames never leave the device.
+- **Talks by voice.** Hold Right Ctrl (Right Option on a Mac), ask, let go. Hearth answers out loud.
+- **Knows when to stay quiet.** Breaks, breathing nudges and reminders (once, or repeating up to 10 times), with a warm-up, cooldowns and an hourly limit.
 - **Checks in for you.** Say "keep an eye on my eye strain every 10 minutes". Hearth re-reads the signal and only speaks when something is off.
 - **Reads your apps, never writes.** Calendar, Gmail, Notion, Linear and more, through read-only connectors.
 - **Asks first.** Nothing turns on the camera or microphone until you agree.

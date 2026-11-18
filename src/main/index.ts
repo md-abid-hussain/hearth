@@ -438,7 +438,7 @@ function registerIpc(): void {
     else stopPillDrag()
   })
   ipcMain.on('hearth:resetPill', () => resetPill())
-  // The dashboard reports its resolved light or dark scheme ('auto' follows Windows).
+  // The dashboard reports its resolved light or dark scheme ('auto' follows the system).
   ipcMain.on('hearth:titlebarScheme', (e, scheme: unknown) => {
     const win = hub.window('dashboard')
     if (win && e.sender === win.webContents && process.platform !== 'darwin')

@@ -85,7 +85,7 @@ const MOOD_LABEL: Partial<Record<HearthState['mood'], string>> = {
 
 /**
  * Hearth's own title bar: the live face, the name and what it is doing. It is the window's drag
- * handle; Windows draws its minimize, maximize and close buttons over the right end.
+ * handle; Windows and Linux draw their window buttons over the right end, macOS over the left.
  */
 function TitleBar({ state }: { state: HearthState | null }): React.JSX.Element {
   const scheme = useComputedColorScheme('dark')
