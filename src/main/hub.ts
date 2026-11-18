@@ -1,7 +1,9 @@
 import type { BrowserWindow } from 'electron'
+import { z } from 'zod'
 import type {
   AppStatus,
   Exchange,
+  HotkeyId,
   InsightEntry,
   LogEntry,
   ListenMode,
@@ -9,8 +11,10 @@ import type {
   MainToRenderer,
   McpServerStatus,
   MemoryState,
+  ReasoningEffort,
   Reminder,
   Settings,
+  ThemeChoice,
   VitalsSnapshot,
   WindowRole,
   HearthMood,
@@ -40,6 +44,64 @@ const ROUTES: Partial<Record<MainToRenderer['type'], WindowRole>> = {
   sensingCommand: 'dashboard',
   showPage: 'dashboard',
   react: 'pill'
+}
+
+/**
+ * A z.enum of every value of a string union. Taking a record keyed by the union makes the compiler
+ * flag a value added to the type but not here, which would otherwise be refused at run time.
+ */
+const oneOf = <T extends string>(values: Record<T, true>): z.ZodType<T> =>
+  z.enum(Object.keys(values) as [T, ...T[]])
+
+/** What each setting may hold. z.number() refuses NaN and Infinity. */
+const SETTING_SCHEMAS: { [K in keyof Settings]-?: z.ZodType<Settings[K]> } = {
+  quietMode: z.boolean(),
+  nudgesEnabled: z.boolean(),
+  telemetry: z.boolean(),
+  theme: oneOf<ThemeChoice>({ dark: true, light: true, auto: true }),
+  hotkey: oneOf<HotkeyId>({ 'ctrl-win': true, 'right-alt': true, 'right-ctrl': true }),
+  reasoningEffort: oneOf<ReasoningEffort>({
+    none: true,
+    low: true,
+    medium: true,
+    high: true,
+    xhigh: true,
+    max: true
+  }).nullable(),
+  consentAt: z.number().nonnegative().nullable(),
+  measurePulse: z.boolean(),
+  measureBreathing: z.boolean(),
+  measureHrv: z.boolean(),
+  measureBlinks: z.boolean(),
+  measureExpressions: z.boolean(),
+  pillPosition: z.object({ x: z.number(), y: z.number() }).nullable()
+}
+
+/**
+ * The known, well-formed settings in a patch, and the keys left out: `unknown` names no setting,
+ * `invalid` holds the wrong type or an out-of-range value.
+ */
+export function parseSettings(patch: unknown): {
+  settings: Partial<Settings>
+  unknown: string[]
+  invalid: string[]
+} {
+  const settings: Record<string, unknown> = {}
+  const unknown: string[] = []
+  const invalid: string[] = []
+  if (typeof patch !== 'object' || patch === null || Array.isArray(patch))
+    return { settings, unknown, invalid: patch === undefined ? [] : ['(not an object)'] }
+  for (const [key, value] of Object.entries(patch)) {
+    // Own keys only, so "constructor" or "__proto__" never count as settings.
+    if (!Object.hasOwn(SETTING_SCHEMAS, key)) {
+      unknown.push(key)
+      continue
+    }
+    const parsed = SETTING_SCHEMAS[key as keyof Settings].safeParse(value)
+    if (parsed.success) settings[key] = parsed.data
+    else invalid.push(key)
+  }
+  return { settings: settings as Partial<Settings>, unknown, invalid }
 }
 
 export const emptyVitals = (): VitalsSnapshot => ({
@@ -102,7 +164,15 @@ class Hub {
 
   init(status: AppStatus): void {
     this.status = status
-    this.settings = { ...this.settings, ...readJson<Partial<Settings>>(SETTINGS_FILE, {}) }
+    // A setting an older version saved and this one dropped is left out quietly; a malformed
+    // value (a hand edit, say) falls back to its default and is noted.
+    const saved = parseSettings(readJson<unknown>(SETTINGS_FILE, {}))
+    if (saved.invalid.length)
+      this.record(
+        'error',
+        `Ignored settings in ${SETTINGS_FILE} that were not valid: ${saved.invalid.join(', ')}`
+      )
+    this.settings = { ...this.settings, ...saved.settings }
     this.log = readJsonl<LogEntry>(LOG_FILE).slice(-UI_LOG_LIMIT)
     this.lastExchange = readJson<Exchange | null>(EXCHANGE_FILE, null)
   }
@@ -195,6 +265,21 @@ class Hub {
     this.lastExchange = exchange
     writeJson(EXCHANGE_FILE, exchange)
     this.changed()
+  }
+
+  /**
+   * The part of a settings patch from outside the main process that can be saved. Unknown or
+   * malformed keys are dropped and noted in the timeline, never thrown: the rest still applies.
+   */
+  validSettings(patch: unknown, from: string): Partial<Settings> {
+    const { settings, unknown, invalid } = parseSettings(patch)
+    const dropped = [...unknown.map((k) => `${k} (unknown)`), ...invalid]
+    if (dropped.length)
+      this.record(
+        'error',
+        `Ignored settings from ${from} that were not valid: ${dropped.join(', ')}`
+      )
+    return settings
   }
 
   updateSettings(patch: Partial<Settings>): Settings {

@@ -1,10 +1,39 @@
-import { useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Alert, SegmentedControl, Switch } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
 import { READINGS } from '@shared/readings'
 import type { HearthState, VitalsPoint } from '@shared/types'
-import { TIME_AXIS, clock, fmt, setReading, useWindowed } from '../helpers'
+import { TIME_AXIS, clock, fmt, samePoints, setReading, useWindowed } from '../helpers'
 import { CameraPicker, CameraPreview, PageHeader, SensingButton, SignalsChart } from '../shared'
+
+/** Memoized on its points like SignalsChart, since this page re-renders with every state push. */
+const HrvChart = memo(
+  function HrvChart({ points }: { points: VitalsPoint[] }): React.JSX.Element | null {
+    const data = useMemo(
+      () => points.filter((p) => p.hrv != null).map((p) => ({ t: p.t, HRV: p.hrv })),
+      [points]
+    )
+    if (data.length < 2) return null
+    return (
+      <div className="card panel">
+        <div className="panel-head">
+          <h3>Heart rate variability (RMSSD, ms)</h3>
+        </div>
+        <LineChart
+          h={160}
+          data={data}
+          {...TIME_AXIS}
+          yAxisProps={{ domain: ['auto', 'auto'], width: 44 }}
+          withDots={false}
+          curveType="monotone"
+          gridAxis="y"
+          series={[{ name: 'HRV', color: 'var(--amber)' }]}
+        />
+      </div>
+    )
+  },
+  (prev, next) => samePoints(prev.points, next.points)
+)
 
 export function Signals({
   state,
@@ -18,7 +47,6 @@ export function Signals({
   const v = state.vitals
   const { measurePulse, measureBreathing, measureHrv, measureBlinks, measureExpressions } =
     state.settings
-  const hrv = points.filter((p) => p.hrv != null).map((p) => ({ t: p.t, HRV: p.hrv }))
 
   return (
     <div className="page-inner">
@@ -168,23 +196,7 @@ export function Signals({
         )}
       </div>
 
-      {hrv.length > 1 && (
-        <div className="card panel">
-          <div className="panel-head">
-            <h3>Heart rate variability (RMSSD, ms)</h3>
-          </div>
-          <LineChart
-            h={160}
-            data={hrv}
-            {...TIME_AXIS}
-            yAxisProps={{ domain: ['auto', 'auto'], width: 44 }}
-            withDots={false}
-            curveType="monotone"
-            gridAxis="y"
-            series={[{ name: 'HRV', color: 'var(--amber)' }]}
-          />
-        </div>
-      )}
+      <HrvChart points={points} />
 
       <p className="label" style={{ margin: 0 }}>
         Wellness estimates only. Not a medical device and not for diagnosis.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { Button, Center, Loader, useComputedColorScheme } from '@mantine/core'
 import type { HearthState } from '@shared/types'
 import { Consent } from '../components/Consent'
@@ -40,6 +40,15 @@ const NAV: { group: string; items: { id: string; label: string }[] }[] = [
     ]
   }
 ]
+
+// Every state push is a fresh copy from the main process, but the store keeps the parts it did
+// not change identical, so these pages skip the pushes that leave their slice alone: about 12 a
+// second while Hearth replies, in the window that also feeds camera frames to SmartSpectra.
+const InsightsPage = memo(Insights)
+const TimelinePage = memo(Timeline)
+const MemoryPage = memo(Memory)
+const RemindersPage = memo(Reminders)
+const ConnectorsPage = memo(Connectors)
 
 /** Each page's number in the nav, counted across the groups: 01, 02, ... */
 const NAV_NUMBER = new Map(
@@ -136,15 +145,15 @@ function DashboardBody({ state }: { state: HearthState | null }): React.JSX.Elem
       case 'signals':
         return <Signals state={state} history={history} />
       case 'timeline':
-        return <Timeline log={state.log} />
+        return <TimelinePage log={state.log} />
       case 'insights':
-        return <Insights insights={state.insights} />
+        return <InsightsPage insights={state.insights} />
       case 'memory':
-        return <Memory memory={state.memory} />
+        return <MemoryPage memory={state.memory} />
       case 'reminders':
-        return <Reminders reminders={state.reminders} log={state.log} />
+        return <RemindersPage reminders={state.reminders} log={state.log} />
       case 'connectors':
-        return <Connectors servers={state.mcp} status={state.status} />
+        return <ConnectorsPage servers={state.mcp} status={state.status} />
       case 'voice':
         return <VoiceModel state={state} />
       case 'privacy':
@@ -175,7 +184,7 @@ function DashboardBody({ state }: { state: HearthState | null }): React.JSX.Elem
         <StatusFooter state={state} />
       </nav>
       <main className="page">{body}</main>
-      <Consent state={state} />
+      <Consent consentAt={state.settings.consentAt} />
     </div>
   )
 }

@@ -1,0 +1,41 @@
+{
+  "id": "platform-talk-key",
+  "desc": "Hearth is built and tested on Windows, with macOS and Linux experimental, and the talk key is Right Ctrl (Right Option on a Mac).",
+  "keywords": [
+    "windows",
+    "experimental",
+    "right ctrl",
+    "right option",
+    "macos",
+    "linux"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Hearth is built and tested on Windows, with macOS and Linux experimental, and the talk key is Right Ctrl (Right Option on a Mac).",
+      "at": "2026-11-18T15:01:32.640Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "quick start",
+      "anchor": "Hearth is built and tested on Windows 10 and 11.",
+      "line": 22
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "what it does",
+      "anchor": "Hold Right Ctrl (Right Option on a Mac), ask, let go.",
+      "line": 14
+    }
+  ],
+  "next": 3
+}

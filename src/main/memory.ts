@@ -10,7 +10,15 @@ const MEMORY_FILE = 'memory.json'
 const COMPACT_AFTER_TURNS = 20
 const COMPACT_AFTER_CHARS = 6_000
 const KEEP_RECENT_TURNS = 8
+/**
+ * Pinned facts go into every system prompt. Once full, a new pin is refused rather than pushing
+ * out the oldest, so text read from an app can never flush out what the user asked to keep.
+ */
 const MAX_PINS = 30
+/** A pinned fact is one short sentence; longer text is refused. */
+export const MAX_FACT_CHARS = 200
+
+export type PinResult = { pins: number } | { error: string }
 
 interface Persisted {
   summary: string
@@ -49,15 +57,20 @@ class Memory {
     return hub.memory.turns.slice(-KEEP_RECENT_TURNS * 2)
   }
 
-  pin(fact: string): string[] {
+  pin(fact: string): PinResult {
     const clean = fact.trim()
-    if (clean && !hub.memory.pins.includes(clean)) {
-      hub.memory.pins.push(clean)
-      if (hub.memory.pins.length > MAX_PINS) hub.memory.pins.shift()
-      hub.record('memory', `Pinned: ${clean}`)
-      this.persist()
-    }
-    return hub.memory.pins
+    const pins = hub.memory.pins
+    if (!clean || pins.includes(clean)) return { pins: pins.length }
+    if (clean.length > MAX_FACT_CHARS)
+      return { error: `Too long to pin; keep it under ${MAX_FACT_CHARS} characters.` }
+    if (pins.length >= MAX_PINS)
+      return {
+        error: `Memory already holds ${MAX_PINS} pinned facts. Ask the user to unpin some on the Memory page first.`
+      }
+    pins.push(clean)
+    hub.record('memory', `Pinned: ${clean}`)
+    this.persist()
+    return { pins: pins.length }
   }
 
   unpin(index: number): void {
@@ -84,9 +97,9 @@ class Memory {
     if (this.compacting || !this.needsCompaction()) return
     this.compacting = true
     try {
-      const turns = hub.memory.turns
-      const older = turns.slice(0, -KEEP_RECENT_TURNS)
-      const recent = turns.slice(-KEEP_RECENT_TURNS)
+      const older = hub.memory.turns.slice(0, -KEEP_RECENT_TURNS)
+      // A few long turns can pass the size limit with nothing old enough to summarise.
+      if (!older.length) return
       const transcript = older
         .map((t) => `${t.role === 'user' ? 'User' : 'Hearth'}: ${t.text}`)
         .join('\n')
@@ -94,12 +107,16 @@ class Memory {
         COMPACT_SYSTEM,
         `Previous summary:\n${hub.memory.summary || '(none)'}\n\nOlder turns:\n${transcript}`
       )
+      // Memory was cleared while the summary was written: it must not bring the old turns back.
+      if (hub.memory.turns[0] !== older[0]) return
+      // Everything not summarised stays, including turns added while the summary was written.
+      const kept = hub.memory.turns.slice(older.length)
       older.forEach((t) => appendJsonl(ARCHIVE_FILE, t))
-      writeJsonl(TURNS_FILE, recent)
+      writeJsonl(TURNS_FILE, kept)
       hub.memory = {
         ...hub.memory,
         summary,
-        turns: recent,
+        turns: kept,
         compactions: hub.memory.compactions + 1
       }
       hub.record('memory', `Compacted ${older.length} turns into the summary`)

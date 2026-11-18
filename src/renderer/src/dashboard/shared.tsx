@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Select } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
 import { notifications } from '@mantine/notifications'
 import type { VitalsPoint, HearthState } from '@shared/types'
 import { chooseCamera, chosenCamera, listCameras, sensing, type CameraOption } from '../lib/sensing'
-import { TIME_AXIS } from './helpers'
+import { TIME_AXIS, samePoints } from './helpers'
 
 export function SensingButton({
   state,
@@ -109,48 +109,59 @@ export function CameraPreview(): React.JSX.Element {
   return <video ref={ref} className="video" autoPlay muted playsInline />
 }
 
-export function SignalsChart({
-  points,
-  height = 200
-}: {
-  points: VitalsPoint[]
-  height?: number
-}): React.JSX.Element {
-  const data = points.map((p) => ({ t: p.t, Pulse: p.pulse, Breathing: p.breathing }))
-  return (
-    <>
-      <LineChart
-        h={height}
-        data={data}
-        {...TIME_AXIS}
-        withDots={false}
-        curveType="monotone"
-        connectNulls
-        gridAxis="y"
-        strokeDasharray="0"
-        withRightYAxis
-        yAxisLabel="Pulse (bpm)"
-        rightYAxisLabel="Breathing (/min)"
-        yAxisProps={{ domain: ['auto', 'auto'], width: 44 }}
-        rightYAxisProps={{ domain: [0, 'auto'], width: 44 }}
-        series={[
-          { name: 'Pulse', color: 'var(--red)' },
-          { name: 'Breathing', color: 'var(--accent)', yAxisId: 'right' }
-        ]}
-      />
-      <div className="legend">
-        <span>
-          <i style={{ background: 'var(--red)' }} />
-          pulse, bpm
-        </span>
-        <span>
-          <i style={{ background: 'var(--accent)' }} />
-          breathing, per min
-        </span>
-      </div>
-    </>
-  )
-}
+/**
+ * Pulse and breathing over time. Memoized on the points it draws: two lines of up to 400 points
+ * are costly to lay out, and the pages showing it re-render with every state push, about 12 a
+ * second while Hearth replies, in the same window that feeds camera frames to SmartSpectra.
+ */
+export const SignalsChart = memo(
+  function SignalsChart({
+    points,
+    height = 200
+  }: {
+    points: VitalsPoint[]
+    height?: number
+  }): React.JSX.Element {
+    const data = useMemo(
+      () => points.map((p) => ({ t: p.t, Pulse: p.pulse, Breathing: p.breathing })),
+      [points]
+    )
+    return (
+      <>
+        <LineChart
+          h={height}
+          data={data}
+          {...TIME_AXIS}
+          withDots={false}
+          curveType="monotone"
+          connectNulls
+          gridAxis="y"
+          strokeDasharray="0"
+          withRightYAxis
+          yAxisLabel="Pulse (bpm)"
+          rightYAxisLabel="Breathing (/min)"
+          yAxisProps={{ domain: ['auto', 'auto'], width: 44 }}
+          rightYAxisProps={{ domain: [0, 'auto'], width: 44 }}
+          series={[
+            { name: 'Pulse', color: 'var(--red)' },
+            { name: 'Breathing', color: 'var(--accent)', yAxisId: 'right' }
+          ]}
+        />
+        <div className="legend">
+          <span>
+            <i style={{ background: 'var(--red)' }} />
+            pulse, bpm
+          </span>
+          <span>
+            <i style={{ background: 'var(--accent)' }} />
+            breathing, per min
+          </span>
+        </div>
+      </>
+    )
+  },
+  (prev, next) => prev.height === next.height && samePoints(prev.points, next.points)
+)
 
 export function PageHeader({
   eyebrow,

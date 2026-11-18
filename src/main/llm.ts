@@ -33,13 +33,27 @@ export function providerOptions(effort?: ReasoningEffort): ProviderOptions {
   return { openai: { reasoningEffort } }
 }
 
-/** One-shot completion for background jobs (compaction, nudge phrasing), kept cheap and fast. */
-export async function complete(system: string, prompt: string): Promise<string> {
+/**
+ * How long a background call may take, retries included. A call that hangs would otherwise keep
+ * the observer busy, and every reminder waiting behind it.
+ */
+export const BACKGROUND_TIMEOUT_MS = 15_000
+
+/**
+ * One-shot completion for background jobs (compaction, nudge phrasing), kept cheap and fast.
+ * Rejects after `timeoutMs`; callers fall back to a template line or try again later.
+ */
+export async function complete(
+  system: string,
+  prompt: string,
+  timeoutMs = BACKGROUND_TIMEOUT_MS
+): Promise<string> {
   const { text } = await generateText({
     model: getModel(),
     system,
     prompt,
     maxRetries: 1,
+    abortSignal: AbortSignal.timeout(timeoutMs),
     providerOptions: providerOptions('low')
   })
   return text.trim()

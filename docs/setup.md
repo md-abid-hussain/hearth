@@ -26,6 +26,18 @@ Copy `.env.example` to `.env` next to `package.json` and fill it in. Hearth star
 | `COMPOSIO_API_KEY` | Optional. Gmail, Calendar and Drive, see [Apps and connectors](connectors.md). |
 | `HEARTH_TTS_VOICE`, `HEARTH_MCP_CONFIG` | Optional. Another voice, or another path to `mcp.json`. |
 
+### Installed builds
+
+An installed Hearth (from the installer, the disk image or the AppImage) does not look in the folder it was started from or next to the app. It reads `.env` and `mcp.json` only from its user data folder:
+
+| System | Folder |
+| --- | --- |
+| Windows | `%APPDATA%\hearth` |
+| macOS | `~/Library/Application Support/hearth` |
+| Linux | `~/.config/hearth` |
+
+Create `.env` there (copy `.env.example` from this repository), then restart Hearth. The setup checklist on the dashboard shows the exact path. `HEARTH_MCP_CONFIG` can still point to an `mcp.json` somewhere else. Neither file is ever packaged into a build.
+
 ## Run and build
 
 ```bash

@@ -165,7 +165,12 @@ export function Pill(): React.JSX.Element | null {
   // The meter says whether anything reaches the mic; a silent mic gets a hint instead.
   const text = heading.text
   const sub = listening && micSilent ? "can't hear you, check your microphone" : heading.sub
-  const click = consented ? ptt.toggle : () => window.hearth.openDashboard()
+  // Without consent a click opens the dashboard, except that it still ends a turn in progress.
+  const click = consented
+    ? ptt.toggle
+    : listening || ptt.holding
+      ? ptt.end
+      : () => window.hearth.openDashboard()
 
   /**
    * Press anywhere on the widget and drag to move it; once a drag starts, the main process moves

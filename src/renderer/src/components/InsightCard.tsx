@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { InsightEntry } from '@shared/types'
 import { Markdown } from './Markdown'
 
@@ -22,8 +22,11 @@ function InsightList({
   )
 }
 
-/** Structured view of a Presage insight; falls back to the original markdown until one exists. */
-export function InsightCard({
+/**
+ * Structured view of a Presage insight; falls back to the original markdown until one exists.
+ * Memoized: the store keeps an unchanged insight identical across state pushes.
+ */
+export const InsightCard = memo(function InsightCard({
   insight,
   lead,
   className
@@ -61,4 +64,4 @@ export function InsightCard({
       {showOriginal && <Markdown text={insight.text} className="insight-original" />}
     </div>
   )
-}
+})

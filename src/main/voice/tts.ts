@@ -104,7 +104,13 @@ export function beginSpeech(): SpeechStream {
   let firstAudioMs: number | null = null
   let tts: TextToSpeechSession | null = null
   let reader: Promise<void> = Promise.resolve()
+  /** Text of the sentence still being written. */
   let buffered = ''
+  /**
+   * Finished sentences, and text flushed before a tool call, not yet sent. They wait here while
+   * the session connects, so nothing written before it is ready is lost.
+   */
+  const queued: string[] = []
   let finished = false
   let failed = false
   const requests: number[] = []
@@ -118,12 +124,11 @@ export function beginSpeech(): SpeechStream {
   if (idleTimer) clearTimeout(idleTimer)
 
   /** Sends text as one request and flushes it; a failure leaves the reply as text only. */
-  const sendRequest = (text: string): void => {
-    if (!tts || failed || !text.trim()) return
+  const sendRequest = (s: TextToSpeechSession, text: string): void => {
+    if (failed || !text.trim()) return
     try {
-      for (let i = 0; i < text.length; i += FRAME_CHARS)
-        tts.generate(text.slice(i, i + FRAME_CHARS))
-      requests.push(tts.flush())
+      for (let i = 0; i < text.length; i += FRAME_CHARS) s.generate(text.slice(i, i + FRAME_CHARS))
+      requests.push(s.flush())
     } catch (err) {
       failed = true
       hub.record('error', `Text-to-speech: ${describeVoiceError(err)}`)
@@ -131,17 +136,28 @@ export function beginSpeech(): SpeechStream {
     nudge()
   }
 
-  /** Sends every complete sentence written so far, keeping the unfinished rest. */
-  const sendSentences = (): void => {
-    const end = lastSentenceEnd(buffered)
-    if (end <= 0) return
-    sendRequest(buffered.slice(0, end))
-    buffered = buffered.slice(end)
+  /** Sends whatever is queued, in order, once the session is ready; until then it waits. */
+  const sendQueued = (): void => {
+    const s = tts
+    if (!s) return
+    while (queued.length) sendRequest(s, queued.shift()!)
   }
 
+  /** Queues every complete sentence written so far, keeping the unfinished rest. */
+  const sendSentences = (): void => {
+    const end = lastSentenceEnd(buffered)
+    if (end > 0) {
+      queued.push(buffered.slice(0, end))
+      buffered = buffered.slice(end)
+    }
+    sendQueued()
+  }
+
+  /** Queues the unfinished rest too, as its own request, so it is spoken without more text. */
   const flushAll = (): void => {
-    sendRequest(buffered)
+    if (buffered) queued.push(buffered)
     buffered = ''
+    sendQueued()
   }
 
   /** Reads each request's audio in order until the reply ends or is cancelled. */
@@ -170,6 +186,7 @@ export function beginSpeech(): SpeechStream {
     reader = pump(s).catch((err) => {
       if (mine === generation) hub.record('error', `Text-to-speech: ${describeVoiceError(err)}`)
     })
+    // Everything written while connecting goes out now, in the order it was written.
     sendSentences()
   })
   ready.catch(() => undefined)

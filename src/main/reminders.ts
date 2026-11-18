@@ -13,8 +13,29 @@ const STALE_AFTER_MS = 60 * 60_000
 const MAX_WAITS = 5
 /** A repeating reminder is said at most this many times in all. */
 export const MAX_REPEATS = 10
+/**
+ * Plain reminders that may wait at once. Each is listed in every system prompt, and a cap keeps
+ * text read from an app from filling the list.
+ */
+export const MAX_REMINDERS = 20
+/** A reminder is a short task; longer text is refused. */
+export const MAX_REMINDER_CHARS = 150
+/** A repeat said late never comes round again sooner than this, even if a slot is that close. */
+const MIN_REPEAT_GAP_MS = 60_000
 
 export type AddCheckResult = { reminder: Reminder; replaced: boolean } | { error: string }
+export type AddResult = { reminder: Reminder } | { error: string }
+
+/**
+ * The next time a repeat is due after being said at `now`: whole intervals on from `dueAt`, so
+ * the user's rhythm holds even when one was said late, and never sooner than a minute (or half
+ * the interval, for a very short one) away.
+ */
+export function nextRepeatAt(dueAt: number, everyMs: number, now: number): number {
+  const gap = Math.min(MIN_REPEAT_GAP_MS, everyMs / 2)
+  const slots = Math.max(1, Math.ceil((now + gap - dueAt) / everyMs))
+  return dueAt + slots * everyMs
+}
 
 class Reminders {
   /**
@@ -55,7 +76,14 @@ class Reminders {
    * A reminder said once, or with `repeat`, every `everyMin` minutes for `times` times in all (at
    * most MAX_REPEATS). Hearth schedules each repeat itself; cancelling stops the whole series.
    */
-  add(text: string, inMinutes: number, repeat?: { everyMin: number; times: number }): Reminder {
+  add(text: string, inMinutes: number, repeat?: { everyMin: number; times: number }): AddResult {
+    if (text.length > MAX_REMINDER_CHARS)
+      return { error: `Too long; keep the reminder under ${MAX_REMINDER_CHARS} characters.` }
+    const waiting = hub.reminders.filter((r) => !r.check).length
+    if (waiting >= MAX_REMINDERS)
+      return {
+        error: `Already ${MAX_REMINDERS} reminders waiting. Ask the user to cancel some on the Reminders page first.`
+      }
     const now = Date.now()
     const reminder: Reminder = {
       id: newId(),
@@ -74,19 +102,20 @@ class Reminders {
         : `Reminder set: "${text}" in ${Math.round(inMinutes)} min`
     )
     this.persist()
-    return reminder
+    return { reminder }
   }
 
-  /** A plain reminder was said or shown: schedule its next repeat, or remove it. */
+  /**
+   * A plain reminder was said or shown: schedule its next repeat, or remove it. Only the one said
+   * counts against the repeats left; slots skipped because it came late do not.
+   */
   fired(id: string): void {
     const r = hub.reminders.find((x) => x.id === id)
     if (!r?.repeat || r.repeat.left <= 1) {
       this.complete(id)
       return
     }
-    // Keep the rhythm the user asked for, unless saying it was delayed past the next slot.
-    const every = r.repeat.everyMin * 60_000
-    r.dueAt = Math.max(r.dueAt + every, Date.now() + 60_000)
+    r.dueAt = nextRepeatAt(r.dueAt, r.repeat.everyMin * 60_000, Date.now())
     r.repeat = { ...r.repeat, left: r.repeat.left - 1 }
     this.persist()
   }

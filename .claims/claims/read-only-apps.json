@@ -1,0 +1,58 @@
+{
+  "id": "read-only-apps",
+  "desc": "Connected apps are read only: Hearth blocks any app tool that isn't clearly read-only, reads apps only when the user asks, and keeps app tokens encrypted.",
+  "keywords": [
+    "read-only",
+    "only when you ask",
+    "never writes",
+    "connectors",
+    "encrypted"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Connected apps are read only: Hearth blocks any app tool that isn't clearly read-only, reads apps only when the user asks, and keeps app tokens encrypted.",
+      "at": "2026-11-18T15:01:31.273Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "intro",
+      "anchor": "but only when you ask, never on its own.",
+      "line": 5
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "README.md",
+      "rev": 1,
+      "note": "what it does",
+      "anchor": "Reads your apps, never writes.** Calendar, Gmail, Notion, Linear and more. Hearth blocks any app tool that isn't clearly read-only.",
+      "line": 17
+    },
+    {
+      "id": "m3",
+      "kind": "text",
+      "path": "docs/connectors.md",
+      "rev": 1,
+      "note": "connectors doc",
+      "anchor": "Tokens and keys are stored encrypted with Electron `safeStorage`",
+      "line": 13
+    },
+    {
+      "id": "m4",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet, data folder",
+      "anchor": "App sign-in tokens, and keys you enter in Hearth, are kept there too, encrypted. The API keys in your `.env` file are plain text, so keep that file to yourself.",
+      "line": 20
+    }
+  ],
+  "next": 5
+}

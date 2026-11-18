@@ -1,0 +1,39 @@
+{
+  "id": "presage-numbers",
+  "desc": "Only derived pulse, HRV and breathing numbers (plus any question the user asks) go to Presage, about once a minute, and SmartSpectra telemetry is off by default.",
+  "keywords": [
+    "presage",
+    "once a minute",
+    "derived numbers",
+    "telemetry"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Only derived pulse, HRV and breathing numbers (plus any question the user asks) go to Presage, about once a minute, and SmartSpectra telemetry is off by default.",
+      "at": "2026-11-18T15:01:30.626Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet",
+      "anchor": "the SDK sends your pulse, HRV and breathing values to Presage about once a minute",
+      "line": 14
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "telemetry bullet",
+      "anchor": "SmartSpectra telemetry is off by default.",
+      "line": 22
+    }
+  ],
+  "next": 3
+}

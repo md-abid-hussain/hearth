@@ -1,0 +1,39 @@
+{
+  "id": "readings-control",
+  "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default and never go to the language model.",
+  "keywords": [
+    "readings",
+    "at least one",
+    "expressions",
+    "switched on"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default and never go to the language model.",
+      "at": "2026-11-18T15:01:31.032Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "src/renderer/src/dashboard/pages/Signals.tsx",
+      "rev": 1,
+      "note": "Signals page",
+      "anchor": "At least one stays on. The camera only asks for the ones switched on.",
+      "line": 101
+    },
+    {
+      "id": "m2",
+      "kind": "text",
+      "path": "docs/privacy.md",
+      "rev": 1,
+      "note": "privacy bullet, expressions",
+      "anchor": "If you turn them on, the SDK estimates them on this computer, and they are never sent to the language model.",
+      "line": 15
+    }
+  ],
+  "next": 3
+}

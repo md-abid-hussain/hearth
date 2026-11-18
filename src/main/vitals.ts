@@ -11,6 +11,10 @@ const HISTORY_MS = 60 * 60_000
 const PRESENCE_TIMEOUT_MS = 20_000
 const BREAK_AWAY_MS = 3 * 60_000
 const TALKING_WINDOW_MS = 8_000
+/** The session baseline is the median of this first stretch of the session. */
+const BASELINE_WINDOW_MS = 10 * 60_000
+/** Points needed in that stretch for a baseline: two minutes' worth at one point every 2 s. */
+const BASELINE_MIN_POINTS = 60
 /** Breathing rate is not measured reliably while talking, so it waits this long after speech. */
 const BREATHING_AFTER_TALK_MS = 20_000
 /** A value not refreshed for this long is left out of the history instead of being repeated. */
@@ -61,6 +65,15 @@ class VitalsTracker {
   private blinkSince: number | null = null
   private presenceTimer: NodeJS.Timeout | null = null
   private updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0 }
+  /**
+   * Baselines fixed once the session's first ten minutes are over, for the session that started
+   * at `session`. The history keeps only the last hour, so after that those minutes are gone.
+   */
+  private fixedBaselines: {
+    session: number
+    pulse: number | null
+    breathing: number | null
+  } | null = null
 
   /**
    * `awayFrom` is when the user left, for a session that paused itself while they were away:
@@ -92,7 +105,16 @@ class VitalsTracker {
 
   stop(): void {
     if (!hub.vitals.sensing) return
-    hub.vitals = { ...hub.vitals, sensing: false, present: false, updatedAt: Date.now() }
+    // No packets arrive once stopped, so nothing would ever clear a talking flag left on, and
+    // the observer would hold every reminder back as "user appears to be talking".
+    this.lastTalkingAt = 0
+    hub.vitals = {
+      ...hub.vitals,
+      sensing: false,
+      present: false,
+      talking: false,
+      updatedAt: Date.now()
+    }
     hub.record('session', 'Sensing stopped')
     if (this.presenceTimer) clearInterval(this.presenceTimer)
     this.presenceTimer = null
@@ -178,6 +200,8 @@ class VitalsTracker {
         blinks: fresh('blinks', v.blinksPerMinute)
       }
       this.history.push(point)
+      // Before trimming, which would drop the first ten minutes an hour into the session.
+      this.fixBaselines(now)
       const cutoff = now - HISTORY_MS
       while (this.history.length && this.history[0].t < cutoff) this.history.shift()
       hub.send({ type: 'vitalsPoint', point })
@@ -221,17 +245,38 @@ class VitalsTracker {
     return values.reduce((a, b) => a + b, 0) / values.length
   }
 
+  /** Median of the session's first ten minutes, or null until enough samples exist. */
+  private firstMinutesMedian(key: 'pulse' | 'breathing', start: number): number | null {
+    const values = this.history
+      .filter((p) => p.t >= start && p.t < start + BASELINE_WINDOW_MS)
+      .map((p) => p[key])
+      .filter((x): x is number => typeof x === 'number')
+      .sort((a, b) => a - b)
+    if (values.length < BASELINE_MIN_POINTS) return null
+    return values[Math.floor(values.length / 2)]
+  }
+
+  /**
+   * Fixes both baselines once the first ten minutes are over, once per session. A session
+   * resumed after an away pause keeps its start, so it keeps its baseline too.
+   */
+  private fixBaselines(now: number): void {
+    const start = hub.vitals.sessionStartedAt
+    if (!start || now < start + BASELINE_WINDOW_MS || this.fixedBaselines?.session === start) return
+    this.fixedBaselines = {
+      session: start,
+      pulse: this.firstMinutesMedian('pulse', start),
+      breathing: this.firstMinutesMedian('breathing', start)
+    }
+  }
+
   /** Session baseline: median of the first ten minutes once enough samples exist. */
   baseline(key: 'pulse' | 'breathing'): number | null {
     const start = hub.vitals.sessionStartedAt
     if (!start) return null
-    const values = this.history
-      .filter((p) => p.t < start + 10 * 60_000)
-      .map((p) => p[key])
-      .filter((x): x is number => typeof x === 'number')
-      .sort((a, b) => a - b)
-    if (values.length < 60) return null
-    return values[Math.floor(values.length / 2)]
+    this.fixBaselines(Date.now())
+    if (this.fixedBaselines?.session === start) return this.fixedBaselines[key]
+    return this.firstMinutesMedian(key, start)
   }
 
   describe(): Record<string, unknown> {

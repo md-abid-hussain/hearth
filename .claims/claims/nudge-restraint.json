@@ -1,0 +1,31 @@
+{
+  "id": "nudge-restraint",
+  "desc": "Hearth's own nudges never come in the first five minutes, at most three an hour, and never while the user is talking.",
+  "keywords": [
+    "nudge",
+    "five minutes",
+    "three an hour",
+    "while you talk",
+    "interrupt"
+  ],
+  "rev": 1,
+  "history": [
+    {
+      "rev": 1,
+      "desc": "Hearth's own nudges never come in the first five minutes, at most three an hour, and never while the user is talking.",
+      "at": "2026-11-18T15:01:31.740Z"
+    }
+  ],
+  "mentions": [
+    {
+      "id": "m1",
+      "kind": "text",
+      "path": "docs/how-it-works.md",
+      "rev": 1,
+      "note": "how it works",
+      "anchor": "It makes at most 3 nudges an hour.",
+      "line": 28
+    }
+  ],
+  "next": 2
+}

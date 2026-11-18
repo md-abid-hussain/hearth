@@ -6,13 +6,13 @@ import { shell } from 'electron'
 import type { McpServerStatus, McpToolInfo } from '../shared/types'
 import { loadConfig } from './config'
 import { hub } from './hub'
-import { writeVerb } from './mcp'
+import { readOnlyName, type GateVerdict } from './mcp'
 import { SignInCancelled } from './mcpAuth'
 import { readJson, writeJson } from './store'
 
 const FILE = 'composio.json'
 /** Bump when the session policy below changes, so a stored session with the old policy is replaced. */
-const POLICY_VERSION = 1
+const POLICY_VERSION = 2
 /** Google's consent screens for Gmail take a while, especially with the full-access warning. */
 const SIGN_IN_TIMEOUT_MS = 5 * 60_000
 const POLL_FIRST_MS = 1_500
@@ -37,7 +37,32 @@ const APPS = [
 /** Given to the model directly, so the everyday questions skip Composio's search step. */
 const PRELOAD = ['GMAIL_FETCH_EMAILS', 'GOOGLECALENDAR_EVENTS_LIST', 'GOOGLEDRIVE_FIND_FILE']
 
+/**
+ * Composio's own helpers that Hearth hands the model: finding tools, reading their schemas, and
+ * the executor, which checks every tool it is asked to run. The rest, such as connection
+ * management, the code sandbox and raw API calls, are off in the session and blocked here too.
+ */
+const META_TOOLS = new Set(['COMPOSIO_SEARCH_TOOLS', 'COMPOSIO_GET_TOOL_SCHEMAS', MULTI_EXECUTE])
+
 const appId = (toolkit: string): string => `${HUB_ID}-${toolkit}`
+
+/** The Google app a tool belongs to: GMAIL_FETCH_EMAILS is Gmail's. */
+const appOf = (slug: string): (typeof APPS)[number] | undefined =>
+  APPS.find((a) => slug.toUpperCase().startsWith(`${a.toolkit.toUpperCase()}_`))
+
+/**
+ * Hearth's own read-only check for a Composio tool, on top of the session's tag filter, which
+ * Composio sets on a best-effort basis: only Google apps Hearth offers, and only names that pass
+ * the same read-word and write-word test as MCP tools.
+ */
+function composioVerdict(slug: string): GateVerdict {
+  if (META_TOOLS.has(slug))
+    return { allowed: true, reason: 'Composio helper; runs only read tools' }
+  if (slug.toUpperCase().startsWith('COMPOSIO_'))
+    return { allowed: false, reason: 'Composio helper Hearth does not use' }
+  if (!appOf(slug)) return { allowed: false, reason: 'not one of the Google apps Hearth offers' }
+  return readOnlyName(slug)
+}
 
 interface Saved {
   /** Stable per install; Composio keeps this user's connections. */
@@ -90,17 +115,20 @@ function describe(err: unknown): string {
 }
 
 /**
- * Gmail, Google Calendar, Google Drive and Composio's catalog through one Composio session.
+ * Gmail, Google Calendar and Google Drive through one Composio session.
  *
- * The session is read-only on Composio's side: tools tagged create, update or destructive are
- * hidden from search and refused when run, raw API calls and the code sandbox are off, and
- * sign-in only happens from the Connectors page. Hearth adds its own check on every tool the
- * catalog executor is asked to run, and trims large results before the model sees them.
+ * The session is read-only on Composio's side: it covers only those three toolkits, only tools
+ * tagged read-only and not create, update or destructive are found or run, raw API calls and the
+ * code sandbox are off, and sign-in only happens from the Connectors page. Composio's tags are
+ * best-effort, so Hearth also runs every tool name through its own read check, both the tools
+ * handed to the model and each tool the executor is asked to run, and trims large results
+ * before the model sees them.
  */
 class ComposioApps {
   private client: Client | null = null
   private session: Session | null = null
   private tools: ToolSet = {}
+  private infos: McpToolInfo[] = []
   private saved: Saved = { userId: '' }
   private accounts = new Map<string, string>()
   private signIns = new Map<string, () => void>()
@@ -118,6 +146,7 @@ class ComposioApps {
     this.client = null
     this.session = null
     this.tools = {}
+    this.infos = []
     this.accounts.clear()
     this.resetStatuses(keyProblem(key))
     if (keyProblem(key)) return this.publish()
@@ -149,7 +178,7 @@ class ComposioApps {
   private async start(client: Client): Promise<void> {
     this.session = await this.openSession(client)
     this.tools = this.guard(await this.session.tools())
-    this.setStatus(HUB_ID, { connected: true, error: null, tools: this.toolInfos() })
+    this.setStatus(HUB_ID, { connected: true, error: null, tools: this.infos })
     await this.refresh()
     hub.record('mcp', `Connected Composio: ${Object.keys(this.tools).length} read tools`)
   }
@@ -277,14 +306,32 @@ class ComposioApps {
     } else if (sessionId) {
       await client.sessions.delete(sessionId).catch(() => {})
     }
-    const session = await client.create(this.saved.userId, {
-      tags: { disable: ['createHint', 'updateHint', 'destructiveHint'] },
-      manageConnections: false,
-      sandbox: { enable: false },
-      proxyExecute: false,
-      preload: { tools: PRELOAD },
-      instant: { returnInstantCharge: true }
-    })
+    const create = (readOnlyTag: boolean): ReturnType<Client['create']> =>
+      client.create(this.saved.userId, {
+        // Only the Google apps Hearth offers, and only tools tagged read-only (enable is an
+        // allow-list) that are not also tagged as writing.
+        toolkits: { enable: APPS.map((a) => a.toolkit) },
+        tags: {
+          ...(readOnlyTag ? { enable: ['readOnlyHint' as const] } : {}),
+          disable: ['createHint', 'updateHint', 'destructiveHint']
+        },
+        manageConnections: false,
+        sandbox: { enable: false },
+        proxyExecute: false,
+        preload: { tools: PRELOAD },
+        instant: { returnInstantCharge: true }
+      })
+    let session: Session
+    try {
+      session = await create(true)
+    } catch (err) {
+      // Composio refuses a session whose filters hide a preloaded tool. Its tags are best-effort,
+      // so if a preloaded read tool lacks the read-only tag, fall back to the block-list; Hearth's
+      // own name check still keeps every write tool away from the model.
+      if ((err as { status?: number }).status !== 400) throw err
+      hub.record('error', `Composio refused the read-only tag filter: ${describe(err)}`)
+      session = await create(false)
+    }
     this.saved = { ...this.saved, sessionId: session.sessionId, policy: POLICY_VERSION }
     writeJson(FILE, this.saved)
     return session
@@ -312,12 +359,20 @@ class ComposioApps {
     }
   }
 
-  /** Wraps each session tool with Hearth's checks, logging and result trimming. */
+  /**
+   * Keeps only the session tools that pass Hearth's read check and wraps each with the per-call
+   * checks, logging and result trimming. Records every tool's verdict for the Apps page.
+   */
   private guard(tools: ToolSet): ToolSet {
     const guarded: ToolSet = {}
+    this.infos = []
     for (const [name, original] of Object.entries(tools)) {
       const execute = original.execute
-      if (!execute) continue
+      const verdict = execute
+        ? composioVerdict(name)
+        : { allowed: false, reason: 'Composio gave no way to run it' }
+      this.infos.push({ server: 'Composio', name, exposedAs: name, ...verdict })
+      if (!execute || !verdict.allowed) continue
       guarded[name] = {
         ...original,
         execute: (async (input, options) => {
@@ -334,12 +389,18 @@ class ComposioApps {
   private blockedReason(name: string, input: unknown): string | null {
     if (this.toolkitOff(name)) return `${name} is turned off in Hearth`
     if (name !== MULTI_EXECUTE) return null
-    const calls = (input as { tools?: { tool_slug?: unknown }[] } | null)?.tools ?? []
+    // Fails closed: a call list Hearth cannot read is refused rather than run unchecked.
+    const calls = (input as { tools?: unknown } | null)?.tools
+    if (!Array.isArray(calls) || calls.length === 0)
+      return 'Hearth could not tell which tools this call would run'
     for (const call of calls) {
-      const slug = String(call.tool_slug ?? '')
+      const slug = String((call as { tool_slug?: unknown } | null)?.tool_slug ?? '')
+      // The executor runs app tools only, never Composio's helpers or itself again.
+      if (!appOf(slug))
+        return `Hearth only runs Gmail, Calendar and Drive read tools, not "${slug}"`
       if (this.toolkitOff(slug)) return `${slug} is turned off in Hearth`
-      const verb = writeVerb(slug)
-      if (verb) return `Hearth only reads; ${slug} looks like it writes ("${verb}")`
+      const verdict = readOnlyName(slug)
+      if (!verdict.allowed) return `Hearth only reads; ${slug} is blocked: ${verdict.reason}`
     }
     return null
   }
@@ -364,18 +425,6 @@ class ComposioApps {
     return text && text.length > RESULT_LIMIT
       ? `${text.slice(0, RESULT_LIMIT)}… (cut short; ask for fewer results if more is needed)`
       : data
-  }
-
-  private toolInfos(): McpToolInfo[] {
-    return Object.keys(this.tools).map((name) => ({
-      server: 'Composio',
-      name,
-      exposedAs: name,
-      allowed: true,
-      reason: name.startsWith('COMPOSIO_')
-        ? 'Composio session hides and refuses tools that create, update or delete'
-        : 'preloaded read tool'
-    }))
   }
 
   private isOff(id: string): boolean {

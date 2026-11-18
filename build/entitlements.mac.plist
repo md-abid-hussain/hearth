@@ -6,9 +6,12 @@
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
-    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-    <true/>
-    <!-- SmartSpectra's bundled .dylib files are ad-hoc signed; the hardened runtime must load them. -->
+    <!--
+      SmartSpectra's bundled .dylib files (and prebuilt native modules such as uiohook-napi) are
+      ad-hoc signed, and a build made without a Developer ID is too; the SDK's packaging guide asks
+      for this so the hardened runtime will load them. Re-signing every .dylib with one identity
+      would let this go.
+    -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
     <key>com.apple.security.device.camera</key>
