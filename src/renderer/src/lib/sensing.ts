@@ -202,6 +202,8 @@ class Sensing {
   private sdk: SmartSpectraSDK | null = null
   private listeners = new Set<StreamListener>()
   private lastError: SensingError | null = null
+  /** Bumped by every start() and stop(); a start() carries on only while it is still the latest. */
+  private attempt = 0
   stream: MediaStream | null = null
   running = false
 
@@ -248,20 +250,25 @@ class Sensing {
   /** One attempt. Per the SDK docs a retryable failure is the user's to retry, never automatic. */
   async start(): Promise<void> {
     if (this.running || this.sdk) return
+    const attempt = ++this.attempt
+    // stop() can land during any await below. It bumps the attempt (and clears this.sdk once
+    // there is one), and this start() must then not carry on.
+    const cancelled = (): boolean => attempt !== this.attempt
     const { settings } = await window.hearth.getState()
+    if (cancelled()) return
     if (settings.consentAt == null) {
       reviewConsent()
       throw new SensingError('Accept the consent screen before the camera can start.', null, false)
     }
     const apiKey = await window.hearth.getSmartSpectraKey()
+    if (cancelled()) return
     if (!apiKey) throw new SensingError('SMARTSPECTRA_API_KEY is not set in .env.', null, false)
     if (this.running || this.sdk) return
 
     this.lastError = null
     const sdk = this.create(apiKey, settings)
     this.sdk = sdk
-    // stop() can land during any await below; it clears this.sdk, and start() must not carry on.
-    const stopped = (): boolean => this.sdk !== sdk
+    const stopped = (): boolean => cancelled() || this.sdk !== sdk
     try {
       const camera = await openCamera()
       if (stopped()) {
@@ -269,6 +276,11 @@ class Sensing {
         return
       }
       await restoreAutoModes(camera.getVideoTracks()[0])
+      // Not published yet, so stop()'s teardown could not reach this camera.
+      if (stopped()) {
+        stopTracks(camera)
+        return
+      }
       this.setStream(camera)
       // A camera that disconnects (a phone over Phone Link, a USB cable) just stops sending frames.
       camera.getVideoTracks()[0]?.addEventListener('ended', () => {
@@ -280,6 +292,14 @@ class Sensing {
       sdk.useMediaStream(camera)
       await sdk.start()
       if (stopped()) return
+      // Consent withdrawn (or data wiped) while the SDK started: the main process would refuse
+      // setSensing(true), and the camera must not stay on behind its back.
+      const { settings: now } = await window.hearth.getState()
+      if (stopped()) return
+      if (now.consentAt == null) {
+        await this.teardown(sdk)
+        return
+      }
       this.running = true
       window.hearth.setSensing(true)
     } catch (err) {
@@ -319,7 +339,9 @@ class Sensing {
     }
   }
 
+  /** Safe to call at any time: it also cancels a start() still in progress. */
   async stop(): Promise<void> {
+    this.attempt++
     const sdk = this.sdk
     this.running = false
     window.hearth.setSensing(false)

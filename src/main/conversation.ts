@@ -29,6 +29,8 @@ export function pttActive(): boolean {
 /** A new turn interrupts the old one: its speech stops and its reply stops being written. */
 function newTurn(): number {
   turn++
+  // A nudge being written right now must not be said over this turn.
+  observer.userTurnStarted()
   replyAbort?.abort()
   replyAbort = null
   cancelSpeech()
@@ -77,7 +79,19 @@ export function pttLock(): void {
   hub.changed()
 }
 
+const consented = (): boolean => hub.settings.consentAt != null
+
 export function pttAudio(chunk: Uint8Array): void {
+  // Consent withdrawn mid-press: no more audio goes to AssemblyAI, and the press is dropped
+  // along with anything it would have said.
+  if (!consented()) {
+    if (session || finishing) {
+      newTurn()
+      finishing = null
+      pttCancel()
+    }
+    return
+  }
   ;(session ?? finishing)?.push(Buffer.from(chunk))
 }
 
@@ -113,6 +127,12 @@ export async function pttStop(): Promise<void> {
   const text = await current.finish()
   // Another press began while this one was being transcribed; that press owns the turn now.
   if (myTurn !== turn) return
+  // Consent was withdrawn after the last audio chunk; what was said is not answered.
+  if (!consented()) {
+    hub.partialTranscript = ''
+    hub.setMood('idle')
+    return
+  }
   const transcribeMs = Date.now() - releasedAt
   if (current.error) hub.notify(`Speech-to-text: ${current.error}`)
   hub.partialTranscript = text

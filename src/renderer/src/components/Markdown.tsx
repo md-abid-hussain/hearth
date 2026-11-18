@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -10,8 +11,14 @@ const components: Components = {
   )
 }
 
-/** Renders model-written markdown with GitHub tables and lists. Raw HTML is never rendered. */
-export function Markdown({
+const remarkPlugins = [remarkGfm]
+
+/**
+ * Renders model-written markdown with GitHub tables and lists. Raw HTML is never rendered.
+ * Memoized on the text: parsing is the costly part, and the same text re-renders with every
+ * state push.
+ */
+export const Markdown = memo(function Markdown({
   text,
   className
 }: {
@@ -20,9 +27,9 @@ export function Markdown({
 }): React.JSX.Element {
   return (
     <div className={className ? `md ${className}` : 'md'}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
         {text}
       </ReactMarkdown>
     </div>
   )
-}
+})

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { mic } from './mic'
-import { onRemotePtt } from './store'
+import { onRemotePtt, onState } from './store'
 
 /**
  * Click Hearth's face to talk and click again to send. The global talk keys live in the main
@@ -12,19 +12,25 @@ export function usePushToTalk(): {
   press: () => void
   release: () => void
   toggle: () => void
+  /** Ends the turn this window is listening for, however it started. */
+  end: () => void
   error: string | null
 } {
   const [holding, setHolding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const orbActive = useRef(false)
+  /** The microphone is open for a turn: the same as holding, for callbacks outside rendering. */
+  const turnOpen = useRef(false)
 
   const openMic = useCallback(() => {
+    turnOpen.current = true
     setHolding(true)
     setError(null)
     mic.start().catch((err: Error) => setError(`Microphone unavailable: ${err.message}`))
   }, [])
 
   const closeMic = useCallback(() => {
+    turnOpen.current = false
     setHolding(false)
     mic.stop()
   }, [])
@@ -43,19 +49,24 @@ export function usePushToTalk(): {
     window.hearth.pttStop()
   }, [closeMic])
 
+  const end = useCallback(() => {
+    orbActive.current = false
+    closeMic()
+    window.hearth.pttStop()
+  }, [closeMic])
+
   const toggle = useCallback(() => {
     if (orbActive.current) {
       release()
     } else if (holding) {
       // Listening was started by the talk keys; a click sends it.
-      closeMic()
-      window.hearth.pttStop()
+      end()
     } else {
       orbActive.current = true
       window.hearth.pttStart('handsFree')
       openMic()
     }
-  }, [holding, release, closeMic, openMic])
+  }, [holding, release, end, openMic])
 
   useEffect(
     () =>
@@ -67,5 +78,17 @@ export function usePushToTalk(): {
     [openMic, closeMic]
   )
 
-  return { holding, press, release, toggle, error }
+  // Withdrawn consent (or wiped data) ends a turn in progress and closes the microphone at once,
+  // rather than leaving it warm for its idle pause.
+  useEffect(
+    () =>
+      onState((state) => {
+        if (state.settings.consentAt != null) return
+        if (turnOpen.current) end()
+        mic.release()
+      }),
+    [end]
+  )
+
+  return { holding, press, release, toggle, end, error }
 }

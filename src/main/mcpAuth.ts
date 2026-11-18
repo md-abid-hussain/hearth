@@ -46,6 +46,8 @@ export class StoredOAuthProvider implements OAuthClientProvider {
   private saved: Saved
   private readonly file: string
   private pendingState: string | null = null
+  /** Set once Hearth drops this provider; from then on nothing it receives reaches the disk. */
+  private retired = false
 
   constructor(
     id: string,
@@ -79,6 +81,11 @@ export class StoredOAuthProvider implements OAuthClientProvider {
 
   get expectedState(): string | null {
     return this.pendingState
+  }
+
+  /** Forgets the state of an earlier attempt, so only the new sign-in's response is accepted. */
+  clearState(): void {
+    this.pendingState = null
   }
 
   clientInformation(): OAuthClientInformationMixed | undefined {
@@ -145,8 +152,16 @@ export class StoredOAuthProvider implements OAuthClientProvider {
     rmSync(this.file, { force: true })
   }
 
+  /**
+   * Called when the connectors reload or close. A sign-in or token refresh still running on this
+   * provider can finish, but it no longer writes, so tokens never reappear after a wipe.
+   */
+  retire(): void {
+    this.retired = true
+  }
+
   private persist(): void {
-    if (!safeStorage.isEncryptionAvailable()) return
+    if (this.retired || !safeStorage.isEncryptionAvailable()) return
     mkdirSync(dirname(this.file), { recursive: true })
     writeFileSync(this.file, safeStorage.encryptString(JSON.stringify(this.saved)))
   }
@@ -179,10 +194,11 @@ let activeWait: AuthCodeWait | null = null
 
 /**
  * Listens on the loopback redirect for one authorization response. Start it before the
- * browser opens; the response must carry the state the provider generated.
+ * browser opens; the response must carry the state the provider generates for this attempt.
  */
 export function waitForAuthCode(provider: StoredOAuthProvider): AuthCodeWait {
   activeWait?.cancel()
+  provider.clearState()
   let finish: (err: Error | null, code?: string) => void = () => {}
   const code = new Promise<string>((resolve, reject) => {
     const server = createServer((req, res) => {
@@ -191,17 +207,25 @@ export function waitForAuthCode(provider: StoredOAuthProvider): AuthCodeWait {
         res.writeHead(404).end()
         return
       }
+      const html = { 'Content-Type': 'text/html; charset=utf-8' }
+      // Anything without this attempt's state, such as an old tab or another page poking the
+      // port, is turned away but does not end the wait for the real response.
+      const expected = provider.expectedState
+      if (!expected || url.searchParams.get('state') !== expected) {
+        res
+          .writeHead(400, html)
+          .end(PAGE('This sign-in link is not the one Hearth is waiting for.'))
+        return
+      }
       const error = url.searchParams.get('error')
       const received = url.searchParams.get('code')
-      const ok = !error && received && url.searchParams.get('state') === provider.expectedState
-      res.writeHead(ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8' })
+      const ok = !error && received
+      res.writeHead(ok ? 200 : 400, html)
       res.end(PAGE(ok ? 'Signed in.' : 'Sign-in did not complete.'))
       if (ok) finish(null, received)
       else
         finish(
-          new Error(
-            error ? `Sign-in was declined (${error})` : 'The sign-in response did not match'
-          )
+          new Error(error ? `Sign-in was declined (${error})` : 'The sign-in response had no code')
         )
     })
     const timer = setTimeout(() => finish(new Error('Sign-in timed out')), SIGN_IN_TIMEOUT_MS)

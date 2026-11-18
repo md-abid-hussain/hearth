@@ -130,7 +130,10 @@ export function Connectors({
         >
           <span className="label">
             Config file{' '}
-            <Code ml={6}>{status.mcpConfigPath ?? 'none, copy mcp.example.json next to .env'}</Code>
+            <Code ml={6}>
+              {status.mcpConfigPath ??
+                'none yet: add mcp.json next to your .env (format in mcp.example.json)'}
+            </Code>
           </span>
           <ReloadButton />
         </div>

@@ -41,8 +41,13 @@ export interface HearthConfig {
   mcpConfigPath: string | null
 }
 
-/** Where .env may be, nearest first: the project itself, then the folder around it. */
+/**
+ * Where .env may be, nearest first. A development run looks in the project and the folder around
+ * it. An installed build reads only its user data folder: the folder it was started from, or one
+ * next to the app, is not a safe place to take keys or MCP servers from.
+ */
 function candidateRoots(): string[] {
+  if (app.isPackaged) return [app.getPath('userData')]
   const appPath = app.getAppPath()
   return [appPath, resolve(appPath, '..'), process.cwd(), resolve(process.cwd(), '..')]
 }
@@ -61,13 +66,19 @@ export function loadConfig(): HearthConfig {
   const env = process.env
   const provider = (env.LLM_PROVIDER ?? 'openai').toLowerCase()
   const llmProvider: LlmProviderName = provider === 'anthropic' ? 'anthropic' : 'openai'
-  // The folder with .env, else the one with .env.example (where .env belongs), else the app.
+  // The folder with .env, else the one with .env.example (where .env belongs), else the first
+  // candidate: the app in development, the user data folder in an installed build.
   const projectRoot =
     roots.find((r) => existsSync(join(r, '.env'))) ??
     roots.find((r) => existsSync(join(r, '.env.example'))) ??
-    app.getAppPath()
+    roots[0]
+  // HEARTH_MCP_CONFIG is the user's own choice of path, so an installed build honours it too.
   const mcpConfigPath =
-    [env.HEARTH_MCP_CONFIG, join(projectRoot, 'mcp.json'), join(app.getAppPath(), 'mcp.json')]
+    [
+      env.HEARTH_MCP_CONFIG,
+      join(projectRoot, 'mcp.json'),
+      app.isPackaged ? null : join(app.getAppPath(), 'mcp.json')
+    ]
       .filter((p): p is string => Boolean(p))
       .find((p) => existsSync(p)) ?? null
 

@@ -1,7 +1,10 @@
 import { readFileSync } from 'fs'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import {
+  getDefaultEnvironment,
+  StdioClientTransport
+} from '@modelcontextprotocol/sdk/client/stdio.js'
 import {
   StreamableHTTPClientTransport,
   StreamableHTTPError
@@ -45,49 +48,164 @@ const configSchema = z.object({ mcpServers: z.record(z.string(), serverSchema) }
 
 type ServerConfig = z.infer<typeof serverSchema>
 
-/** Verbs that signal a side effect. Matched against snake/camel/kebab-split name words. */
+/**
+ * Words that name a read. A tool the server does not mark read-only needs one of these in its
+ * name, and no write word, to get through. "download" is left out on purpose: some servers save
+ * the file to disk, so it is not a pure read. allowTools in mcp.json can still let one through.
+ */
+const READ_WORDS = new Set([
+  'get',
+  'list',
+  'search',
+  'find',
+  'fetch',
+  'read',
+  'query',
+  'describe',
+  'lookup',
+  'view',
+  'show',
+  'count',
+  'retrieve',
+  'whoami'
+])
+
+/**
+ * Words that signal a side effect, matched against the split name words. Any one of them blocks
+ * a tool the server does not mark read-only, even when the name also has a read word, so
+ * "calendar_list_watch" stays blocked. Verbs that are just as often nouns in read tools (block,
+ * commit, deploy, link, start, sync, trigger and so on) are left out on purpose: a name with no
+ * read word is blocked anyway, and listing them would block reads like "get_commit".
+ */
 const WRITE_WORDS = new Set([
-  'send',
-  'write',
-  'delete',
-  'del',
-  'create',
-  'update',
-  'patch',
-  'put',
-  'post',
-  'remove',
-  'trash',
-  'modify',
-  'move',
-  'rename',
-  'insert',
-  'upload',
-  'edit',
-  'set',
+  // Create, change and delete
   'add',
   'append',
-  'archive',
-  'publish',
-  'reply',
-  'forward',
+  'apply',
+  'clear',
+  'copy',
+  'cp',
+  'create',
+  'creates',
+  'del',
+  'delete',
+  'deletes',
+  'destroy',
+  'drop',
+  'duplicate',
+  'edit',
+  'erase',
+  'flush',
+  'insert',
+  'mkdir',
+  'modify',
+  'modifies',
+  'move',
+  'mutate',
+  'mv',
+  'overwrite',
+  'patch',
+  'purge',
+  'put',
+  'remove',
+  'removes',
+  'rename',
+  'reorder',
+  'replace',
+  'reset',
+  'restore',
+  'retire',
+  'rm',
+  'rmdir',
+  'save',
+  'set',
+  'trash',
+  'truncate',
+  'untrash',
+  'update',
+  'upload',
+  'upsert',
+  'wipe',
+  'write',
+  'writes',
+  // Send and share
   'draft',
-  'submit',
-  'execute',
-  'exec',
-  'run',
-  'push',
-  'merge',
-  'close',
-  'assign',
+  'forward',
   'invite',
+  'notify',
+  'post',
+  'publish',
+  'publishes',
+  'reply',
+  'send',
+  'sends',
   'share',
-  'schedule',
-  'cancel',
+  'submit',
+  'submits',
+  'unshare',
+  // Workflow and state
+  'accept',
+  'acknowledge',
+  'archive',
+  'assign',
+  'attach',
   'approve',
-  'revoke',
+  'cancel',
+  'close',
+  'complete',
+  'decline',
+  'detach',
+  'disable',
+  'disconnect',
+  'dismiss',
+  'enable',
+  'escalate',
   'grant',
-  'drop'
+  'kill',
+  'manage',
+  'mark',
+  'merge',
+  'mute',
+  'pin',
+  'reject',
+  'reopen',
+  'reschedule',
+  'resolve',
+  'restart',
+  'revert',
+  'revoke',
+  'rollback',
+  'rotate',
+  'schedule',
+  'snooze',
+  'star',
+  'subscribe',
+  'terminate',
+  'toggle',
+  'transfer',
+  'transition',
+  'unarchive',
+  'unassign',
+  'unblock',
+  'unfollow',
+  'unlink',
+  'unlock',
+  'unmute',
+  'unpin',
+  'unstar',
+  'unsubscribe',
+  'unwatch',
+  'watch',
+  // Run code or spend money
+  'authorize',
+  'buy',
+  'exec',
+  'execute',
+  'executes',
+  'pay',
+  'purchase',
+  'push',
+  'run'
 ])
 
 interface ToolMeta {
@@ -96,66 +214,134 @@ interface ToolMeta {
   annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; openWorldHint?: boolean }
 }
 
+/** Splits snake, kebab, camel and Pascal case, and capital runs: "SENDMessage" is send, message. */
 function nameWords(name: string): string[] {
   return name
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .split(/[\s_\-.:/]+/)
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(/[^a-zA-Z0-9]+/)
     .map((w) => w.toLowerCase())
     .filter(Boolean)
 }
 
-/** The first word in a tool name that signals a side effect, if any. */
-export function writeVerb(name: string): string | undefined {
-  return nameWords(name).find((w) => WRITE_WORDS.has(w))
+export interface GateVerdict {
+  allowed: boolean
+  reason: string
 }
 
-/** Deny-by-default read-only gate. Returns why a tool is allowed or blocked. */
-export function gateTool(
-  tool: ToolMeta,
-  server: ServerConfig
-): { allowed: boolean; reason: string } {
+/**
+ * The name half of the gate, shared with Composio: a name passes only when it has a read word
+ * such as get, list or search, and no write word. Words are matched whole, so "sendmail" or
+ * "deleteall" has no read word and is blocked too.
+ */
+export function readOnlyName(name: string): GateVerdict {
+  const words = nameWords(name)
+  const write = words.find((w) => WRITE_WORDS.has(w))
+  if (write) return { allowed: false, reason: `name contains the write word "${write}"` }
+  const read = words.find((w) => READ_WORDS.has(w))
+  if (!read) return { allowed: false, reason: 'name has no read word such as get, list or search' }
+  return { allowed: true, reason: `name reads data ("${read}") and has no write word` }
+}
+
+/**
+ * Deny-by-default read-only gate. A tool gets through when mcp.json lists it in allowTools, when
+ * the server marks it read-only and not destructive, or, when the server says nothing either
+ * way, when its name passes readOnlyName. Everything else is blocked, with the reason shown on
+ * the Apps page.
+ */
+export function gateTool(tool: ToolMeta, server: ServerConfig): GateVerdict {
   if (server.allowTools?.includes(tool.name))
     return { allowed: true, reason: 'explicitly allowed in mcp.json' }
   const hints = tool.annotations ?? {}
   if (hints.destructiveHint === true)
     return { allowed: false, reason: 'server marks it destructive' }
+  if (hints.readOnlyHint === true) return { allowed: true, reason: 'server marks it read-only' }
   if (hints.readOnlyHint === false)
     return { allowed: false, reason: 'server marks it not read-only' }
-  const verb = writeVerb(tool.name)
-  if (verb) return { allowed: false, reason: `name contains write verb "${verb}"` }
-  if (server.requireReadOnlyHint && hints.readOnlyHint !== true) {
-    return { allowed: false, reason: 'readOnlyHint required but missing' }
-  }
-  return {
-    allowed: true,
-    reason: hints.readOnlyHint ? 'server marks it read-only' : 'no write signals found'
-  }
+  if (server.requireReadOnlyHint)
+    return { allowed: false, reason: 'mcp.json requires readOnlyHint and the server gives none' }
+  return readOnlyName(tool.name)
 }
 
 const NETWORK_RETRY_MS = 400
+/** Long enough for a slow search, short enough that a spoken answer is not left hanging. */
+const TOOL_TIMEOUT_MS = 30_000
+/** A server that pages forever, or repeats a cursor, cannot stall a connection. */
+const MAX_TOOL_PAGES = 20
+
+/** Errors that mean no connection was made, so the request never reached the server. */
+const NOT_SENT = new Set([
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT'
+])
+
+/** MCP requests that change nothing on the server, so sending one twice is harmless. */
+const HOUSEKEEPING = new Set(['initialize', 'notifications/initialized', 'ping', 'tools/list'])
 
 function networkCause(err: unknown): string {
   const cause = (err as { cause?: { code?: string; message?: string } }).cause
   return cause?.code ?? cause?.message ?? (err as Error).message
 }
 
+function errorCode(err: unknown): string | undefined {
+  const cause = (err as { cause?: { code?: string; errors?: { code?: string }[] } }).cause
+  return cause?.code ?? cause?.errors?.[0]?.code
+}
+
+/** Whether every JSON-RPC message in a request body is housekeeping. */
+function onlyHousekeeping(body: unknown): boolean {
+  if (typeof body !== 'string') return false
+  try {
+    const parsed: unknown = JSON.parse(body)
+    const messages = Array.isArray(parsed) ? parsed : [parsed]
+    return (
+      messages.length > 0 &&
+      messages.every((m) => HOUSEKEEPING.has(String((m as { method?: unknown })?.method)))
+    )
+  } catch {
+    return false
+  }
+}
+
 /**
- * fetch only rejects when no response arrived, typically a pooled connection the server
- * already closed. Those get one fresh attempt, and the final error names the real cause
- * instead of a bare "fetch failed". Every Hearth tool is read-only, so repeating is safe.
+ * A failed request is sent again only when that cannot repeat a side effect: the connection
+ * was never made, the request is a GET, or it is MCP housekeeping such as listing tools. A tool
+ * call that may have reached the server is never repeated.
+ */
+function safeToRetry(init: RequestInit | undefined, err: unknown): boolean {
+  const code = errorCode(err)
+  if (code && NOT_SENT.has(code)) return true
+  const method = (init?.method ?? 'GET').toUpperCase()
+  return method === 'GET' || method === 'HEAD' || onlyHousekeeping(init?.body)
+}
+
+function unreachable(url: string | URL, err: unknown): Error {
+  return new Error(`Could not reach ${new URL(String(url)).host} (${networkCause(err)})`, {
+    cause: err
+  })
+}
+
+/**
+ * fetch only rejects when no response arrived, typically a refused connection or a pooled
+ * connection the server already closed. Safe requests get one fresh attempt, and the error
+ * names the real cause instead of a bare "fetch failed".
  */
 const networkFetch: FetchLike = async (url, init) => {
   try {
     return await fetch(url, init)
   } catch (err) {
     if (init?.signal?.aborted) throw err
+    if (!safeToRetry(init, err)) throw unreachable(url, err)
     await new Promise((resolve) => setTimeout(resolve, NETWORK_RETRY_MS))
     try {
       return await fetch(url, init)
     } catch (second) {
-      throw new Error(`Could not reach ${new URL(String(url)).host} (${networkCause(second)})`, {
-        cause: second
-      })
+      if (init?.signal?.aborted) throw second
+      throw unreachable(url, second)
     }
   }
 }
@@ -268,15 +454,38 @@ interface Entry {
   key: StoredApiKey | null
   client: Client | null
   tools: ToolSet
+  /** Bumped on every connect and disconnect, so a connect that finishes late knows it is stale. */
+  generation: number
+  /** Aborts the connect in flight, if any. */
+  connecting: AbortController | null
 }
 
 class McpManager {
   private entries = new Map<string, Entry>()
   private signInWaits = new Map<string, AuthCodeWait>()
   private disabled = new Set<string>()
+  /** The load in progress; each load waits for the one before it. */
+  private loading: Promise<void> = Promise.resolve()
+  /** Bumped by close(), so a load that was overtaken by a newer load or a close stops. */
+  private epoch = 0
 
-  async load(configPath: string | null): Promise<void> {
-    await this.close()
+  /**
+   * Rebuilds every server from scratch. The old connections close and sign-ins stop at once, and
+   * loads run one after another, so no client is left connected outside the entries map.
+   */
+  load(configPath: string | null): Promise<void> {
+    const closing = this.close()
+    const epoch = this.epoch
+    const run = this.loading.then(() => closing).then(() => this.loadNow(configPath, epoch))
+    this.loading = run.catch(() => {})
+    return run
+  }
+
+  private async loadNow(configPath: string | null, epoch: number): Promise<void> {
+    if (epoch !== this.epoch) return
+    // A server added on the Apps page while this load waited its turn is saved to disk and
+    // rebuilt below, so its live copy goes rather than being replaced while still connected.
+    void this.dropAll()
     const cfg = loadConfig()
     const saved = readConnectors()
     this.disabled = new Set(saved.disabled)
@@ -360,7 +569,8 @@ class McpManager {
       }
     } finally {
       wait.cancel()
-      this.signInWaits.delete(id)
+      // A reload may have started a new sign-in for the same id meanwhile; leave that one be.
+      if (this.signInWaits.get(id) === wait) this.signInWaits.delete(id)
       provider.interactive = false
       if (this.authOf(entry) === 'signingIn') {
         entry.status = { ...entry.status, auth: provider.hasTokens() ? 'signedIn' : 'signedOut' }
@@ -377,11 +587,10 @@ class McpManager {
   async signOut(id: string): Promise<void> {
     const entry = this.entries.get(id)
     if (!entry) return
+    this.signInWaits.get(id)?.cancel()
     entry.provider?.forget()
     entry.key?.forget()
-    await entry.client?.close().catch(() => {})
-    entry.client = null
-    entry.tools = {}
+    await this.disconnect(entry)
     if (entry.status.source === 'custom') {
       this.entries.delete(id)
     } else {
@@ -425,9 +634,7 @@ class McpManager {
     if (enabled) {
       await this.open(entry)
     } else {
-      await entry.client?.close().catch(() => {})
-      entry.client = null
-      entry.tools = {}
+      await this.disconnect(entry)
       entry.status = { ...entry.status, connected: false, error: null, tools: [] }
     }
     hub.record('mcp', `Turned ${enabled ? 'on' : 'off'} ${entry.status.name}`)
@@ -478,9 +685,40 @@ class McpManager {
     )
   }
 
+  /**
+   * Closes every connection, including connects still in flight, and ends sign-ins. Providers are
+   * retired first, so tokens from a sign-in that finishes afterwards, say after Delete all local
+   * data, are never written to disk.
+   */
   async close(): Promise<void> {
-    await Promise.allSettled([...this.entries.values()].map((e) => e.client?.close()))
+    this.epoch++
+    await this.dropAll()
+  }
+
+  /** Empties the map; its first part, up to closing the clients, runs synchronously. */
+  private async dropAll(): Promise<void> {
+    for (const wait of this.signInWaits.values()) wait.cancel()
+    this.signInWaits.clear()
+    const entries = [...this.entries.values()]
     this.entries.clear()
+    for (const entry of entries) entry.provider?.retire()
+    await Promise.allSettled(entries.map((entry) => this.disconnect(entry)))
+  }
+
+  /** Drops an entry's connection and any connect in flight. Runs its first part synchronously. */
+  private async disconnect(entry: Entry): Promise<void> {
+    entry.generation++
+    entry.connecting?.abort()
+    entry.connecting = null
+    const client = entry.client
+    entry.client = null
+    entry.tools = {}
+    await client?.close().catch(() => {})
+  }
+
+  /** Whether the entry is still the one in the map, so its results should be kept. */
+  private isLive(entry: Entry): boolean {
+    return this.entries.get(entry.status.id) === entry
   }
 
   private add(
@@ -502,6 +740,8 @@ class McpManager {
       key,
       client: null,
       tools: {},
+      generation: 0,
+      connecting: null,
       status: {
         id,
         name,
@@ -528,9 +768,16 @@ class McpManager {
     { unauthorized: false } | { unauthorized: true; transport: StreamableHTTPClientTransport }
   > {
     const cfg = entry.config as ServerConfig
-    await entry.client?.close().catch(() => {})
-    entry.client = null
-    entry.tools = {}
+    if (!this.isLive(entry)) return { unauthorized: false }
+    // The previous client closes before the new one connects. disconnect bumps the generation
+    // before its first await, so this connect owns the generation read right after it.
+    const closing = this.disconnect(entry)
+    const generation = entry.generation
+    await closing
+    const stale = (): boolean => entry.generation !== generation || !this.isLive(entry)
+    if (stale()) return { unauthorized: false }
+    const connecting = new AbortController()
+    entry.connecting = connecting
 
     const client = new Client(
       { name: 'hearth', version: '0.1.0' },
@@ -552,7 +799,9 @@ class McpManager {
         ? new StdioClientTransport({
             command: cfg.command,
             args: cfg.args,
-            env: { ...(process.env as Record<string, string>), ...cfg.env },
+            // Only the SDK's safe basics (PATH, home and temp folders) plus what mcp.json gives,
+            // never Hearth's own environment with the API keys loaded from .env.
+            env: { ...getDefaultEnvironment(), ...cfg.env },
             cwd: cfg.cwd,
             stderr: 'ignore'
           })
@@ -565,8 +814,13 @@ class McpManager {
           })
 
     try {
-      await client.connect(transport)
+      await client.connect(transport, { signal: connecting.signal })
     } catch (err) {
+      if (stale()) {
+        // Closed or replaced while connecting: nothing to report, just make sure it is gone.
+        await client.close().catch(() => {})
+        return { unauthorized: false }
+      }
       if (err instanceof UnauthorizedError && transport instanceof StreamableHTTPClientTransport) {
         this.setAuth(entry, entry.status.auth === 'signingIn' ? 'signingIn' : 'signedOut', null)
         return { unauthorized: true, transport }
@@ -579,11 +833,18 @@ class McpManager {
       entry.status = { ...entry.status, connected: false, error: (err as Error).message, tools: [] }
       hub.record('error', `MCP ${entry.status.name} failed: ${(err as Error).message}`)
       return { unauthorized: false }
+    } finally {
+      if (entry.connecting === connecting) entry.connecting = null
+    }
+    if (stale()) {
+      // A newer connect or a close won; this client would otherwise live on outside the map.
+      await client.close().catch(() => {})
+      return { unauthorized: false }
     }
 
     entry.client = client
     await this.loadTools(entry, client)
-    if (entry.status.connected) {
+    if (entry.client === client && entry.status.connected) {
       const read = entry.status.tools.filter((t) => t.allowed).length
       hub.record(
         'mcp',
@@ -593,17 +854,30 @@ class McpManager {
     return { unauthorized: false }
   }
 
-  /** Lists every page of tools and rebuilds the gated tool set for one server. */
+  /** Lists the server's tools, a bounded number of pages, and rebuilds its gated tool set. */
   private async loadTools(entry: Entry, client: Client): Promise<void> {
     const cfg = entry.config as ServerConfig
     try {
       const tools: Awaited<ReturnType<Client['listTools']>>['tools'] = []
+      const seen = new Set<string>()
       let cursor: string | undefined
+      let pages = 0
       do {
         const page = await client.listTools(cursor ? { cursor } : undefined)
         tools.push(...page.tools)
-        cursor = page.nextCursor
-      } while (cursor)
+        pages++
+        // A repeated cursor would loop forever, so it ends the listing like a missing one.
+        cursor = page.nextCursor && !seen.has(page.nextCursor) ? page.nextCursor : undefined
+        if (cursor) seen.add(cursor)
+      } while (cursor && pages < MAX_TOOL_PAGES)
+      if (cursor) {
+        hub.record(
+          'error',
+          `${entry.status.name} lists more than ${MAX_TOOL_PAGES} pages of tools; Hearth uses the first ${MAX_TOOL_PAGES}`
+        )
+      }
+      // Replaced or closed while listing: the newer connection sets the tools.
+      if (entry.client !== client) return
 
       const gated: ToolSet = {}
       const infos: McpToolInfo[] = tools.map((t) => {
@@ -613,12 +887,14 @@ class McpManager {
           gated[exposedAs] = dynamicTool({
             description: `[${entry.status.name}, read-only] ${t.description ?? t.name}`,
             inputSchema: jsonSchema(t.inputSchema as Parameters<typeof jsonSchema>[0]),
-            execute: async (input) => {
+            execute: async (input, { abortSignal }) => {
               hub.record('tool', `MCP ${entry.status.name}.${t.name}`)
-              const result = await client.callTool({
-                name: t.name,
-                arguments: input as Record<string, unknown>
-              })
+              // An interrupted turn aborts the signal, which cancels the call on the server too.
+              const result = await client.callTool(
+                { name: t.name, arguments: input as Record<string, unknown> },
+                undefined,
+                { signal: abortSignal, timeout: TOOL_TIMEOUT_MS }
+              )
               const body = JSON.stringify(result.content ?? result).slice(0, 8_000)
               if (result.isError) throw new Error(`${entry.status.name} returned an error: ${body}`)
               return body
@@ -642,6 +918,7 @@ class McpManager {
         tools: infos
       }
     } catch (err) {
+      if (entry.client !== client) return
       entry.tools = {}
       entry.status = { ...entry.status, connected: false, error: (err as Error).message, tools: [] }
     }

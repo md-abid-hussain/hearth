@@ -8,12 +8,26 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  # A local MCP server list may hold keys, and an installed build reads it from the user data folder.
+  - '!mcp.json'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!{.cursor,.github,.worktrees,demo,design,docker,docs,scripts,smoke-shots}/**'
   - '!out/tsc/**'
   - '!PRESAGE-HACKATHON-GUIDE.md'
 asarUnpack:
   - resources/**
+# Electron fuses, flipped in the packaged executable. Nothing in Hearth or its dependencies runs
+# Electron as plain Node (ELECTRON_RUN_AS_NODE, fork), so that and the Node debugging switches
+# go; the app code must come from app.asar and match the hash recorded at build time.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  # Flipping a fuse breaks the Mac binary's ad-hoc signature, and an unsigned Apple Silicon build
+  # will not start without one. A build signed with a real identity is signed again afterwards.
+  resetAdHocDarwinSignature: true
 win:
   executableName: hearth
   # SmartSpectra's native runtime, per the @smartspectra/node-sdk README packaging section.

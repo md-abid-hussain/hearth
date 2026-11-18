@@ -81,8 +81,20 @@ class Observer {
   private lastByRule = new Map<RuleId, number>()
   private recentNudges: number[] = []
   private busy = false
+  /**
+   * When each hold-back was last logged and why, by rule (or reminder), so a reason that lasts
+   * is logged once per cooldown instead of on every tick.
+   */
+  private lastHeld = new Map<string, { at: number; why: string }>()
+  /** Counts presses and typed messages, so a line written meanwhile is not said over them. */
+  private turnsStarted = 0
   lastUserTurnAt = 0
   pttActive = false
+
+  /** The user pressed the talk key or sent a message. */
+  userTurnStarted(): void {
+    this.turnsStarted++
+  }
 
   start(speakFn: SpeakFn): void {
     if (this.timer) return
@@ -207,6 +219,34 @@ class Observer {
   }
 
   /**
+   * The first candidate that may be said now, urgent ones first and the rest in order, so one
+   * rule in its cooldown does not keep the others quiet. Logs why only when every one is held.
+   */
+  private choose(candidates: Candidate[]): Candidate | null {
+    const ordered = [...candidates.filter((c) => c.urgent), ...candidates.filter((c) => !c.urgent)]
+    const held: [Candidate, string[]][] = []
+    for (const c of ordered) {
+      const reasons = this.blockers(c)
+      if (!reasons.length) return c
+      held.push([c, reasons])
+    }
+    for (const [c, reasons] of held) this.holdBack(c, reasons)
+    return null
+  }
+
+  /** Logs a hold-back, unless the same one was logged for the same reasons within the cooldown. */
+  private holdBack(c: Candidate, reasons: string[]): void {
+    const now = Date.now()
+    for (const [key, last] of this.lastHeld)
+      if (now - last.at >= T.sameRuleCooldown) this.lastHeld.delete(key)
+    const key = c.reminderId ?? c.rule
+    const why = reasons.join(', ')
+    if (this.lastHeld.get(key)?.why === why) return
+    this.lastHeld.set(key, { at: now, why })
+    hub.record('suppressed', `Held back "${c.rule}": ${why}`, { rule: c.rule, reasons })
+  }
+
+  /**
    * Quiet mode never speaks, so a due reminder becomes a desktop notification instead, and is
    * logged like a spoken one so the Reminders page lists it.
    */
@@ -251,17 +291,23 @@ class Observer {
 
     const candidates = [...alerts, ...this.candidates()]
     if (!candidates.length) return
-    const pick = candidates.find((c) => c.urgent) ?? candidates[0]
-    const blockers = this.blockers(pick)
-    if (blockers.length) {
-      hub.record('suppressed', `Held back "${pick.rule}": ${blockers.join(', ')}`, {
-        rule: pick.rule,
-        reasons: blockers
-      })
+    const pick = this.choose(candidates)
+    if (!pick) return
+
+    const turnsBefore = this.turnsStarted
+    const line = await phrase(pick)
+    // Writing the line takes a moment, and the user may have started talking, pressed the talk
+    // key or typed meanwhile. Saying it now would talk over them and cut off their reply, so it
+    // waits: nothing is used up, and the next tick considers it again.
+    const late = this.blockers(pick)
+    if (this.turnsStarted !== turnsBefore) late.push('user started talking to Hearth')
+    if (late.length) {
+      this.holdBack(pick, late)
+      this.lastReviewAt = 0
       return
     }
-
-    const line = await phrase(pick)
+    // The user may also have cancelled the reminder in the meantime.
+    if (pick.reminderId && !hub.reminders.some((r) => r.id === pick.reminderId)) return
     this.lastNudgeAt = Date.now()
     this.lastByRule.set(pick.rule, this.lastNudgeAt)
     if (!pick.urgent) this.recentNudges.push(this.lastNudgeAt)

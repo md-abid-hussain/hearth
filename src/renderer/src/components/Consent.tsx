@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { Button, Group, Modal, Text } from '@mantine/core'
-import type { HearthState } from '@shared/types'
 import { onReviewConsent } from '../lib/consent'
 import { sensing } from '../lib/sensing'
 
@@ -27,7 +26,7 @@ const POINTS: { title: string; sub: string; chip: string }[] = [
   },
   {
     title: 'Your words go to the language model',
-    sub: 'plus a short summary of your signals, and Presage’s insights to lay them out, sent to the configured LLM provider',
+    sub: 'plus a summary of your signals, memory and reminders, the latest Presage insight, and what Hearth reads from your apps when you ask; each new insight is also sent once to be laid out. All of it goes to the configured LLM provider',
     chip: 'llm'
   },
   {
@@ -47,10 +46,13 @@ const POINTS: { title: string; sub: string; chip: string }[] = [
   }
 ]
 
-export function Consent({ state }: { state: HearthState }): React.JSX.Element {
-  const { consentAt } = state.settings
+/** Takes only the consent time, so the many state pushes that leave it alone skip this modal. */
+export const Consent = memo(function Consent({
+  consentAt
+}: {
+  consentAt: number | null
+}): React.JSX.Element {
   const [opened, setOpened] = useState(consentAt == null)
-  const sensingOn = state.vitals.sensing
 
   useEffect(() => onReviewConsent(() => setOpened(true)), [])
 
@@ -62,9 +64,12 @@ export function Consent({ state }: { state: HearthState }): React.JSX.Element {
     return () => window.removeEventListener('focus', open)
   }, [consentAt])
 
+  // Without consent the camera stops, whatever the main process says about sensing: it refuses
+  // to record a start that lands after a withdrawal or wipe, so its flag can read off while the
+  // camera here is on or still starting. stop() is safe when nothing runs.
   useEffect(() => {
-    if (consentAt == null && sensingOn) void sensing.stop()
-  }, [consentAt, sensingOn])
+    if (consentAt == null) void sensing.stop()
+  }, [consentAt])
 
   const agree = (): void => {
     void window.hearth.updateSettings({ consentAt: Date.now() })
@@ -122,4 +127,4 @@ export function Consent({ state }: { state: HearthState }): React.JSX.Element {
       </Group>
     </Modal>
   )
-}
+})

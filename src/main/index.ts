@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  dialog,
   globalShortcut,
   ipcMain,
   safeStorage,
@@ -10,7 +11,8 @@ import {
   systemPreferences
 } from 'electron'
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import { monitorEventLoopDelay } from 'perf_hooks'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { bindSmartSpectraIpc } from '@smartspectra/node-sdk/main'
@@ -29,6 +31,7 @@ import { llmKeyPresent, loadConfig } from './config'
 import {
   handleUserText,
   playbackIdle,
+  pttActive,
   pttAudio,
   pttCancel,
   pttLock,
@@ -44,7 +47,7 @@ import { mcp } from './mcp'
 import { memory } from './memory'
 import { observer } from './observer'
 import { reminders } from './reminders'
-import { initStore, wipeData } from './store'
+import { initStore, reportStoreProblems, wipeData } from './store'
 import { vitals } from './vitals'
 import { closeAllSessions } from './voice/stt'
 import { closeSpeech, playClip } from './voice/tts'
@@ -74,13 +77,62 @@ function watchEventLoop(): void {
  */
 const PILL_SIZE = { width: 460, height: 520 }
 let quitting = false
+/** Set once both windows exist; a second launch before then has nothing to show yet. */
+let started = false
+/** Set once the data folder is ready, so a startup failure can be written to the timeline. */
+let storeReady = false
+
+/** Both windows load one page: the dev server in development, else the bundled index.html. */
+const rendererUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] || null : null
+const rendererFile = join(__dirname, '../renderer/index.html')
+const devOrigin = ((): string | null => {
+  try {
+    return rendererUrl ? new URL(rendererUrl).origin : null
+  } catch {
+    return null
+  }
+})()
 
 function loadRole(win: BrowserWindow, role: WindowRole): void {
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#${role}`)
-  } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'), { hash: role })
+  if (rendererUrl) win.loadURL(`${rendererUrl}#${role}`)
+  else win.loadFile(rendererFile, { hash: role })
+}
+
+/**
+ * True only for Hearth's own page: the dev server's origin in development, else the exact
+ * index.html this build ships. Any other file:// page, such as an HTML file dropped on a window,
+ * is not Hearth and must not get the camera, the microphone or the preload API.
+ */
+function isAppPage(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    if (rendererUrl) return devOrigin !== null && parsed.origin === devOrigin
+    if (parsed.protocol !== 'file:') return false
+    // fileURLToPath decodes %20 and the like and ignores the #pill or #dashboard part.
+    const path = resolve(fileURLToPath(parsed))
+    // Windows paths are case-insensitive, and Chromium may spell the drive letter differently.
+    return process.platform === 'win32'
+      ? path.toLowerCase() === rendererFile.toLowerCase()
+      : path === rendererFile
+  } catch {
+    return false
   }
+}
+
+/**
+ * Keeps a window on Hearth's own page. Without this, a dropped file or a stray link would load in
+ * a window that still has the preload API. Web links open in the browser instead, never here.
+ */
+function lockToAppPage(win: BrowserWindow): void {
+  win.webContents.on('will-navigate', (e, url) => {
+    if (isAppPage(url)) return
+    e.preventDefault()
+    console.warn(`[hearth] blocked navigation away from Hearth's page to ${url}`)
+  })
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url)
+    return { action: 'deny' }
+  })
 }
 
 const webPreferences = {
@@ -147,10 +199,7 @@ function createDashboard(): BrowserWindow {
     e.preventDefault()
     win.hide()
   })
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) void shell.openExternal(url)
-    return { action: 'deny' }
-  })
+  lockToAppPage(win)
   loadRole(win, 'dashboard')
   return win
 }
@@ -328,6 +377,7 @@ function createPill(): BrowserWindow {
   win.setIgnoreMouseEvents(true, { forward: true })
   if (process.platform === 'linux') passPointerOnLinux(win)
   win.on('ready-to-show', () => win.showInactive())
+  lockToAppPage(win)
   loadRole(win, 'pill')
   return win
 }
@@ -349,25 +399,34 @@ function requireConsent(): boolean {
   return false
 }
 
+/**
+ * The camera and microphone go only to Hearth's own page, and only after consent. Checks use the
+ * requesting frame's full URL: a file:// origin is just "file:///", which would match any file.
+ */
 function allowMediaOnlyForAppPages(): void {
-  const devOrigin =
-    is.dev && process.env['ELECTRON_RENDERER_URL']
-      ? new URL(process.env['ELECTRON_RENDERER_URL']).origin
-      : null
-  const trusted = (url: string): boolean => {
-    if (url.startsWith('file://')) return true
-    try {
-      return devOrigin !== null && new URL(url).origin === devOrigin
-    } catch {
-      return false
-    }
-  }
-  session.defaultSession.setPermissionRequestHandler((wc, permission, callback) => {
-    callback(permission === 'media' && consented() && trusted(wc.getURL()))
+  session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+    const url = details.requestingUrl || wc.getURL()
+    callback(permission === 'media' && consented() && isAppPage(url))
   })
-  session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => {
-    return permission === 'media' && consented() && trusted(origin)
+  session.defaultSession.setPermissionCheckHandler((wc, permission, _origin, details) => {
+    const url = details.requestingUrl || wc?.getURL() || ''
+    return permission === 'media' && consented() && isAppPage(url)
   })
+}
+
+/**
+ * Consent was withdrawn or the data wiped: the microphone and camera stop now, not at the next
+ * press. The dashboard owns the camera session, so it is told to stop it too; vitals stop here
+ * as well in case that window never answers.
+ */
+function stopSensingAndListening(): void {
+  hotkeys.reset()
+  hub.send({ type: 'pttRemote', on: false, discard: true })
+  // Only a turn that is still listening is dropped; this must not wake a sleeping Hearth.
+  if (pttActive()) pttCancel()
+  hub.send({ type: 'sensingCommand', on: false })
+  vitals.stop()
+  away.stopped()
 }
 
 /** Starts or stops sensing in the dashboard window, where the camera session lives. */
@@ -459,7 +518,10 @@ function registerIpc(): void {
   })
   ipcMain.on('hearth:quit', () => app.quit())
 
-  ipcMain.handle('hearth:updateSettings', (_e, patch: Partial<Settings>) => applySettings(patch))
+  // The patch comes from a renderer, so unknown or malformed keys are dropped before it is saved.
+  ipcMain.handle('hearth:updateSettings', (_e, patch: unknown) =>
+    applySettings(hub.validSettings(patch, 'a Hearth window'))
+  )
   ipcMain.handle('hearth:unpin', (_e, index: number) => memory.unpin(index))
   ipcMain.handle('hearth:cancelReminder', (_e, id: string) => reminders.cancel(id))
   ipcMain.handle('hearth:reloadMcp', async () => {
@@ -488,6 +550,8 @@ function registerIpc(): void {
       : mcp.setEnabled(id, enabled === true)
   )
   ipcMain.handle('hearth:wipeData', async () => {
+    // Consent goes first, so nothing can sense, listen or resume while Composio is contacted.
+    applySettings({ consentAt: null })
     // Composio keeps the Google connections on its servers, so remove them before the local id goes.
     const composioProblem = await composio.forgetAll()
     wipeData()
@@ -569,6 +633,8 @@ function passPointerOnLinux(win: BrowserWindow): void {
 function applySettings(patch: Partial<Settings>): Settings {
   const settings = hub.updateSettings(patch)
   if (patch.consentAt) askMacMediaAccess()
+  // Saved first, so the permission handlers already refuse while everything is stopped.
+  if ('consentAt' in patch && patch.consentAt === null) stopSensingAndListening()
   if (patch.hotkey) {
     hotkeys.use(patch.hotkey)
     hub.status = {
@@ -593,12 +659,15 @@ async function shutdown(): Promise<void> {
   ])
 }
 
-app.whenReady().then(async () => {
+function startup(): void {
   electronApp.setAppUserModelId('com.hearth.companion')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   const cfg = loadConfig()
   initStore(cfg.dataDir)
+  storeReady = true
+  // A data file that could not be read was moved aside; say so in the timeline.
+  reportStoreProblems((message) => hub.record('error', message))
   hub.init({
     llmProvider: cfg.llmProvider,
     llmModel: cfg.llmModel,
@@ -636,6 +705,7 @@ app.whenReady().then(async () => {
     )
   createDashboard()
   createPill()
+  started = true
   startTalkKeys()
   // The talk-key hook also sees every mouse release, so a widget drag always ends.
   uIOhook.on('mouseup', () => stopPillDrag())
@@ -652,20 +722,52 @@ app.whenReady().then(async () => {
   if (is.dev) watchEventLoop()
 
   app.on('activate', () => showDashboard())
-})
+}
 
-app.on('before-quit', (event) => {
-  quitting = true
-  if (cleanedUp) return
-  event.preventDefault()
-  cleanedUp = true
-  void shutdown().finally(() => app.quit())
-})
+/** A failed startup is shown, never left as a half-started app with nothing on screen. */
+function startupFailed(err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err)
+  console.error('[hearth] startup failed:', err)
+  if (storeReady) {
+    try {
+      hub.record('error', `Hearth did not finish starting: ${message}`)
+    } catch {
+      // The data folder itself may be what failed; the console has it.
+    }
+  }
+  // With a window up, the timeline shows the problem; without one, nothing would.
+  if (hub.window('dashboard')) return
+  dialog.showErrorBox('Hearth could not start', message)
+  app.quit()
+}
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll()
-})
+// One Hearth per user data folder: a second launch would add a second widget and a second key
+// hook. Electron scopes the lock to the user data folder, so a run with its own --user-data-dir,
+// like the smoke test, still starts. `npm run dev` goes without it: electron-vite starts the
+// rebuilt app while the old one is still quitting, and the new one would find the lock taken.
+if (!rendererUrl && !app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  // Opening Hearth again brings its dashboard forward instead.
+  app.on('second-instance', () => {
+    if (started) showDashboard()
+  })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.whenReady().then(startup).catch(startupFailed)
+
+  app.on('before-quit', (event) => {
+    quitting = true
+    if (cleanedUp) return
+    event.preventDefault()
+    cleanedUp = true
+    void shutdown().finally(() => app.quit())
+  })
+
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll()
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+}

@@ -134,6 +134,13 @@ const WINDOWS: Record<string, number> = {
   all: Number.POSITIVE_INFINITY
 }
 
+/**
+ * The same samples in the same order. A chart memoized with this skips a window that was worked
+ * out again but picked the same points, as well as every state push that left history alone.
+ */
+export const samePoints = (a: VitalsPoint[], b: VitalsPoint[]): boolean =>
+  a === b || (a.length === b.length && a.every((p, i) => p === b[i]))
+
 export function useWindowed(history: VitalsPoint[], range: string): VitalsPoint[] {
   return useMemo(() => {
     const span = WINDOWS[range] ?? WINDOWS['1h']

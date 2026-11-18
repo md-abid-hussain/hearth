@@ -15,6 +15,7 @@
   - `get_vitals` reads the live signals.
   - `recent_insights` reads the latest automatic insights.
   - `ask_presage_insight` sends your question to Presage through `sdk.requestInsight` and waits up to 30 seconds for the answer.
+- Each new insight is sent to the language model once, to be laid out as a headline, metrics and suggestions. The latest one is also included with each question you ask, and `recent_insights` can return up to five.
 
 ## When Hearth speaks first
 
@@ -26,12 +27,13 @@ To keep it from nagging:
 - It waits at least 15 minutes between nudges, and 45 minutes before repeating the same one.
 - It makes at most 3 nudges an hour.
 - In quiet mode it never speaks first.
+- If you start talking or press the talk key while it is writing a line, it stays quiet and tries again later.
 
-The Timeline page records every time it held back, and why.
+When one nudge is waiting out its cooldown, another that is free to go still can. The Timeline page records when it held back, and why; a reason that lasts is logged once, not on every check.
 
 ## Reminders
 
-Ask "remind me to stretch in 20 minutes" for a one-off, or "remind me to drink water every hour" for a repeat. A repeat is said up to 10 times, then stops; Hearth schedules each one itself, and cancelling stops the whole series ([`src/main/reminders.ts`](../src/main/reminders.ts)). Reminders survive a restart: a repeat skips the times it missed and carries on.
+Ask "remind me to stretch in 20 minutes" for a one-off, or "remind me to drink water every hour" for a repeat. A repeat is said up to 10 times, then stops; Hearth schedules each one itself, and cancelling stops the whole series ([`src/main/reminders.ts`](../src/main/reminders.ts)). Reminders survive a restart: a repeat skips the times it missed and carries on. A repeat said late keeps its rhythm, skipping to the next slot. Up to 20 reminders can wait at once.
 
 ## Check-ins
 
@@ -39,7 +41,7 @@ Ask "keep an eye on my eye strain every 10 minutes". Hearth tells you how it loo
 
 Each time the reminder comes due, Hearth reads the signal again: blink rate for eyes, breathing, pulse, or all of them. If all is well, it stays silent and checks again later. If something is off, it tells you. If the camera has lost you, the check-in stops.
 
-Up to 3 check-ins can run at once. Each ends after 2 hours, and none of them survive a restart.
+Up to 3 check-ins can run at once. Each runs for 2 hours unless you ask for another length (up to 4 hours, at most 24 checks), and none of them survive a restart.
 
 ## Architecture
 
@@ -56,3 +58,5 @@ main (Node)                                renderer (React 19 + Mantine 9)
 ```
 
 Hearth has two windows. The **widget** is Hearth itself: transparent and always on top. It plays Hearth's voice. The **dashboard** owns the camera session. Both talk to the main process through `window.hearth` ([`src/preload`](../src/preload)). The language model runs through the AI SDK with OpenAI or Anthropic.
+
+Text read from your apps is treated as data, not instructions. Once Hearth has read an app during a reply, it cannot pin facts, set or cancel reminders, start check-ins or change quiet mode until your next message.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Button, SegmentedControl, TextInput } from '@mantine/core'
 import type { Exchange, InsightEntry, VitalsPoint, HearthState } from '@shared/types'
 import { SetupChecklist } from '../../components/SetupChecklist'
@@ -203,8 +203,13 @@ function Stat({
 /**
  * The latest insight at a glance: the structured headline and metrics when the LLM has laid it
  * out, otherwise a summary read straight from Presage's markdown. Never the raw table.
+ * Memoized: the store keeps an unchanged insight identical across state pushes.
  */
-function InsightGlance({ insight }: { insight: InsightEntry }): React.JSX.Element {
+const InsightGlance = memo(function InsightGlance({
+  insight
+}: {
+  insight: InsightEntry
+}): React.JSX.Element {
   const view = useMemo(() => {
     const parsed = summarizeInsight(insight.text)
     const s = insight.structured
@@ -228,7 +233,7 @@ function InsightGlance({ insight }: { insight: InsightEntry }): React.JSX.Elemen
       )}
     </>
   )
-}
+})
 
 export function Today({ state, history, go }: Props): React.JSX.Element {
   const now = useNow()

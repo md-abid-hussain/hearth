@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { InsightEntry, InsightStructured } from '../shared/types'
 import { llmKeyPresent, loadConfig } from './config'
 import { hub } from './hub'
-import { getModel, providerOptions } from './llm'
+import { BACKGROUND_TIMEOUT_MS, getModel, providerOptions } from './llm'
 import { appendJsonl, newId, readJsonl } from './store'
 
 const FILE = 'insights.jsonl'
@@ -15,6 +15,11 @@ const BACKLOG_COUNT = 5
 const BACKLOG_DELAY_MS = 8_000
 /** SmartSpectra caps insight prompts at 2048 bytes; leave room for multi-byte characters. */
 const PROMPT_MAX_BYTES = 1_800
+/**
+ * Laying out an insight writes more than a nudge does, so it gets longer than other background
+ * calls. One that hangs would hold up the rest of the backlog behind it.
+ */
+const STRUCTURE_TIMEOUT_MS = 2 * BACKGROUND_TIMEOUT_MS
 
 const STRUCTURE_SYSTEM = `You turn a wellness insight written in markdown into structured fields.
 Extract only what the text says. Never invent, estimate, convert or round numbers; copy each value exactly as written, with its unit. If the text gives no metrics, return an empty metrics list.
@@ -180,6 +185,7 @@ class Insights {
         prompt: text,
         output: Output.object({ schema: StructuredSchema }),
         maxRetries: 1,
+        abortSignal: AbortSignal.timeout(STRUCTURE_TIMEOUT_MS),
         providerOptions: providerOptions('low')
       })
       const structured: InsightStructured = {
