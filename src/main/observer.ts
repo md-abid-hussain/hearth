@@ -212,7 +212,7 @@ class Observer {
    */
   private notifyDueReminders(now: number): void {
     for (const r of reminders.due(now)) {
-      reminders.complete(r.id)
+      reminders.fired(r.id)
       showNotification('Hearth reminder', r.text)
       hub.record('reminder', r.text, { rule: 'reminder', via: 'notification' })
     }
@@ -266,7 +266,7 @@ class Observer {
     this.lastByRule.set(pick.rule, this.lastNudgeAt)
     if (!pick.urgent) this.recentNudges.push(this.lastNudgeAt)
     if (pick.reminderId && pick.rule === 'check') reminders.advanceCheck(pick.reminderId)
-    else if (pick.reminderId) reminders.complete(pick.reminderId)
+    else if (pick.reminderId) reminders.fired(pick.reminderId)
     const spokenReminder = pick.rule === 'reminder' || pick.rule === 'check'
     hub.record(spokenReminder ? 'reminder' : 'nudge', line, {
       rule: pick.rule,

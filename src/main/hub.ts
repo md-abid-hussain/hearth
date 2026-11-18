@@ -17,6 +17,7 @@ import type {
   HearthState
 } from '../shared/types'
 import { defaultHotkey } from '../shared/keys'
+import { READINGS, readingsOn } from '../shared/readings'
 import { tapSpeech } from './demoAudio'
 import { appendJsonl, newId, readJson, readJsonl, writeJson } from './store'
 
@@ -82,6 +83,9 @@ class Hub {
     hotkey: defaultHotkey(process.platform),
     reasoningEffort: null,
     consentAt: null,
+    measurePulse: true,
+    measureBreathing: true,
+    measureHrv: true,
     measureBlinks: true,
     measureExpressions: false,
     pillPosition: null
@@ -194,6 +198,12 @@ class Hub {
   }
 
   updateSettings(patch: Partial<Settings>): Settings {
+    // The camera needs at least one reading to ask for; switching off the last one is refused.
+    if (readingsOn({ ...this.settings, ...patch }).length === 0) {
+      patch = Object.fromEntries(
+        Object.entries(patch).filter(([key]) => !READINGS.some((r) => r.key === key))
+      )
+    }
     this.settings = { ...this.settings, ...patch }
     writeJson(SETTINGS_FILE, this.settings)
     this.changed()

@@ -36,9 +36,14 @@ export interface CheckResult {
 
 const round = (x: number): number => Math.round(x)
 
+/** A reading switched off in Signals cannot be checked. */
+const off = (what: string): CheckResult => ({
+  status: 'no_signal',
+  facts: `${what} is switched off in Signals`
+})
+
 function eyes(windowMs: number): CheckResult {
-  if (!hub.settings.measureBlinks)
-    return { status: 'no_signal', facts: 'blink detection is switched off in Privacy' }
+  if (!hub.settings.measureBlinks) return off('blink detection')
   const blinks = vitals.average('blinks', windowMs)
   if (blinks == null) return { status: 'warming', facts: 'Blink rate is still settling.' }
   if (blinks < LOW_BLINKS_PER_MIN)
@@ -50,6 +55,7 @@ function eyes(windowMs: number): CheckResult {
 }
 
 function breathing(windowMs: number): CheckResult {
+  if (!hub.settings.measureBreathing) return off('the breathing reading')
   const now = vitals.average('breathing', windowMs)
   if (now == null) return { status: 'warming', facts: 'Breathing rate is still settling.' }
   const base = vitals.baseline('breathing')
@@ -62,6 +68,7 @@ function breathing(windowMs: number): CheckResult {
 }
 
 function pulse(windowMs: number): CheckResult {
+  if (!hub.settings.measurePulse) return off('the pulse reading')
   const now = vitals.average('pulse', windowMs)
   if (now == null) return { status: 'warming', facts: 'Pulse is still settling.' }
   const base = vitals.baseline('pulse')
@@ -94,12 +101,13 @@ export function readCheck(focus: CheckFocus, everyMin: number): CheckResult {
   if (focus === 'breathing') return breathing(windowMs)
   if (focus === 'pulse') return pulse(windowMs)
 
-  const parts = [
-    ...(hub.settings.measureBlinks ? [eyes(windowMs)] : []),
-    breathing(windowMs),
-    pulse(windowMs),
-    sitting()
-  ]
+  // Overall uses whichever readings are switched on, plus sitting time.
+  const parts = [eyes(windowMs), breathing(windowMs), pulse(windowMs)].filter(
+    (p) => p.status !== 'no_signal'
+  )
+  if (!parts.length)
+    return { status: 'no_signal', facts: 'blinks, breathing and pulse are all switched off' }
+  parts.push(sitting())
   const concerns = parts.filter((p) => p.status === 'concern')
   if (concerns.length) return { status: 'concern', facts: concerns.map((p) => p.facts).join(' ') }
   const read = parts.filter((p) => p.status === 'ok')

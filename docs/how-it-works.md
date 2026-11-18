@@ -4,7 +4,7 @@
 
 ## SmartSpectra in the code
 
-- **Sensing.** The dashboard window runs a `SmartSpectraSDK` session from `@smartspectra/node-sdk/renderer` on 640x480 camera frames. It asks for breathing and cardio metrics, blinks and talking. Facial expressions are requested only if you turn them on in Privacy. The main process does the processing through `bindSmartSpectraIpc` ([`src/renderer/src/lib/sensing.ts`](../src/renderer/src/lib/sensing.ts)).
+- **Sensing.** The dashboard window runs a `SmartSpectraSDK` session from `@smartspectra/node-sdk/renderer` on 640x480 camera frames. It asks only for the readings switched on under **Signals > Readings**: pulse, breathing, HRV, blinks and talking, and facial expressions (off by default). At least one stays on; to stop the camera, stop sensing. The main process does the processing through `bindSmartSpectraIpc` ([`src/renderer/src/lib/sensing.ts`](../src/renderer/src/lib/sensing.ts)).
 - **Signals.** Metric packets go to [`src/main/vitals.ts`](../src/main/vitals.ts), which keeps the live snapshot, 5-minute averages, a baseline for the session and the history for the charts. Hearth uses a reading only once the SDK marks it stable. The face breathes at your measured breathing rate.
 - **Away.** When no face has been in view for 10 seconds, sensing pauses. It resumes the same session at your next key press or mouse move.
 
@@ -28,6 +28,10 @@ To keep it from nagging:
 - In quiet mode it never speaks first.
 
 The Timeline page records every time it held back, and why.
+
+## Reminders
+
+Ask "remind me to stretch in 20 minutes" for a one-off, or "remind me to drink water every hour" for a repeat. A repeat is said up to 10 times, then stops; Hearth schedules each one itself, and cancelling stops the whole series ([`src/main/reminders.ts`](../src/main/reminders.ts)). Reminders survive a restart: a repeat skips the times it missed and carries on.
 
 ## Check-ins
 

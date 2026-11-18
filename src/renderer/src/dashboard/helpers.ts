@@ -1,7 +1,25 @@
 // Formatting, labels and hooks the dashboard pages share. The shared components live in
 // shared.tsx: a file of components only keeps React's fast refresh working.
 import { useEffect, useMemo, useState } from 'react'
-import type { LogEntry, VitalsPoint } from '@shared/types'
+import { notifications } from '@mantine/notifications'
+import { KEEP_ONE_READING, readingsOn, type ReadingKey } from '@shared/readings'
+import type { LogEntry, Settings, VitalsPoint } from '@shared/types'
+
+/**
+ * Switches a camera reading on or off. Switching off the last one is refused with a message;
+ * the main process refuses it too.
+ */
+export function setReading(settings: Settings, key: ReadingKey, on: boolean): void {
+  if (!on && readingsOn({ ...settings, [key]: false }).length === 0) {
+    notifications.show({
+      color: 'yellow',
+      title: 'One reading stays on',
+      message: KEEP_ONE_READING
+    })
+    return
+  }
+  void window.hearth.updateSettings({ [key]: on })
+}
 
 export const fmt = (x: number | null | undefined, digits = 0): string =>
   x == null ? '--' : x.toFixed(digits)

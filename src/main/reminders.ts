@@ -11,6 +11,8 @@ const MAX_RUNS = 24
 const STALE_AFTER_MS = 60 * 60_000
 /** While a signal settles, a check-in waits a minute at a time, at most this many times. */
 const MAX_WAITS = 5
+/** A repeating reminder is said at most this many times in all. */
+export const MAX_REPEATS = 10
 
 export type AddCheckResult = { reminder: Reminder; replaced: boolean } | { error: string }
 
@@ -22,6 +24,14 @@ class Reminders {
   load(): void {
     const now = Date.now()
     const saved = readJson<Reminder[]>(FILE, [])
+    // A repeating reminder skips the times it missed while Hearth was closed and carries on.
+    for (const r of saved) {
+      if (!r.repeat) continue
+      while (now - r.dueAt >= STALE_AFTER_MS && r.repeat.left > 1) {
+        r.dueAt += r.repeat.everyMin * 60_000
+        r.repeat = { ...r.repeat, left: r.repeat.left - 1 }
+      }
+    }
     const kept = saved.filter((r) => !r.check && now - r.dueAt < STALE_AFTER_MS)
     for (const r of saved) {
       if (r.check) continue
@@ -41,7 +51,11 @@ class Reminders {
     hub.changed()
   }
 
-  add(text: string, inMinutes: number): Reminder {
+  /**
+   * A reminder said once, or with `repeat`, every `everyMin` minutes for `times` times in all (at
+   * most MAX_REPEATS). Hearth schedules each repeat itself; cancelling stops the whole series.
+   */
+  add(text: string, inMinutes: number, repeat?: { everyMin: number; times: number }): Reminder {
     const now = Date.now()
     const reminder: Reminder = {
       id: newId(),
@@ -49,10 +63,32 @@ class Reminders {
       dueAt: now + Math.max(1, inMinutes) * 60_000,
       createdAt: now
     }
+    const times = repeat ? Math.min(MAX_REPEATS, Math.max(1, Math.round(repeat.times))) : 1
+    if (repeat && times > 1)
+      reminder.repeat = { everyMin: Math.max(1, Math.round(repeat.everyMin)), left: times }
     hub.reminders.push(reminder)
-    hub.record('reminder', `Reminder set: "${text}" in ${Math.round(inMinutes)} min`)
+    hub.record(
+      'reminder',
+      reminder.repeat
+        ? `Reminder set: "${text}" in ${Math.round(inMinutes)} min, then every ${reminder.repeat.everyMin} min, ${times} times in all`
+        : `Reminder set: "${text}" in ${Math.round(inMinutes)} min`
+    )
     this.persist()
     return reminder
+  }
+
+  /** A plain reminder was said or shown: schedule its next repeat, or remove it. */
+  fired(id: string): void {
+    const r = hub.reminders.find((x) => x.id === id)
+    if (!r?.repeat || r.repeat.left <= 1) {
+      this.complete(id)
+      return
+    }
+    // Keep the rhythm the user asked for, unless saying it was delayed past the next slot.
+    const every = r.repeat.everyMin * 60_000
+    r.dueAt = Math.max(r.dueAt + every, Date.now() + 60_000)
+    r.repeat = { ...r.repeat, left: r.repeat.left - 1 }
+    this.persist()
   }
 
   checks(): Reminder[] {
