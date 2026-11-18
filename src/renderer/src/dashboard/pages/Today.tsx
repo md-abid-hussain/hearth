@@ -235,7 +235,7 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
   const [range, setRange] = useState('1h')
   const points = useWindowed(history, range)
   const headline = useHeadline(state, history, now)
-  const { vitals, status } = state
+  const { vitals, status, settings } = state
   const today = useMemo(() => todaysLog(state.log), [state.log])
   const nudges = today.filter((e) => e.kind === 'nudge').length
   const heldBack = today.filter((e) => e.kind === 'suppressed').length
@@ -296,7 +296,13 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
             label="Pulse"
             value={fmt(vitals.pulse)}
             unit="bpm"
-            note={vitals.pulse ? 'estimated from the camera' : 'waiting for a stable reading'}
+            note={
+              !settings.measurePulse
+                ? 'switched off in Signals'
+                : vitals.pulse
+                  ? 'estimated from the camera'
+                  : 'waiting for a stable reading'
+            }
             confidence={vitals.pulseConfidence}
           />
           <Stat
@@ -304,11 +310,13 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
             value={fmt(vitals.breathing, 1)}
             unit="per min"
             note={
-              vitals.breathing
-                ? vitals.breathing >= 20
-                  ? 'on the quick side'
-                  : 'steady'
-                : 'waiting for a stable reading'
+              !settings.measureBreathing
+                ? 'switched off in Signals'
+                : vitals.breathing
+                  ? vitals.breathing >= 20
+                    ? 'on the quick side'
+                    : 'steady'
+                  : 'waiting for a stable reading'
             }
             confidence={vitals.breathingConfidence}
           />
@@ -321,10 +329,12 @@ export function Today({ state, history, go }: Props): React.JSX.Element {
         </div>
         <div className="substats">
           <span>
-            <b>{fmt(vitals.hrvRmssd)}</b>ms heart rate variability
+            <b>{settings.measureHrv ? fmt(vitals.hrvRmssd) : 'off'}</b>
+            {settings.measureHrv ? 'ms ' : ''}heart rate variability
           </span>
           <span>
-            <b>{fmt(vitals.blinksPerMinute)}</b>blinks in the last minute
+            <b>{settings.measureBlinks ? fmt(vitals.blinksPerMinute) : 'off'}</b>
+            {settings.measureBlinks ? 'blinks in the last minute' : 'blinks'}
           </span>
         </div>
       </section>

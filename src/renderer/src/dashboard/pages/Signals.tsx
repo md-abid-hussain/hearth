@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Alert, SegmentedControl, Switch } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
-import type { HearthState, Settings, VitalsPoint } from '@shared/types'
-import { TIME_AXIS, clock, fmt, useWindowed } from '../helpers'
+import { READINGS } from '@shared/readings'
+import type { HearthState, VitalsPoint } from '@shared/types'
+import { TIME_AXIS, clock, fmt, setReading, useWindowed } from '../helpers'
 import { CameraPicker, CameraPreview, PageHeader, SensingButton, SignalsChart } from '../shared'
 
 export function Signals({
@@ -15,8 +16,8 @@ export function Signals({
   const [range, setRange] = useState('1h')
   const points = useWindowed(history, range)
   const v = state.vitals
-  const { measureBlinks, measureExpressions } = state.settings
-  const update = (patch: Partial<Settings>): void => void window.hearth.updateSettings(patch)
+  const { measurePulse, measureBreathing, measureHrv, measureBlinks, measureExpressions } =
+    state.settings
   const hrv = points.filter((p) => p.hrv != null).map((p) => ({ t: p.t, HRV: p.hrv }))
 
   return (
@@ -55,26 +56,22 @@ export function Signals({
             </div>
           </div>
           <div className="face-signals">
-            <span className="label">Face signals</span>
-            <Switch
-              size="xs"
-              label="Blinks and talking"
-              description="Blink rate, and pausing breathing readings while you speak"
-              checked={measureBlinks}
-              onChange={(e) => update({ measureBlinks: e.currentTarget.checked })}
-            />
-            <Switch
-              size="xs"
-              label="Facial expressions"
-              description="Estimates stay on this computer and never go to the language model"
-              checked={measureExpressions}
-              onChange={(e) => update({ measureExpressions: e.currentTarget.checked })}
-            />
-            {v.sensing && (
-              <span className="faint" style={{ fontSize: 12 }}>
-                Changes apply the next time sensing starts.
-              </span>
-            )}
+            <span className="label">Readings</span>
+            {READINGS.map((r) => (
+              <Switch
+                key={r.key}
+                size="xs"
+                label={r.label}
+                description={r.help}
+                checked={state.settings[r.key]}
+                onChange={(e) => setReading(state.settings, r.key, e.currentTarget.checked)}
+              />
+            ))}
+            <span className="faint" style={{ fontSize: 12 }}>
+              {v.sensing
+                ? 'Changes apply the next time sensing starts.'
+                : 'At least one stays on. The camera only asks for the ones switched on.'}
+            </span>
           </div>
         </div>
 
@@ -88,33 +85,39 @@ export function Signals({
               <span className="idx">01</span>
               <div>
                 <div className="title">Pulse</div>
-                <div className="sub">confidence {fmt(v.pulseConfidence)}%</div>
+                <div className="sub">
+                  {measurePulse ? `confidence ${fmt(v.pulseConfidence)}%` : 'switched off'}
+                </div>
               </div>
-              <span className="chip">{fmt(v.pulse)} bpm</span>
+              <span className="chip">{measurePulse ? `${fmt(v.pulse)} bpm` : 'off'}</span>
             </div>
             <div className="row">
               <span className="idx">02</span>
               <div>
                 <div className="title">Breathing</div>
-                <div className="sub">confidence {fmt(v.breathingConfidence)}%</div>
+                <div className="sub">
+                  {measureBreathing ? `confidence ${fmt(v.breathingConfidence)}%` : 'switched off'}
+                </div>
               </div>
-              <span className="chip">{fmt(v.breathing, 1)} /min</span>
+              <span className="chip">
+                {measureBreathing ? `${fmt(v.breathing, 1)} /min` : 'off'}
+              </span>
             </div>
             <div className="row">
               <span className="idx">03</span>
               <div>
                 <div className="title">Heart rate variability</div>
-                <div className="sub">RMSSD, needs a minute of steady signal</div>
+                <div className="sub">
+                  {measureHrv ? 'RMSSD, needs a minute of steady signal' : 'switched off'}
+                </div>
               </div>
-              <span className="chip">{fmt(v.hrvRmssd)} ms</span>
+              <span className="chip">{measureHrv ? `${fmt(v.hrvRmssd)} ms` : 'off'}</span>
             </div>
             <div className="row">
               <span className="idx">04</span>
               <div>
                 <div className="title">Blinks</div>
-                <div className="sub">
-                  {measureBlinks ? 'last 60 seconds' : 'turned off in face signals'}
-                </div>
+                <div className="sub">{measureBlinks ? 'last 60 seconds' : 'switched off'}</div>
               </div>
               <span className="chip">
                 {measureBlinks ? `${fmt(v.blinksPerMinute)} /min` : 'off'}

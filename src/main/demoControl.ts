@@ -13,6 +13,9 @@ const MAX_BODY = 64 * 1024
 const SETTABLE: (keyof Settings)[] = [
   'quietMode',
   'nudgesEnabled',
+  'measurePulse',
+  'measureBreathing',
+  'measureHrv',
   'measureBlinks',
   'measureExpressions',
   'theme'

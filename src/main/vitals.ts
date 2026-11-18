@@ -1,4 +1,5 @@
 import { decodeMetrics } from '@smartspectra/node-sdk/messages'
+import { READINGS } from '../shared/readings'
 import type { VitalsPoint } from '../shared/types'
 import { away } from './away'
 import { isDemo } from './demo'
@@ -240,6 +241,8 @@ class VitalsTracker {
     return {
       sensing: v.sensing,
       present: v.present,
+      // Readings the user switched off in Signals; their values stay empty on purpose.
+      switchedOff: READINGS.filter((r) => !hub.settings[r.key]).map((r) => r.label),
       sessionMinutes: v.sessionStartedAt ? Math.round((now - v.sessionStartedAt) / 60_000) : 0,
       minutesSinceLastBreak: v.sittingSince ? Math.round((now - v.sittingSince) / 60_000) : null,
       pulseBpm: round(v.pulse),

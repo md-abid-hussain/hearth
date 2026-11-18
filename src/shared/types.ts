@@ -93,6 +93,8 @@ export interface Reminder {
   dueAt: number
   createdAt: number
   check?: CheckIn
+  /** A repeating reminder: said every `everyMin` minutes, `left` more times including the next. */
+  repeat?: { everyMin: number; left: number }
 }
 
 export type LogKind =
@@ -207,6 +209,13 @@ export interface Settings {
   reasoningEffort: ReasoningEffort | null
   /** When the user accepted the first-run consent; null until then, and the camera and mic stay off. */
   consentAt: number | null
+  /**
+   * Which camera readings to ask SmartSpectra for; at least one stays on. Each applies the next
+   * time sensing starts.
+   */
+  measurePulse: boolean
+  measureBreathing: boolean
+  measureHrv: boolean
   /** Ask SmartSpectra for blink and talking detection. Applies the next time sensing starts. */
   measureBlinks: boolean
   /** Ask SmartSpectra for facial expression estimates. Off by default; applies the next time sensing starts. */

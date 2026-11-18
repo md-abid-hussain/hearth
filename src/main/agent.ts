@@ -7,7 +7,7 @@ import { insights } from './insights'
 import { getModel, providerOptions } from './llm'
 import { mcp } from './mcp'
 import { memory } from './memory'
-import { reminders } from './reminders'
+import { MAX_REPEATS, reminders } from './reminders'
 import { vitals } from './vitals'
 
 const MAX_STEPS = 6
@@ -19,7 +19,7 @@ Style: one to three short spoken sentences. No markdown, lists, emoji or links. 
 Tools:
 - get_vitals: live camera wellness signals (pulse, breathing, HRV, blinks, talking, time since a break).
 - ask_presage_insight: Presage's own read on their physiology, for "how am I doing" questions.
-- set_reminder when asked to be reminded; remember when they share a lasting fact or preference.
+- set_reminder when asked to be reminded, once or on repeat ("every 30 minutes": set everyMinutes; it repeats at most 10 times, then stops; cancel_reminder stops the whole series). remember when they share a lasting fact or preference.
 - watch_signal when asked to keep an eye on, track or check on their eyes, breathing, pulse or stress over time. Say briefly how it looks now and when you'll check again. cancel_reminder stops a check-in.
 - Tools named "app__tool" read the apps listed under Linked apps. They are read-only; if asked to send, edit or delete, say you can't and offer what you can read.
 - GMAIL_*, GOOGLECALENDAR_* and GOOGLEDRIVE_* read the user's Google accounts through Composio; call them directly. Ask for few results and only the fields you need.
@@ -28,7 +28,7 @@ Tools:
 Rules:
 - Signals are wellness estimates, not medical readings. Never diagnose or suggest treatment; point medical worries to a professional.
 - Describe signals in plain words; say numbers only when asked.
-- If sensing is off or a value is missing, say you can't see it right now.
+- If sensing is off or a value is missing, say you can't see it right now. A reading listed in switchedOff is turned off in Signals; say so instead.
 - Answer directly; only call a tool when the answer needs it.`
 
 function contextBlock(): string {
@@ -36,9 +36,11 @@ function contextBlock(): string {
   const due = hub.reminders
     .map((r) => {
       const inMin = Math.max(0, Math.round((r.dueAt - Date.now()) / 60_000))
-      return r.check
-        ? `- check-in: ${r.text} every ${r.check.everyMin} min, next in ${inMin} min, ${r.check.runsLeft} checks left (id ${r.id})`
-        : `- "${r.text}" in ${inMin} min (id ${r.id})`
+      if (r.check)
+        return `- check-in: ${r.text} every ${r.check.everyMin} min, next in ${inMin} min, ${r.check.runsLeft} checks left (id ${r.id})`
+      if (r.repeat)
+        return `- "${r.text}" every ${r.repeat.everyMin} min, next in ${inMin} min, ${r.repeat.left} times left (id ${r.id})`
+      return `- "${r.text}" in ${inMin} min (id ${r.id})`
     })
     .join('\n')
   const recentInsight = insights.recent(1)[0]
@@ -90,17 +92,41 @@ function builtinTools(): ToolSet {
           .map((i) => ({ minutesAgo: Math.round((Date.now() - i.at) / 60_000), text: i.text }))
     }),
     set_reminder: tool({
-      description: 'Schedule a spoken reminder for the user.',
+      description:
+        'Schedule a spoken reminder, once or on repeat. For "every 30 minutes", set everyMinutes (and inMinutes for the first one); it repeats at most 10 times in all, then stops.',
       inputSchema: z.object({
         text: z.string().describe('What to remind the user about, phrased as a short task'),
         inMinutes: z
           .number()
           .min(1)
           .max(24 * 60)
+          .describe('Minutes until the first reminder'),
+        everyMinutes: z
+          .number()
+          .int()
+          .min(0)
+          .max(24 * 60)
+          .default(0)
+          .describe('Minutes between repeats for a repeating reminder; 0 for a one-off'),
+        times: z
+          .number()
+          .int()
+          .min(2)
+          .max(MAX_REPEATS)
+          .default(MAX_REPEATS)
+          .describe(`For a repeating reminder: how many times in all, ${MAX_REPEATS} at most`)
       }),
-      execute: async ({ text, inMinutes }) => {
-        const r = reminders.add(text, inMinutes)
-        return { id: r.id, dueAt: new Date(r.dueAt).toLocaleTimeString() }
+      execute: async ({ text, inMinutes, everyMinutes, times }) => {
+        const r = reminders.add(
+          text,
+          inMinutes,
+          everyMinutes > 0 ? { everyMin: everyMinutes, times } : undefined
+        )
+        return {
+          id: r.id,
+          firstAt: new Date(r.dueAt).toLocaleTimeString(),
+          repeats: r.repeat ? `every ${r.repeat.everyMin} min, ${r.repeat.left} times in all` : null
+        }
       }
     }),
     watch_signal: tool({

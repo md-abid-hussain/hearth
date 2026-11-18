@@ -4,19 +4,20 @@ import {
   SmartSpectraErrorCode,
   SmartSpectraSDK,
   ValidationCode,
-  breathingMetrics,
-  cardioMetrics
+  breathingMetrics
 } from '@smartspectra/node-sdk/renderer'
 import type { Settings } from '@shared/types'
 import { reviewConsent } from './consent'
 
 /**
- * Only what Hearth uses: breathing and cardio always, blink and talk detection and facial
- * expressions when switched on in Privacy. The full face bundle would also compute 478
- * landmarks per frame that nothing reads.
+ * Only the readings switched on in Signals (at least one always is). The full cardio and face
+ * bundles would also compute a pressure trace and 478 landmarks per frame that nothing reads.
  */
 function requestedMetrics(settings: Settings): number[] {
-  const metrics: number[] = [...breathingMetrics, ...cardioMetrics]
+  const metrics: number[] = []
+  if (settings.measureBreathing) metrics.push(...breathingMetrics)
+  if (settings.measurePulse) metrics.push(MetricType.PULSE_RATE)
+  if (settings.measureHrv) metrics.push(MetricType.HRV)
   if (settings.measureBlinks) metrics.push(MetricType.BLINKING, MetricType.TALKING)
   if (settings.measureExpressions) metrics.push(MetricType.EXPRESSIONS)
   return metrics

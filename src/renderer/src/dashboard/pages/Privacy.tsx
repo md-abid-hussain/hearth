@@ -2,6 +2,7 @@ import { Anchor, Button, Code, Switch, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import type { Settings, HearthState } from '@shared/types'
 import { reviewConsent } from '../../lib/consent'
+import { setReading } from '../helpers'
 import { PageHeader } from '../shared'
 
 export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
@@ -66,7 +67,7 @@ export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
             </div>
             <Switch
               checked={settings.measureBlinks}
-              onChange={(e) => update({ measureBlinks: e.currentTarget.checked })}
+              onChange={(e) => setReading(settings, 'measureBlinks', e.currentTarget.checked)}
             />
           </div>
           <div className="field">
@@ -79,7 +80,7 @@ export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
             </div>
             <Switch
               checked={settings.measureExpressions}
-              onChange={(e) => update({ measureExpressions: e.currentTarget.checked })}
+              onChange={(e) => setReading(settings, 'measureExpressions', e.currentTarget.checked)}
             />
           </div>
           <div className="field">
