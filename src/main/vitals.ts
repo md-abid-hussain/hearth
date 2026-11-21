@@ -19,6 +19,8 @@ const BASELINE_MIN_POINTS = 60
 const BREATHING_AFTER_TALK_MS = 20_000
 /** A value not refreshed for this long is left out of the history instead of being repeated. */
 const STALE_MS = 6_000
+/** Expression labels arrive only when the SDK marks one stable, so one is kept a little longer. */
+const EXPRESSION_STALE_MS = 15_000
 /** Demo mode only: every history point, kept for editing the demo video. */
 const DEMO_VITALS_FILE = 'vitals.jsonl'
 
@@ -64,7 +66,7 @@ class VitalsTracker {
   /** When blink packets started arriving; the per-minute count means little before a full minute. */
   private blinkSince: number | null = null
   private presenceTimer: NodeJS.Timeout | null = null
-  private updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0 }
+  private updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0, expression: 0 }
   /**
    * Baselines fixed once the session's first ten minutes are over, for the session that started
    * at `session`. The history keeps only the last hour, so after that those minutes are gone.
@@ -93,7 +95,7 @@ class VitalsTracker {
     }
     if (!resume) this.history = []
     this.awaySince = null
-    this.updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0 }
+    this.updated = { pulse: 0, breathing: 0, hrv: 0, blinks: 0, expression: 0 }
     this.lastTalkingAt = 0
     this.blinkTimes = []
     this.lastBlinkState = false
@@ -163,6 +165,7 @@ class VitalsTracker {
       )[0]
       const label = EXPRESSIONS[top.type ?? 0]
       v.expression = label ? { label, confidence: top.confidence ?? 0 } : null
+      if (label) this.updated.expression = now
     }
 
     const blink = lastOf(m.face?.blinking)
@@ -197,7 +200,11 @@ class VitalsTracker {
         pulse: fresh('pulse', v.pulse),
         breathing: fresh('breathing', v.breathing),
         hrv: fresh('hrv', v.hrvRmssd),
-        blinks: fresh('blinks', v.blinksPerMinute)
+        blinks: fresh('blinks', v.blinksPerMinute),
+        expression:
+          hub.settings.measureExpressions && now - this.updated.expression < EXPRESSION_STALE_MS
+            ? (v.expression?.label ?? null)
+            : null
       }
       this.history.push(point)
       // Before trimming, which would drop the first ten minutes an hour into the session.
@@ -245,6 +252,22 @@ class VitalsTracker {
     return values.reduce((a, b) => a + b, 0) / values.length
   }
 
+  /** Share of each expression label over the trailing window, in whole percent; null with no samples. */
+  private expressionShares(windowMs: number): Record<string, number> | null {
+    const since = Date.now() - windowMs
+    const labels = this.history
+      .filter((p) => p.t > since && p.expression)
+      .map((p) => p.expression as string)
+    if (!labels.length) return null
+    const counts: Record<string, number> = {}
+    for (const label of labels) counts[label] = (counts[label] ?? 0) + 1
+    return Object.fromEntries(
+      Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, n]) => [label, Math.round((n / labels.length) * 100)])
+    )
+  }
+
   /** Median of the session's first ten minutes, or null until enough samples exist. */
   private firstMinutesMedian(key: 'pulse' | 'breathing', start: number): number | null {
     const values = this.history
@@ -288,6 +311,8 @@ class VitalsTracker {
       present: v.present,
       // Readings the user switched off in Signals; their values stay empty on purpose.
       switchedOff: READINGS.filter((r) => !hub.settings[r.key]).map((r) => r.label),
+      // What Hearth is tracking right now, so a reading that is missing can be told from one that is off.
+      readingsOn: READINGS.filter((r) => hub.settings[r.key]).map((r) => r.label),
       sessionMinutes: v.sessionStartedAt ? Math.round((now - v.sessionStartedAt) / 60_000) : 0,
       minutesSinceLastBreak: v.sittingSince ? Math.round((now - v.sittingSince) / 60_000) : null,
       pulseBpm: round(v.pulse),
@@ -302,7 +327,27 @@ class VitalsTracker {
       pulseAvgPrev5min: round(this.average('pulse', 5 * 60_000, 5 * 60_000)),
       breathingAvg5min: round(this.average('breathing', 5 * 60_000)),
       pulseBaseline: round(this.baseline('pulse')),
-      breathingBaseline: round(this.baseline('breathing'))
+      breathingBaseline: round(this.baseline('breathing')),
+      // A rough estimate of the face's look, not of feelings; present only while the reading is on.
+      ...(hub.settings.measureExpressions
+        ? {
+            facialExpression: {
+              now:
+                now - this.updated.expression < EXPRESSION_STALE_MS
+                  ? (v.expression?.label ?? null)
+                  : null,
+              confidencePct: v.expression
+                ? Math.round(
+                    v.expression.confidence <= 1
+                      ? v.expression.confidence * 100
+                      : v.expression.confidence
+                  )
+                : null,
+              sharePctLast5min: this.expressionShares(5 * 60_000),
+              sharePctLastHour: this.expressionShares(HISTORY_MS)
+            }
+          }
+        : {})
     }
   }
 }

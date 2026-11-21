@@ -74,8 +74,8 @@ export function Privacy({ state }: { state: HearthState }): React.JSX.Element {
             <div>
               <div className="name">Measure facial expressions</div>
               <div className="help">
-                off by default; estimates stay on this computer and never go to the language model;
-                applies next start
+                off by default; estimated on this computer. When on, the language model gets the
+                label and a short summary, never the video; applies next start
               </div>
             </div>
             <Switch

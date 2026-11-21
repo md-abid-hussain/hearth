@@ -5,14 +5,14 @@
 ## SmartSpectra in the code
 
 - **Sensing.** The dashboard window runs a `SmartSpectraSDK` session from `@smartspectra/node-sdk/renderer` on 640x480 camera frames. It asks only for the readings switched on under **Signals > Readings**: pulse, breathing, HRV, blinks and talking, and facial expressions (off by default). At least one stays on; to stop the camera, stop sensing. The main process does the processing through `bindSmartSpectraIpc` ([`src/renderer/src/lib/sensing.ts`](../src/renderer/src/lib/sensing.ts)).
-- **Signals.** Metric packets go to [`src/main/vitals.ts`](../src/main/vitals.ts), which keeps the live snapshot, 5-minute averages, a baseline for the session and the history for the charts. Hearth uses a reading only once the SDK marks it stable. The face breathes at your measured breathing rate.
+- **Signals.** Metric packets go to [`src/main/vitals.ts`](../src/main/vitals.ts), which keeps the live snapshot, 5-minute averages, a baseline for the session and the history for the charts, which also holds the expression label when that reading is on. Hearth uses a reading only once the SDK marks it stable. The face breathes at your measured breathing rate.
 - **Away.** When no face has been in view for 10 seconds, sensing pauses. It resumes the same session at your next key press or mouse move.
 
 ## Presage Insights in the code
 
 - Insights arrive as protobuf `Insight` buffers. The Node SDK has no decoder for them, so Hearth decodes them with `protobufjs` using the schema from the SmartSpectra docs ([`src/main/insights.ts`](../src/main/insights.ts)).
 - The agent ([`src/main/agent.ts`](../src/main/agent.ts)) has three tools for them:
-  - `get_vitals` reads the live signals.
+  - `get_vitals` reads the live signals, which readings are on, and, when facial expressions are on, the current expression and how often each showed in the last 5 minutes and hour.
   - `recent_insights` reads the latest automatic insights.
   - `ask_presage_insight` sends your question to Presage through `sdk.requestInsight` and waits up to 30 seconds for the answer.
 - Each new insight is sent to the language model once, to be laid out as a headline, metrics and suggestions. The latest one is also included with each question you ask, and `recent_insights` can return up to five.

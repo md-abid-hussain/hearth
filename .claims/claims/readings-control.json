@@ -1,18 +1,25 @@
 {
   "id": "readings-control",
-  "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default and never go to the language model.",
+  "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default, estimated on the computer, and when on only the label and a short summary of recent labels (never video) go to the language model.",
   "keywords": [
     "readings",
     "at least one",
     "expressions",
     "switched on"
   ],
-  "rev": 1,
+  "rev": 2,
   "history": [
     {
       "rev": 1,
       "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default and never go to the language model.",
       "at": "2026-11-18T15:01:31.032Z"
+    },
+    {
+      "rev": 2,
+      "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default, estimated on the computer, and when on only the label and a short summary of recent labels (never video) go to the language model.",
+      "at": "2026-11-21T16:33:53.527Z",
+      "by": "user_request",
+      "why": "User: \"yeah do that so that agent track facial and other expression properly also like pass the switch value so it knows what is on\""
     }
   ],
   "mentions": [
@@ -20,19 +27,19 @@
       "id": "m1",
       "kind": "text",
       "path": "src/renderer/src/dashboard/pages/Signals.tsx",
-      "rev": 1,
-      "note": "Signals page",
+      "rev": 2,
       "anchor": "At least one stays on. The camera only asks for the ones switched on.",
-      "line": 101
+      "line": 101,
+      "note": "Signals page"
     },
     {
       "id": "m2",
       "kind": "text",
       "path": "docs/privacy.md",
-      "rev": 1,
-      "note": "privacy bullet, expressions",
-      "anchor": "If you turn them on, the SDK estimates them on this computer, and they are never sent to the language model.",
-      "line": 15
+      "rev": 2,
+      "anchor": "Video and images of your face are never sent.\n- **Facial expressions are off by default.** If you turn them on, the SDK estimates them on this computer. The language model then gets the current label (for example \"neutral\") and how often each label showed recently, never the video.",
+      "line": 14,
+      "note": "privacy bullet, expressions"
     }
   ],
   "next": 3

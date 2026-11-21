@@ -6,7 +6,7 @@ import { sensing } from '../lib/sensing'
 const POINTS: { title: string; sub: string; chip: string }[] = [
   {
     title: 'Video stays on this device',
-    sub: 'camera frames are processed locally by the SmartSpectra SDK, never stored or sent; facial expression estimates are off unless you turn them on in Privacy',
+    sub: 'camera frames are processed locally by the SmartSpectra SDK, never stored or sent; facial expressions are estimated only if you turn them on in Signals, and then only the label (such as “neutral”) goes to the language model',
     chip: 'local'
   },
   {

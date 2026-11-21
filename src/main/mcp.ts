@@ -265,7 +265,7 @@ export function gateTool(tool: ToolMeta, server: ServerConfig): GateVerdict {
 
 const NETWORK_RETRY_MS = 400
 /** Long enough for a slow search, short enough that a spoken answer is not left hanging. */
-const TOOL_TIMEOUT_MS = 30_000
+const TOOL_TIMEOUT_MS = 60_000
 /** A server that pages forever, or repeats a cursor, cannot stall a connection. */
 const MAX_TOOL_PAGES = 20
 
@@ -895,7 +895,7 @@ class McpManager {
                 undefined,
                 { signal: abortSignal, timeout: TOOL_TIMEOUT_MS }
               )
-              const body = JSON.stringify(result.content ?? result).slice(0, 8_000)
+              const body = JSON.stringify(result.content ?? result).slice(0, 10_000)
               if (result.isError) throw new Error(`${entry.status.name} returned an error: ${body}`)
               return body
             }

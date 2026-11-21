@@ -26,7 +26,7 @@ Everything else is blocked, including any tool the server marks destructive or n
 
 The Apps page lists each tool, with the reason it was allowed or blocked. In `mcp.json`, `allowTools` allows a tool that the gate blocks, and `requireReadOnlyHint: true` makes the gate stricter: only tools the server marks read-only get through.
 
-Tool calls time out after 30 seconds and stop when you interrupt Hearth. If a request fails before it reaches the server, Hearth tries once more. It never repeats a tool call that may have reached the server.
+Tool calls time out after 1 minute and stop when you interrupt Hearth. If a request fails before it reaches the server, Hearth tries once more. It never repeats a tool call that may have reached the server.
 
 ## Gmail, Calendar and Drive through Composio
 

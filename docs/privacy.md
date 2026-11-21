@@ -12,7 +12,7 @@ The consent check runs in all three of Hearth's parts: the dashboard, the widget
 
 - **Video stays on this computer.** The SmartSpectra SDK processes camera frames locally. Frames are never stored or sent.
 - **Derived numbers go to Presage.** While sensing runs, the SDK sends your pulse, HRV and breathing values to Presage about once a minute, so Presage's model can write a wellness insight. Any question you ask about your vitals goes along too. Video and images of your face are never sent.
-- **Facial expressions are off by default.** If you turn them on, the SDK estimates them on this computer, and they are never sent to the language model.
+- **Facial expressions are off by default.** If you turn them on, the SDK estimates them on this computer. The language model then gets the current label (for example "neutral") and how often each label showed recently, never the video.
 - **Your voice goes to AssemblyAI**, only while you hold the talk key or are in hands-free mode. AssemblyAI also voices Hearth's replies.
 - **Your words go to the language model.** It receives what you say or type, plus a short summary of your signals, memory and reminders, the latest Presage insight, and whatever Hearth reads from your apps to answer you.
 - **Presage insights go to the language model too.** Each new insight is sent once on its own, to be laid out as a card. The latest one is also included with each question you ask, and when you ask how you are doing, Hearth may look back at up to the last five.
