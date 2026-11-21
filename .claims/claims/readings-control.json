@@ -17,9 +17,7 @@
     {
       "rev": 2,
       "desc": "The user chooses which readings the camera takes and at least one stays on; facial expressions are off by default, estimated on the computer, and when on only the label and a short summary of recent labels (never video) go to the language model.",
-      "at": "2026-11-21T16:33:53.527Z",
-      "by": "user_request",
-      "why": "User: \"yeah do that so that agent track facial and other expression properly also like pass the switch value so it knows what is on\""
+      "at": "2026-11-21T16:33:53.527Z"
     }
   ],
   "mentions": [
@@ -40,7 +38,19 @@
       "anchor": "Video and images of your face are never sent.\n- **Facial expressions are off by default.** If you turn them on, the SDK estimates them on this computer. The language model then gets the current label (for example \"neutral\") and how often each label showed recently, never the video.",
       "line": 14,
       "note": "privacy bullet, expressions"
+    },
+    {
+      "id": "m3",
+      "kind": "url",
+      "path": "https://dev.to/md-abid-hussain/hearth-a-desk-companion-that-looks-after-you-kindly-3oed",
+      "rev": 0,
+      "note": "CONFLICT: The published post's Expressions row says they are never sent to the language model; the label and a short summary now are. | published DEV post, signals table",
+      "ack": {
+        "sig": "e4eb5b235304",
+        "note": "Published DEV post; the user replaces the Expressions row text in the DEV editor (corrected row in demo/DEV-POST.publish.md). Clear once they confirm.",
+        "at": "2026-11-21T17:13:20.976Z"
+      }
     }
   ],
-  "next": 3
+  "next": 4
 }
