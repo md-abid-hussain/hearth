@@ -1,20 +1,26 @@
 {
   "id": "llm-payload",
-  "desc": "The language model receives the user's words plus a short summary of signals, memory, reminders and the latest insight, and whatever Hearth reads from connected apps to answer them; expressions are never included.",
+  "desc": "The language model receives the user's words plus a short summary of signals, memory, reminders and the latest insight, and whatever Hearth reads from connected apps to answer them; when facial expressions are on, the current label and a short summary of recent labels go too, never the video.",
   "keywords": [
     "language model",
     "summary",
     "memory",
     "reminders",
     "llm provider",
-    "your words"
+    "your words",
+    "expressions"
   ],
-  "rev": 1,
+  "rev": 2,
   "history": [
     {
       "rev": 1,
       "desc": "The language model receives the user's words plus a short summary of signals, memory, reminders and the latest insight, and whatever Hearth reads from connected apps to answer them; expressions are never included.",
       "at": "2026-11-18T15:01:29.892Z"
+    },
+    {
+      "rev": 2,
+      "desc": "The language model receives the user's words plus a short summary of signals, memory, reminders and the latest insight, and whatever Hearth reads from connected apps to answer them; when facial expressions are on, the current label and a short summary of recent labels go too, never the video.",
+      "at": "2026-11-21T17:13:06.079Z"
     }
   ],
   "mentions": [
@@ -22,19 +28,19 @@
       "id": "m1",
       "kind": "text",
       "path": "docs/privacy.md",
-      "rev": 1,
-      "note": "privacy bullet",
+      "rev": 2,
       "anchor": "It receives what you say or type, plus a short summary of your signals, memory and reminders, the latest Presage insight, and whatever Hearth reads from your apps to answer you.",
-      "line": 17
+      "line": 17,
+      "note": "privacy bullet"
     },
     {
       "id": "m2",
       "kind": "text",
       "path": "src/renderer/src/dashboard/pages/Privacy.tsx",
-      "rev": 1,
-      "note": "Privacy page, words row",
-      "anchor": "plus a summary of signals, memory, reminders and the latest insight, and app content you ask about, sent to",
-      "line": 163
+      "rev": 2,
+      "anchor": "plus a summary of signals, memory, reminders and the latest insight, and app\n                  content you ask about, sent to",
+      "line": 167,
+      "note": "Privacy page, words row"
     },
     {
       "id": "m3",
@@ -43,9 +49,9 @@
       "rev": 0,
       "note": "CONFLICT: The published post doesn't say that text read from apps goes to the language model; paste the corrected apps row from demo/DEV-POST.publish.md. | published DEV post, consent table",
       "ack": {
-        "sig": "a38a9f56d27a",
-        "note": "Published DEV post; the user adds the apps-row sentence from demo/DEV-POST.publish.md in the DEV editor. Clear once they confirm.",
-        "at": "2026-11-18T15:06:26.384Z"
+        "sig": "e4eb5b235304",
+        "note": "Published DEV post; the user adds the apps-row sentence and replaces \"Expressions are never included.\" in the DEV editor (corrected rows in demo/DEV-POST.publish.md). Clear once they confirm.",
+        "at": "2026-11-21T17:13:06.095Z"
       }
     }
   ],

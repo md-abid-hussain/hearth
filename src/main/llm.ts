@@ -37,7 +37,7 @@ export function providerOptions(effort?: ReasoningEffort): ProviderOptions {
  * How long a background call may take, retries included. A call that hangs would otherwise keep
  * the observer busy, and every reminder waiting behind it.
  */
-export const BACKGROUND_TIMEOUT_MS = 15_000
+export const BACKGROUND_TIMEOUT_MS = 60_000
 
 /**
  * One-shot completion for background jobs (compaction, nudge phrasing), kept cheap and fast.

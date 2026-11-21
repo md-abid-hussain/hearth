@@ -17,7 +17,7 @@ export const READINGS = [
   {
     key: 'measureExpressions',
     label: 'Facial expressions',
-    help: 'off by default; estimates stay on this computer and never go to the language model'
+    help: 'off by default; estimated on this computer. When on, the language model gets the label and a short summary, never the video'
   }
 ] as const satisfies readonly { key: keyof Settings; label: string; help: string }[]
 

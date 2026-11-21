@@ -7,6 +7,8 @@ export interface VitalsPoint {
   hrv: number | null
   /** Blinks in the minute before t; null until a full minute has been measured. */
   blinks?: number | null
+  /** Most likely facial expression at t; null when expressions are off or none is current. */
+  expression?: string | null
 }
 
 export interface VitalsSnapshot {
@@ -22,8 +24,9 @@ export interface VitalsSnapshot {
   talking: boolean
   blinksPerMinute: number | null
   /**
-   * The most likely facial expression, only when Settings.measureExpressions is on. Kept for the
-   * orb and the dashboard; never sent to the language model.
+   * The most likely facial expression, only when Settings.measureExpressions is on. Drives the orb
+   * and the dashboard; the label (never frames) also goes to the language model, with a summary of
+   * recent labels, as a rough hint.
    */
   expression: { label: string; confidence: number } | null
   validationHint: string | null
